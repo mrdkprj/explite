@@ -1,0 +1,69 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "explite2",
+  "version": "0.1.0",
+  "identifier": "com.explite2.app",
+  "build": {
+    "beforeDevCommand": "yarn dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "yarn build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "",
+        "label": "View",
+        "minHeight":400,
+        "minWidth":400,
+        "fullscreen": false,
+        "resizable": true,
+        "maximizable":true,
+        "minimizable":true,
+        "closable":true,
+        "focus":true,
+        "visible":false,
+        "decorations":false,
+        "skipTaskbar":false,
+        "transparent":false,
+        "theme": "Light",
+        "dragDropEnabled":false,
+        "shadow":true,
+        "url":"src/view/index.html",
+        "additionalBrowserArgs":"--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --enable-features=msWebView2BrowserHitTransparent"
+      }
+    ],
+    "security": {
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "**"
+        ]
+      },
+      "csp": {
+        "default-src": "'self' customprotocol: asset:",
+        "connect-src": "ipc: http://ipc.localhost",
+        "img-src": "'self' asset: http://asset.localhost blob: data:",
+        "media-src":"'self' asset: http://asset.localhost",
+        "style-src": "'unsafe-inline' 'self'"
+      }
+    },
+    "trayIcon": {
+      "iconPath": "icons/icon.ico",
+      "showMenuOnLeftClick": true
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "nsis",
+    "icon": [
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico"
+      }
+    }
+  }
+}

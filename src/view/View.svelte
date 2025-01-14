@@ -1,0 +1,1145 @@
+<script lang="ts">
+    import { onMount, tick } from "svelte";
+    import { appState, dispatch } from "./appStateReducer";
+    import { listState } from "./listStateReducer";
+    import editor from "./editor";
+    import Bar from "./Bar.svelte";
+    import Header from "./Header.svelte";
+    import Left from "./Left.svelte";
+    import FileSvg from "../svg/FileSvg.svelte";
+    import FolderSvg from "../svg/FolderSvg.svelte";
+    import VirtualList from "./VirtualList.svelte";
+    import Home from "./Home.svelte";
+    import Column from "./Column.svelte";
+    import { BROWSER_SHORTCUT_KEYS, DEFAULT_SORT_TYPE, HOME, handleKeyEvent } from "../constants";
+    import { IPC } from "../ipc";
+    import main from "../main";
+    import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+    import util from "../util";
+
+    let fileListContainer = $state<HTMLDivElement>();
+    let virtualList = $state<VirtualList<Mp.MediaFile>>();
+    let header: Header;
+    let searchInterval = 0;
+    let visibleStartIndex = $state(0);
+    let visibleEndIndex = $state(0);
+    let ignoreChange = false;
+
+    const ipc = new IPC("View");
+    const HEADER_DIVIDER_WIDTh = 10;
+
+    const DATE_OPTION: Intl.DateTimeFormatOptions = { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "numeric", second: "numeric" };
+    const back: string[] = [];
+    const forward: string[] = [];
+
+    const onListContextMenu = (e: MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if ($appState.currentDir.fullPath != "Home") {
+            main.openListContextMenu({ x: e.screenX, y: e.screenY });
+        }
+    };
+
+    const onWindowSizeChanged = async () => {
+        const isMaximized = await WebviewWindow.getCurrent().isMaximized();
+        dispatch({ type: "isMaximized", value: isMaximized });
+    };
+
+    const onSelect = (e: MouseEvent) => {
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+
+        if (e.target.classList.contains("nofocus")) return;
+
+        const id = e.target.getAttribute("data-file-id");
+
+        if (!id) {
+            dispatch({ type: "reset" });
+            return;
+        }
+
+        const file = $listState.files.find((file) => file.id == id);
+
+        if (file) {
+            requestLoad(file.fullPath, file.isFile, "Direct");
+        } else {
+            dispatch({ type: "reset" });
+        }
+    };
+
+    const goBack = () => {
+        if ($appState.search.searching) {
+            return endSearch();
+        }
+        const fullPath = back.pop();
+        if (!fullPath) return;
+        requestLoad(fullPath, false, "Back");
+    };
+
+    const goForward = () => {
+        if ($appState.search.searching) {
+            return endSearch();
+        }
+        const fullPath = forward.pop();
+        if (!fullPath) return;
+        requestLoad(fullPath, false, "Forward");
+    };
+
+    const endSearch = () => {
+        if ($appState.search.searching) {
+            dispatch({ type: "endSearch" });
+            const result = main.onSearchEnd();
+            resumeWatch();
+            onSearched(result);
+        }
+    };
+
+    const requestLoad = async (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => {
+        if (fullPath != $appState.currentDir.fullPath) {
+            const result = await main.onSelect({ fullPath, isFile, navigation }, false);
+            if (result) {
+                load(result);
+            }
+        } else {
+            endSearch();
+        }
+    };
+
+    /* list */
+    const clearSelection = () => {
+        dispatch({ type: "clearSelection" });
+    };
+
+    const getChildIndex = (id: string | null | undefined) => {
+        return $listState.files.findIndex((file) => file.id == id);
+    };
+
+    const scrollToElement = async (id: string) => {
+        if (!fileListContainer || !virtualList) return;
+
+        await tick();
+        const element = document.getElementById(id);
+
+        if (!element) {
+            const index = $listState.files.findIndex((file) => file.id == id);
+            if (index <= visibleStartIndex) {
+                await virtualList.scrollToIndex(index, { behavior: "instant" }, false);
+            } else {
+                await virtualList.scrollToIndex(index, { behavior: "instant" }, true);
+            }
+            return;
+        }
+
+        const rect = element.getBoundingClientRect();
+        const containerRect = fileListContainer.getBoundingClientRect();
+        const containerTop = containerRect.top + 30;
+        if (rect.top <= containerTop) {
+            fileListContainer.scrollBy(0, rect.top - containerTop);
+        }
+
+        if (rect.bottom > containerRect.bottom) {
+            element.scrollIntoView(false);
+        }
+    };
+
+    const onColSliderMousedown = (e: MouseEvent, key: Mp.SortKey) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dispatch({ type: "startSlide", value: { target: key, startX: e.clientX } });
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+        if (!fileListContainer) return;
+
+        if ($appState.slideState.sliding) {
+            const dist = e.clientX - $appState.slideState.startX;
+            dispatch({ type: "slide", value: dist });
+        }
+
+        if ($appState.clip.clipping) {
+            dispatch({ type: "moveClip", value: { x: e.clientX - fileListContainer.parentElement!.offsetLeft, y: e.clientY - fileListContainer.parentElement!.offsetTop } });
+        }
+    };
+
+    const onMouseUp = (e: MouseEvent) => {
+        if ($appState.slideState.sliding) {
+            const dist = e.clientX - $appState.slideState.startX;
+            dispatch({ type: "slide", value: dist });
+            dispatch({ type: "endSlide" });
+            main.onWidthChange({ leftWidth: $appState.leftWidth, labels: $appState.headerLabels });
+        }
+    };
+
+    const onItemMouseDown = (e: MouseEvent) => {
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+        if (e.button != 2 && e.target.classList.contains("nofocus")) {
+            const key = (e.target.getAttribute("data-sort-key") as Mp.SortKey) ?? "name";
+
+            const asc = $appState.sort.key == key ? !$appState.sort.asc : true;
+            const type: Mp.SortType = {
+                key,
+                asc,
+            };
+            dispatch({ type: "sort", value: type });
+            const result = main.onSortRequest({ files: $listState.files, type });
+            onSorted(result);
+            return;
+        }
+
+        toggleSelect(e, true);
+    };
+
+    const onItemMouseUp = (e: MouseEvent) => {
+        toggleSelect(e, false);
+    };
+
+    const toggleSelect = (e: MouseEvent, mousedown: boolean) => {
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+        if (!fileListContainer) return;
+
+        if (!mousedown && $appState.clip.clipping) {
+            dispatch({ type: "endClip" });
+            return;
+        }
+
+        const id = e.target.getAttribute("data-file-id");
+
+        if (!id) {
+            dispatch({ type: "clearSelection", value: true });
+            if (mousedown && e.button != 2) {
+                dispatch({
+                    type: "startClip",
+                    value: { position: { startX: e.clientX - fileListContainer.parentElement!.offsetLeft, startY: e.clientY - fileListContainer.parentElement!.offsetTop } },
+                });
+            }
+            return;
+        }
+
+        /* Toggle selection of already selected items only on mosueup */
+        if (mousedown && $appState.selection.selectedIds.includes(id)) {
+            return;
+        }
+
+        /* Prevent right mouseup to toggle selection*/
+        if (e.button == 2 && $appState.selection.selectedIds.includes(id)) return;
+
+        if (e.ctrlKey) {
+            selectByCtrl(id);
+            return;
+        }
+
+        if (e.shiftKey) {
+            selectByShift(id);
+            return;
+        }
+
+        selectByClick(id);
+    };
+
+    const select = async (id: string) => {
+        clearSelection();
+
+        dispatch({ type: "updateSelection", value: { selectedId: id, selectedIds: [id] } });
+
+        await scrollToElement(id);
+    };
+
+    const selectByClick = (id: string) => {
+        select(id);
+    };
+
+    const selectByShift = (id: string) => {
+        dispatch({ type: "setSelectedIds", value: [] });
+
+        const range = [];
+
+        if ($appState.selection.selectedId) {
+            range.push(getChildIndex($appState.selection.selectedId));
+        } else {
+            range.push(0);
+        }
+
+        range.push(getChildIndex(id));
+
+        range.sort((a, b) => a - b);
+
+        const ids: string[] = [];
+        for (let i = range[0]; i <= range[1]; i++) {
+            ids.push($listState.files[i].id);
+        }
+
+        dispatch({ type: "setSelectedIds", value: ids });
+    };
+
+    const selectByCtrl = (id: string) => {
+        if (!$appState.selection.selectedId) {
+            selectByClick(id);
+            return;
+        }
+
+        dispatch({ type: "appendSelectedIds", value: [id] });
+    };
+
+    const selectAll = () => {
+        clearSelection();
+
+        const ids = $listState.files.map((file) => file.id);
+
+        dispatch({ type: "appendSelectedIds", value: ids });
+    };
+
+    const moveSelectionByShit = (key: string) => {
+        if (!$appState.selection.selectedIds.length) {
+            select($listState.files[0].id);
+        }
+
+        const downward = $appState.selection.selectedId == $appState.selection.selectedIds[0];
+
+        const currentId = downward ? $appState.selection.selectedIds[$appState.selection.selectedIds.length - 1] : $appState.selection.selectedIds[0];
+        const currentIndex = getChildIndex(currentId);
+        const nextId = key === "ArrowDown" ? $listState.files[currentIndex + 1]?.id : $listState.files[currentIndex - 1]?.id;
+
+        if (!nextId) return;
+
+        return selectByShift(nextId);
+    };
+
+    const moveSelection = (e: KeyboardEvent) => {
+        if (!$listState.files.length) return;
+
+        if (e.shiftKey) {
+            return moveSelectionByShit(e.key);
+        }
+
+        const currentId = $appState.selection.selectedId ? $appState.selection.selectedId : $listState.files[0].id;
+        const currentIndex = getChildIndex(currentId);
+        const nextId = e.key === "ArrowDown" ? $listState.files[currentIndex + 1]?.id : $listState.files[currentIndex - 1]?.id;
+
+        if (!nextId) return;
+
+        clearSelection();
+        select(nextId);
+    };
+
+    const selectUpto = (e: KeyboardEvent) => {
+        if (!$listState.files.length) return;
+        if (e.key == HOME) {
+            select($listState.files[0].id);
+        } else {
+            select($listState.files[$listState.files.length - 1].id);
+        }
+    };
+
+    const moveSelectionUpto = (e: KeyboardEvent) => {
+        if (!$listState.files.length) return;
+
+        e.preventDefault();
+
+        const targetId = e.key === HOME ? $listState.files[0].id : $listState.files[$listState.files.length - 1].id;
+
+        if (!targetId) return;
+
+        selectByShift(targetId);
+        scrollToElement(targetId);
+    };
+
+    /* rename */
+    const startEditFileName = () => {
+        const file = $listState.files.find((file) => file.id == $appState.selection.selectedId);
+
+        if (!file) return;
+
+        const selectedElement = document.getElementById(file.encName);
+
+        if (!selectedElement) return;
+
+        const fileName = selectedElement.textContent ?? "";
+
+        const rect = selectedElement.getBoundingClientRect();
+
+        editor.begin(file.id, fileName, $listState.files[$listState.files.length - 1].isFile);
+
+        dispatch({
+            type: "startRename",
+            value: {
+                rect: {
+                    top: rect.top - 2,
+                    left: rect.left - 2,
+                    width: rect.width,
+                    height: rect.height,
+                    origWidth: rect.width,
+                },
+                inputValue: fileName,
+            },
+        });
+
+        dispatch({ type: "preventBlur", value: false });
+    };
+
+    const endRename = () => {
+        dispatch({ type: "endRename" });
+    };
+
+    const endEditFileName = () => {
+        if (!$listState.rename.renaming) return;
+
+        if (editor.data.name === $listState.rename.inputValue) {
+            endRename();
+        } else {
+            editor.update($listState.rename.inputValue);
+            requestRename();
+        }
+    };
+
+    const requestRename = async () => {
+        dispatch({ type: "preventBlur", value: true });
+        suspendWatch();
+        const result = await main.renameItem({ data: editor.data });
+        resumeWatch();
+        onRename(result);
+        if (!result.error) {
+            const result = main.sortFile();
+            onSorted(result);
+        }
+    };
+
+    const onRename = (data: Mp.RenameResult) => {
+        if (data.error) {
+            editor.rollback();
+            select(editor.data.id);
+        } else {
+            editor.end();
+            dispatch({ type: "rename", value: editor.data });
+        }
+
+        endRename();
+    };
+
+    const undoRename = () => {
+        if (!editor.canUndo()) return;
+
+        editor.undo();
+
+        select(editor.data.id);
+
+        requestRename();
+    };
+
+    const redoRename = () => {
+        if (!editor.canRedo()) return;
+
+        editor.redo();
+
+        select(editor.data.id);
+
+        requestRename();
+    };
+
+    const setFocusAndSelect = (node: HTMLInputElement) => {
+        node.focus();
+        node.setSelectionRange(0, node.value.lastIndexOf("."));
+    };
+
+    const onRenameInputKeyDown = (e: KeyboardEvent) => {
+        if (!e.target || !(e.target instanceof HTMLInputElement)) return;
+
+        if ($listState.rename.renaming) {
+            if (e.key === "Enter") {
+                e.stopPropagation();
+                e.preventDefault();
+                endEditFileName();
+                return;
+            }
+
+            if (e.key == "z" && e.ctrlKey) {
+                dispatch({ type: "changeInputWidth", value: { target: "Rename", width: $listState.rename.rect.origWidth } });
+            } else if (e.key && e.key.length == 1 && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+                dispatch({ type: "changeInputWidth", value: { target: "Rename", width: e.target.scrollWidth } });
+            }
+        }
+    };
+
+    const createItem = async () => {
+        if (!$listState.newItem) return;
+
+        const item = $listState.files[$listState.files.length - 1];
+        item.dir = $appState.currentDir.fullPath;
+        item.name = $listState.newItem.inputValue;
+        dispatch({ type: "preventBlur", value: true });
+        dispatch({ type: "hideNewItem" });
+
+        suspendWatch();
+        const result = await main.createItem({ file: item });
+        resumeWatch();
+        onNewItemCreated(result);
+    };
+
+    const onNewItemInputKeyDown = (e: KeyboardEvent) => {
+        if (!e.target || !(e.target instanceof HTMLInputElement)) return;
+
+        if (e.key == "Enter") {
+            e.preventDefault();
+            e.stopPropagation();
+            createItem();
+            return;
+        }
+
+        if (e.key == "z" && e.ctrlKey) {
+            dispatch({ type: "changeInputWidth", value: { target: "NewItem", width: $listState.newItem.rect.origWidth } });
+        } else if (e.key && e.key.length == 1 && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+            dispatch({ type: "changeInputWidth", value: { target: "NewItem", width: e.target.scrollWidth } });
+        }
+    };
+
+    const onNewItemCreated = async (e: Mp.CreateItemResult) => {
+        dispatch({ type: "updateFiles", value: { files: e.files, reload: false } });
+
+        if (e.success) {
+            await tick();
+            select(e.newItemId);
+        }
+    };
+
+    const trashItem = async () => {
+        if (!$appState.selection.selectedIds.length) return;
+        const files = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+        suspendWatch();
+        const result = await main.trashItems({ files });
+        resumeWatch();
+        if (result) {
+            load(result);
+        }
+    };
+
+    const writeFullPathToClipboard = async () => {
+        if (!$appState.selection.selectedIds.length) return;
+        const fullPaths = $listState.files
+            .filter((file) => $appState.selection.selectedIds.includes(file.id))
+            .map((file) => file.fullPath)
+            .join("\r\n");
+        await main.writeFullpathToClipboard(fullPaths);
+    };
+
+    const markCopyCut = async (copy: boolean) => {
+        const files = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+        dispatch({ type: "copyCut", value: { operation: copy ? "Copy" : "Cut", ids: $appState.selection.selectedIds, files } });
+        await main.writeClipboard({ files, operation: copy ? "Copy" : "Move" });
+    };
+
+    const paste = async (useSelectedTarget: boolean) => {
+        if (!$appState.copyCutTargets.ids.length) return;
+
+        let dir = $appState.currentDir.fullPath;
+
+        if (useSelectedTarget && $appState.selection.selectedIds.length == 1) {
+            const targetItem = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+            if (!targetItem) return;
+            if (!targetItem.isFile) {
+                dir = targetItem.fullPath;
+            }
+        }
+
+        const files = $appState.copyCutTargets.files;
+        await moveItesm(files, dir, $appState.copyCutTargets.op == "Copy");
+    };
+
+    const moveItesm = async (files: Mp.MediaFile[], dir: string, copy: boolean) => {
+        suspendWatch();
+        const result = await main.moveItems({ files, dir, copy });
+        resumeWatch();
+        onPasteEnd(result);
+    };
+
+    const onPasteEnd = async (e: Mp.MoveItemResult) => {
+        dispatch({ type: "clearCopyCut" });
+        if (e.done) {
+            clearSelection();
+            dispatch({ type: "updateFiles", value: { files: e.files, reload: true } });
+
+            if (e.movedItems) {
+                await tick();
+                const ids = e.movedItems.map((file) => file.id);
+                dispatch({ type: "appendSelectedIds", value: ids });
+            }
+        }
+    };
+
+    const sendRemovingFavorite = () => {
+        if ($appState.hoverFavoriteId) {
+            const result = main.removeFavorite($appState.hoverFavoriteId);
+            onFavoriteChanged(result);
+            dispatch({ type: "hoverFavoriteId", value: "" });
+        }
+    };
+
+    const clipMouseEnter = (e: MouseEvent) => {
+        if (!$appState.clip.clipping) return;
+
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+
+        const id = e.target.getAttribute("data-file-id");
+        if (id && !$appState.selection.selectedIds.includes(id)) {
+            dispatch({ type: "appendSelectedIds", value: [id] });
+        }
+    };
+
+    const clipMouseLeave = (e: MouseEvent) => {
+        if (!$appState.clip.clipping) return;
+
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+        if (!e.relatedTarget || !(e.relatedTarget instanceof HTMLElement)) return;
+
+        if (e.relatedTarget.classList.contains("nofocus")) return;
+
+        const id = e.target.getAttribute("data-file-id");
+        const enterId = e.relatedTarget.getAttribute("data-file-id");
+        if (id && !enterId) {
+            clearSelection();
+            return;
+        }
+
+        if (enterId && $appState.selection.selectedIds.includes(enterId)) {
+            const ids = $appState.selection.selectedIds.filter((sid) => sid != id);
+            dispatch({ type: "replaceSelectedIds", value: ids });
+        }
+    };
+
+    const onItemDrop = async (e: DragEvent) => {
+        e.preventDefault();
+        dispatch({ type: "dragLeave" });
+
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+
+        const id = e.target.getAttribute("data-file-id");
+        if (!id) return;
+
+        const target = $listState.files.find((file) => file.id == id);
+        if (!target) return;
+
+        if (target.isFile) return;
+
+        const files = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+
+        await moveItesm(files, target.fullPath, false);
+    };
+
+    const reload = async () => {
+        const result = await main.reload();
+        load(result);
+    };
+
+    const onkeydown = async (e: KeyboardEvent) => {
+        if (e.ctrlKey && BROWSER_SHORTCUT_KEYS.includes(e.key)) {
+            e.preventDefault();
+        }
+
+        if (e.key == "F3" || e.key == "F5") {
+            e.preventDefault();
+        }
+
+        if ($listState.rename.renaming) return;
+        if ($appState.pathEditing) return;
+        if (header.hasSearchInputFocus()) return;
+        if ($listState.newItem.visible) return;
+
+        if (e.ctrlKey && e.key == "f") {
+            e.preventDefault();
+            header.searchInputFocus();
+            return;
+        }
+
+        if (e.key == "Enter") {
+            if ($appState.selection.selectedIds.length == 1) {
+                const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                if (file) {
+                    e.preventDefault();
+                    requestLoad(file.fullPath, file.isFile, "Direct");
+                }
+                return;
+            }
+        }
+
+        if (e.key == "F2") {
+            startEditFileName();
+            return;
+        }
+
+        if (e.key == "F5") {
+            e.preventDefault();
+            reload();
+            return;
+        }
+
+        if (e.ctrlKey && e.key === "a") {
+            e.preventDefault();
+            return selectAll();
+        }
+
+        if (e.ctrlKey && e.key === "z") {
+            e.preventDefault();
+            return undoRename();
+        }
+
+        if (e.ctrlKey && e.key === "y") {
+            e.preventDefault();
+            return redoRename();
+        }
+
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+            e.preventDefault();
+            return moveSelection(e);
+        }
+
+        if (e.altKey && e.key == "ArrowLeft") {
+            e.preventDefault();
+            goBack();
+            return;
+        }
+
+        if (e.altKey && e.key == "ArrowRight") {
+            e.preventDefault();
+            goForward();
+            return;
+        }
+
+        if (e.key === "Home" || e.key === "End") {
+            e.preventDefault();
+            if (e.shiftKey) {
+                return moveSelectionUpto(e);
+            } else {
+                return selectUpto(e);
+            }
+        }
+
+        if (e.ctrlKey && e.key == "c") {
+            e.preventDefault();
+            return markCopyCut(true);
+        }
+
+        if (e.ctrlKey && e.key == "x") {
+            e.preventDefault();
+            return markCopyCut(false);
+        }
+
+        if (e.ctrlKey && e.key == "v") {
+            e.preventDefault();
+            if ($appState.copyCutTargets.ids.length) {
+                return paste(false);
+            } else {
+                const result = await main.onPaste();
+                if (result) {
+                    onPasteEnd(result);
+                }
+                return;
+            }
+        }
+
+        if (e.key == "Delete") {
+            e.preventDefault();
+            return trashItem();
+        }
+
+        if (e.key == "Escape") {
+            e.preventDefault();
+            dispatch({ type: "clearCopyCut" });
+            return;
+        }
+
+        if (e.key.length == 1 && $listState.files.length) {
+            if (searchInterval) {
+                window.clearTimeout(searchInterval);
+            }
+            incrementalSearch(e.key);
+            searchInterval = window.setTimeout(() => {
+                dispatch({ type: "clearIncremental" });
+            }, 300);
+
+            return;
+        }
+
+        if (e.ctrlKey || e.shiftKey || e.altKey || e.key.length > 1) {
+            e.preventDefault();
+        }
+    };
+
+    const searchNext = (key: string) => {
+        if ($appState.selection.selectedIds.length) {
+            const selectedId = $appState.selection.selectedIds[0];
+            const current = $listState.files.findIndex((file) => file.id == selectedId);
+            const indexes: number[] = [];
+            $listState.files.forEach((file, index) => {
+                if (file.name.toLowerCase().startsWith(key) && file.id != selectedId) {
+                    indexes.push(index);
+                }
+            });
+
+            if (!indexes.length) {
+                return null;
+            }
+
+            const next = indexes.filter((i) => i > current);
+            if (next.length) {
+                return $listState.files[next[0]];
+            } else {
+                return $listState.files[indexes[0]];
+            }
+        } else {
+            return $listState.files.find((file) => file.name.toLowerCase().startsWith(key));
+        }
+    };
+
+    const incrementalSearch = (key: string) => {
+        let file;
+        let incrementalKey = $appState.incrementalKey;
+        if (!$appState.incrementalKey) {
+            incrementalKey = key.toLowerCase();
+            file = searchNext(incrementalKey);
+        } else {
+            const value = $appState.incrementalKey == key ? "" : key;
+            incrementalKey = ($appState.incrementalKey + value).toLowerCase();
+
+            if (incrementalKey != $appState.incrementalKey) {
+                file = $listState.files.find((file) => file.name.toLowerCase().startsWith(incrementalKey));
+            } else {
+                file = searchNext(incrementalKey);
+            }
+        }
+
+        if (file) {
+            dispatch({ type: "incremental", value: incrementalKey });
+            select(file.id);
+        }
+    };
+
+    const onSorted = async (e: Mp.SortResult) => {
+        dispatch({ type: "updateFiles", value: { files: e.files, reload: false } });
+
+        if ($appState.selection.selectedIds.length) {
+            await tick();
+            select($appState.selection.selectedIds[0]);
+        }
+    };
+
+    const onSearched = (e: Mp.SearchResult) => {
+        dispatch({ type: "updateFiles", value: { files: e.files, reload: false } });
+    };
+
+    const onFavoriteChanged = (e: Mp.MediaFile[]) => {
+        dispatch({ type: "changeFavorites", value: e });
+    };
+
+    const startDarg = async (e: DragEvent) => {
+        if (!$appState.selection.selectedIds.length) return;
+        e.preventDefault();
+        const paths = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id)).map((file) => file.fullPath);
+        await main.startDrag(paths);
+    };
+
+    const onDragEnter = (e: DragEvent) => {
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+        const id = e.target.getAttribute("data-file-id") ?? "";
+        const file = $listState.files.find((file) => file.id === id);
+        if (file) {
+            dispatch({ type: "dragEnter", value: id });
+        } else {
+            dispatch({ type: "dragLeave" });
+        }
+    };
+
+    const load = (e: Mp.LoadEvent) => {
+        if (e.disks) {
+            dispatch({ type: "init", value: { files: e.files, disks: e.disks, directory: e.directory } });
+        }
+
+        if (e.failed) {
+            if (e.navigation == "Back") {
+                back.push(e.directory);
+            }
+
+            if (e.navigation == "Forward") {
+                forward.push(e.directory);
+            }
+
+            return;
+        }
+
+        if (e.navigation == "Reload") {
+            dispatch({ type: "updateFiles", value: { files: e.files, reload: true } });
+            return;
+        }
+
+        if (e.navigation == "Back") {
+            forward.push($appState.currentDir.fullPath);
+        }
+
+        if (e.navigation == "Forward") {
+            back.push($appState.currentDir.fullPath);
+        }
+
+        if (e.navigation == "Direct" && !e.disks) {
+            dispatch({ type: "endSearch" });
+            forward.pop();
+            back.push($appState.currentDir.fullPath);
+        }
+
+        dispatch({ type: "history", value: { canUndo: back.length > 0, canRedo: forward.length > 0 } });
+        dispatch({ type: "sort", value: e.sortType });
+        dispatch({ type: "load", value: e });
+    };
+
+    const handleContextMenuEvent = async (e: keyof Mp.MainContextMenuSubTypeMap | keyof Mp.FavContextMenuSubTypeMap) => {
+        switch (e) {
+            case "Open": {
+                const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                if (!file) return;
+                const result = await main.onSelect({ fullPath: file.fullPath, isFile: file.isFile, navigation: "Direct" }, true);
+                if (result) {
+                    load(result);
+                }
+                break;
+            }
+
+            case "OpenWith": {
+                const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                if (!file || !file.isFile) return;
+                await main.openFileWith(file.fullPath);
+                break;
+            }
+
+            case "Copy": {
+                await markCopyCut(true);
+                break;
+            }
+
+            case "Cut": {
+                await markCopyCut(false);
+                break;
+            }
+
+            case "Delete": {
+                await trashItem();
+                break;
+            }
+
+            case "Paste": {
+                paste(true);
+                break;
+            }
+
+            case "CopyFullpath": {
+                await writeFullPathToClipboard();
+                break;
+            }
+
+            case "Property": {
+                if ($appState.hoverFavoriteId) {
+                    await main.openPropertyDielog($appState.hoverFavoriteId);
+                    dispatch({ type: "hoverFavoriteId", value: "" });
+                } else {
+                    const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                    if (!file) return;
+                    await main.openPropertyDielog(file);
+                }
+
+                break;
+            }
+
+            case "AddToFavorite": {
+                const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                if (!file) return;
+
+                if (!file.isFile) {
+                    const favorites = main.addFavorite(file);
+                    onFavoriteChanged(favorites);
+                }
+                break;
+            }
+
+            case "AllowExecute":
+                main.toggleAllowExecute();
+                break;
+
+            case "Settings":
+                await main.openConfigFileJson();
+                break;
+
+            case "RemoveFromFavorite": {
+                sendRemovingFavorite();
+                break;
+            }
+        }
+    };
+
+    const suspendWatch = () => {
+        ignoreChange = true;
+    };
+
+    const resumeWatch = () => {
+        window.setTimeout(() => {
+            ignoreChange = false;
+        }, 500);
+    };
+
+    const onWatchEvent = async () => {
+        if (ignoreChange) return;
+
+        await reload();
+    };
+
+    const prepare = async () => {
+        const e = await main.onMainReady();
+        dispatch({ type: "headerLabels", value: e.settings.headerLabels });
+        dispatch({ type: "leftWidth", value: e.settings.leftAreaWidth });
+        dispatch({ type: "sort", value: DEFAULT_SORT_TYPE });
+        dispatch({ type: "changeFavorites", value: e.settings.favorites });
+        load(e.data);
+        await tick();
+        const window = WebviewWindow.getCurrent();
+        await window.setSize(util.toPhysicalSize(e.settings.bounds));
+        await window.setPosition(util.toPhysicalPosition(e.settings.bounds));
+        await window.show();
+    };
+
+    onMount(() => {
+        prepare();
+        ipc.receiveTauri("tauri://resize", onWindowSizeChanged);
+        ipc.receive("contextmenu_event", handleContextMenuEvent);
+        ipc.receive("watch_event", onWatchEvent);
+
+        return () => {
+            ipc.release();
+        };
+    });
+</script>
+
+<svelte:window oncontextmenu={(e) => e.preventDefault()} />
+<svelte:document {onkeydown} onmousemove={onMouseMove} onmouseup={onMouseUp} ondragover={(e) => e.preventDefault()} />
+
+<div class="viewport" class:full-screen={$appState.isFullScreen} class:sliding={$appState.slideState.sliding}>
+    <Bar />
+    <div class="view">
+        <Header {requestLoad} {onSearched} {endSearch} {goBack} {goForward} {select} {reload} {suspendWatch} bind:this={header} />
+        <div class="body" ondragover={(e) => e.preventDefault()} ondrop={onItemDrop} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+            <Left {requestLoad} />
+            <div
+                class="main"
+                class:clipping={$appState.clip.clipping}
+                onmousedown={onItemMouseDown}
+                onmouseup={onItemMouseUp}
+                onmousemove={onMouseMove}
+                ondblclick={onSelect}
+                oncontextmenu={onListContextMenu}
+                onkeydown={handleKeyEvent}
+                onscroll={endEditFileName}
+                ondragstart={startDarg}
+                role="button"
+                tabindex="-1"
+            >
+                {#if $appState.clip.clipping}
+                    <div class="clip-area" style={$appState.clip.clipAreaStyle}></div>
+                {/if}
+
+                {#if $listState.rename.renaming}
+                    <input
+                        type="text"
+                        class="input rename"
+                        style="top:{$listState.rename.rect.top}px; left:{$listState.rename.rect.left}px; width:{$listState.rename.rect.width}px; height:{$listState.rename.rect.height}px"
+                        spellCheck="false"
+                        onblur={$appState.preventBlur ? undefined : endEditFileName}
+                        onkeydown={onRenameInputKeyDown}
+                        bind:value={$listState.rename.inputValue}
+                        use:setFocusAndSelect
+                    />
+                {/if}
+                {#if $listState.newItem.visible}
+                    <input
+                        type="text"
+                        class="input newitem"
+                        style="top:{$listState.newItem.rect.top}px; left:{$listState.newItem.rect.left}px; width:{$listState.newItem.rect.width}px; height:{$listState.newItem.rect.height}px"
+                        spellCheck="false"
+                        onblur={$appState.preventBlur ? undefined : createItem}
+                        onkeydown={onNewItemInputKeyDown}
+                        bind:value={$listState.newItem.inputValue}
+                        use:setFocusAndSelect
+                    />
+                {/if}
+
+                {#if $appState.currentDir.fullPath == HOME}
+                    <Home {requestLoad} />
+                {:else}
+                    <VirtualList
+                        items={$listState.files}
+                        bind:this={virtualList}
+                        bind:viewport={fileListContainer}
+                        bind:start={visibleStartIndex}
+                        bind:end={visibleEndIndex}
+                        itemHeight={30}
+                        headerHeight={30}
+                    >
+                        {#snippet header()}
+                            <div class="list-header nofocus">
+                                {#if $appState.search.searching}
+                                    {#each Object.values($appState.headerLabels) as label}
+                                        <Column {onColSliderMousedown} {label} />
+                                    {/each}
+                                {:else}
+                                    {#each Object.values($appState.headerLabels) as label}
+                                        {#if label.sortKey != "directory"}
+                                            <Column {onColSliderMousedown} {label} />
+                                        {/if}
+                                    {/each}
+                                {/if}
+                            </div>
+                        {/snippet}
+                        {#snippet item(item)}
+                            <div
+                                class="row"
+                                draggable="true"
+                                class:highlight={$appState.selection.selectedIds.includes(item.id)}
+                                class:cut={$appState.copyCutTargets.ids.includes(item.id) && $appState.copyCutTargets.op == "Cut"}
+                                class:drag-highlight={!item.isFile && $appState.dragTargetId == item.id}
+                                ondragenter={onDragEnter}
+                                onmouseover={clipMouseEnter}
+                                onmouseout={clipMouseLeave}
+                                onfocus={handleKeyEvent}
+                                onblur={handleKeyEvent}
+                                data-file-id={item.id}
+                                role="button"
+                                tabindex="-1"
+                            >
+                                <div class="col-detail" data-file-id={item.id} id={item.id} style="width: {$appState.headerLabels.name.width}px;">
+                                    <div class="entry-name" title={$appState.search.searching ? item.fullPath : ""} data-file-id={item.id}>
+                                        <div class="icon">
+                                            {#if item.isFile}
+                                                <FileSvg />
+                                            {:else}
+                                                <FolderSvg />
+                                            {/if}
+                                        </div>
+                                        <div class="name" id={item.encName}>{item.name}</div>
+                                    </div>
+                                </div>
+                                {#if $appState.search.searching}
+                                    <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.directory.width + HEADER_DIVIDER_WIDTh}px;">{item.dir}</div>
+                                {/if}
+                                <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.extension.width + HEADER_DIVIDER_WIDTh}px;">{item.extension}</div>
+                                <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.mdate.width + HEADER_DIVIDER_WIDTh}px;">
+                                    {new Date(item.mdate).toLocaleString("ja-JP", DATE_OPTION)}
+                                </div>
+                                <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.cdate.width + HEADER_DIVIDER_WIDTh}px;">
+                                    {new Date(item.cdate).toLocaleString("jp-JP", DATE_OPTION)}
+                                </div>
+                                <div class="col-detail size" data-file-id={item.id} style="width: {$appState.headerLabels.size.width + HEADER_DIVIDER_WIDTh}px;">
+                                    {item.size > 0 || (item.size == 0 && item.isFile)
+                                        ? `${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingMode: "ceil" }).format(item.size)} KB`
+                                        : ""}
+                                </div>
+                            </div>
+                        {/snippet}
+                        {#snippet empty()}{/snippet}
+                    </VirtualList>
+                {/if}
+            </div>
+        </div>
+    </div>
+</div>
