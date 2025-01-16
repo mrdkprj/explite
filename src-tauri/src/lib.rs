@@ -66,6 +66,11 @@ fn get_file_attribute(payload: String) -> Result<FileAttribute, String> {
 }
 
 #[tauri::command]
+fn get_mime_type(payload: String) -> Result<String, String> {
+    fs::get_mime_type(payload)
+}
+
+#[tauri::command]
 fn trash_item(payload: String) -> Result<(), String> {
     shell::trash(payload)
 }
@@ -201,6 +206,7 @@ pub fn run() {
             list_volumes,
             start_drag,
             get_file_attribute,
+            get_mime_type,
             trash_item,
             copy_file,
             mv,

@@ -833,9 +833,9 @@
         dispatch({ type: "changeFavorites", value: e });
     };
 
-    const startDarg = async (e: DragEvent) => {
+    const startDarg = async (_e: DragEvent) => {
         if (!$appState.selection.selectedIds.length) return;
-        e.preventDefault();
+
         const paths = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id)).map((file) => file.fullPath);
         await main.startDrag(paths);
     };
