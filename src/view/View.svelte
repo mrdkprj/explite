@@ -149,12 +149,13 @@
 
     const onMouseMove = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
-        if (!fileListContainer) return;
 
         if ($appState.slideState.sliding) {
             const dist = e.clientX - $appState.slideState.startX;
             dispatch({ type: "slide", value: dist });
         }
+
+        if (!fileListContainer) return;
 
         if ($appState.clip.clipping) {
             dispatch({ type: "moveClip", value: { x: e.clientX - fileListContainer.parentElement!.offsetLeft, y: e.clientY - fileListContainer.parentElement!.offsetTop } });
@@ -1026,7 +1027,6 @@
                 class:clipping={$appState.clip.clipping}
                 onmousedown={onItemMouseDown}
                 onmouseup={onItemMouseUp}
-                onmousemove={onMouseMove}
                 ondblclick={onSelect}
                 oncontextmenu={onListContextMenu}
                 onkeydown={handleKeyEvent}

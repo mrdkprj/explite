@@ -15,18 +15,18 @@ fn exists(payload: String) -> bool {
 }
 
 #[tauri::command]
-fn open_path(window: WebviewWindow, payload: String) {
-    shell::open_path(get_window_handel(&window), payload).unwrap();
+fn open_path(window: WebviewWindow, payload: String) -> Result<(), String> {
+    shell::open_path(get_window_handel(&window), payload)
 }
 
 #[tauri::command]
-fn open_path_with(window: WebviewWindow, payload: String) {
-    shell::open_path_with(get_window_handel(&window), payload).unwrap();
+fn open_path_with(window: WebviewWindow, payload: String) -> Result<(), String> {
+    shell::open_path_with(get_window_handel(&window), payload)
 }
 
 #[tauri::command]
-fn open_property_dielog(window: WebviewWindow, payload: String) {
-    shell::open_file_property(get_window_handel(&window), payload).unwrap();
+fn open_property_dielog(window: WebviewWindow, payload: String) -> Result<(), String> {
+    shell::open_file_property(get_window_handel(&window), payload)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,7 +37,7 @@ struct ReadDirRequest {
 
 #[tauri::command]
 fn readdir(payload: ReadDirRequest) -> Vec<Dirent> {
-    fs::readdir(payload.directory, payload.recursive).unwrap_or_default()
+    fs::readdir(payload.directory, payload.recursive, true).unwrap_or_default()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,8 +46,8 @@ struct RenameInfo {
     old: String,
 }
 #[tauri::command]
-fn rename(payload: RenameInfo) -> bool {
-    std::fs::rename(payload.old, payload.new).is_ok()
+fn rename(payload: RenameInfo) -> Result<(), String> {
+    std::fs::rename(payload.old, payload.new).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -56,18 +56,18 @@ fn list_volumes() -> Vec<Volume> {
 }
 
 #[tauri::command]
-fn start_drag(payload: Vec<String>) {
-    drag_drop::start_drag(payload, Operation::Copy).unwrap();
+fn start_drag(payload: Vec<String>) -> Result<(), String> {
+    drag_drop::start_drag(payload, Operation::Copy)
 }
 
 #[tauri::command]
-fn get_file_attribute(payload: String) -> FileAttribute {
-    fs::get_file_attribute(&payload).unwrap()
+fn get_file_attribute(payload: String) -> Result<FileAttribute, String> {
+    fs::get_file_attributes(&payload)
 }
 
 #[tauri::command]
-fn trash_item(payload: String) {
-    shell::trash(payload).unwrap()
+fn trash_item(payload: String) -> Result<(), String> {
+    shell::trash(payload)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,13 +76,13 @@ struct CopyInfo {
     to: String,
 }
 #[tauri::command]
-fn copy_file(payload: CopyInfo) {
-    std::fs::copy(payload.from, payload.to).unwrap();
+fn copy_file(payload: CopyInfo) -> Result<u64, String> {
+    std::fs::copy(payload.from, payload.to).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn mv(payload: CopyInfo) {
-    fs::mv(payload.from, payload.to, None, None).unwrap();
+fn mv(payload: CopyInfo) -> Result<(), String> {
+    fs::mv(payload.from, payload.to, None, None)
 }
 
 #[tauri::command]
@@ -91,13 +91,13 @@ fn is_uris_available() -> bool {
 }
 
 #[tauri::command]
-fn read_uris(window: WebviewWindow) -> ClipboardData {
-    clipboard::read_uris(get_window_handel(&window)).unwrap()
+fn read_uris(window: WebviewWindow) -> Result<ClipboardData, String> {
+    clipboard::read_uris(get_window_handel(&window))
 }
 
 #[tauri::command]
-fn read_text(window: WebviewWindow) -> String {
-    clipboard::read_text(get_window_handel(&window)).unwrap()
+fn read_text(window: WebviewWindow) -> Result<String, String> {
+    clipboard::read_text(get_window_handel(&window))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -108,38 +108,40 @@ struct WriteUriInfo {
 }
 
 #[tauri::command]
-fn write_uris(window: WebviewWindow, payload: WriteUriInfo) {
+fn write_uris(window: WebviewWindow, payload: WriteUriInfo) -> Result<(), String> {
     clipboard::write_uris(
         get_window_handel(&window),
         &payload.fullPaths,
         payload.operation,
     )
-    .unwrap();
 }
 
 #[tauri::command]
-fn write_text(window: WebviewWindow, payload: String) {
-    clipboard::write_text(get_window_handel(&window), payload).unwrap();
+fn write_text(window: WebviewWindow, payload: String) -> Result<(), String> {
+    clipboard::write_text(get_window_handel(&window), payload)
 }
 
 #[tauri::command]
-fn mkdir(payload: String) {
-    std::fs::create_dir(payload).unwrap();
+fn mkdir(payload: String) -> Result<(), String> {
+    std::fs::create_dir(payload).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn mkdir_all(payload: String) {
-    std::fs::create_dir_all(payload).unwrap();
+fn mkdir_all(payload: String) -> Result<(), String> {
+    std::fs::create_dir_all(payload).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn create(payload: String) {
-    std::fs::File::create(payload).unwrap();
+fn create(payload: String) -> Result<(), String> {
+    match std::fs::File::create(payload) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 #[tauri::command]
-fn read_text_file(payload: String) -> String {
-    std::fs::read_to_string(payload).unwrap()
+fn read_text_file(payload: String) -> Result<String, String> {
+    std::fs::read_to_string(payload).map_err(|e| e.to_string())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -150,8 +152,8 @@ struct WriteFileInfo {
 }
 
 #[tauri::command]
-fn write_text_file(payload: WriteFileInfo) {
-    std::fs::write(payload.fullPath, payload.data).unwrap();
+fn write_text_file(payload: WriteFileInfo) -> Result<(), String> {
+    std::fs::write(payload.fullPath, payload.data).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

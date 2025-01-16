@@ -2156,6 +2156,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 
 [[package]]
+name = "mime_guess"
+version = "2.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7c44f8e672c00fe5308fa235f821cb4198414e1c77935c1ab6948d3fd78550e"
+dependencies = [
+ "mime",
+ "unicase",
+]
+
+[[package]]
 name = "miniz_oxide"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2255,10 +2265,11 @@ checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
 [[package]]
 name = "nonstd"
 version = "0.1.0"
-source = "git+https://github.com/mrdkprj/movefile.git?rev=91a2b50118d7a99b8018b5fd6b0deed550ece642#91a2b50118d7a99b8018b5fd6b0deed550ece642"
+source = "git+https://github.com/mrdkprj/movefile.git?rev=d3a7a53c147837be49f7c9b6136a017153caf9ed#d3a7a53c147837be49f7c9b6136a017153caf9ed"
 dependencies = [
  "gio",
  "gtk",
+ "mime_guess",
  "once_cell",
  "serde",
  "windows",
@@ -4328,6 +4339,12 @@ checksum = "96bd2f2237fe450fcd0a1d2f5f4e91711124f7857ba2e964247776ebeeb7b0c4"
 dependencies = [
  "unic-common",
 ]
+
+[[package]]
+name = "unicase"
+version = "2.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75b844d17643ee918803943289730bec8aac480150456169e647ed0b576ba539"
 
 [[package]]
 name = "unicode-ident"

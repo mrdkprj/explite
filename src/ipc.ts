@@ -41,6 +41,7 @@ export type Dirent = {
     name: string;
     parent_path: string;
     full_path: string;
+    mime_type: string;
     attributes: FileAttribute;
 };
 
