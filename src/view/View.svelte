@@ -7,6 +7,10 @@
     import Header from "./Header.svelte";
     import Left from "./Left.svelte";
     import FileSvg from "../svg/FileSvg.svelte";
+    import ImageSvg from "../svg/ImageSvg.svelte";
+    import VideoSvg from "../svg/VideoSvg.svelte";
+    import AudioSvg from "../svg/AudioSvg.svelte";
+    import AppSvg from "../svg/AppSvg.svelte";
     import FolderSvg from "../svg/FolderSvg.svelte";
     import VirtualList from "./VirtualList.svelte";
     import Home from "./Home.svelte";
@@ -1111,7 +1115,17 @@
                                     <div class="entry-name" title={$appState.search.searching ? item.fullPath : ""} data-file-id={item.id}>
                                         <div class="icon">
                                             {#if item.isFile}
-                                                <FileSvg />
+                                                {#if item.fileType == "Audio"}
+                                                    <AudioSvg />
+                                                {:else if item.fileType == "Video"}
+                                                    <VideoSvg />
+                                                {:else if item.fileType == "Image"}
+                                                    <ImageSvg />
+                                                {:else if item.fileType == "App"}
+                                                    <AppSvg />
+                                                {:else}
+                                                    <FileSvg />
+                                                {/if}
                                             {:else}
                                                 <FolderSvg />
                                             {/if}

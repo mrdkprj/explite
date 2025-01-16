@@ -1,6 +1,7 @@
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
 import { Dirent, IPC } from "./ipc";
 import { path } from "./path";
+import { MIME_TYPE } from "./constants";
 
 const ipc = new IPC("View");
 
@@ -29,6 +30,27 @@ class Util {
         return hash;
     }
 
+    getFileType(mimeType: string): Mp.FileType {
+        const lower = mimeType.toLowerCase();
+        if (lower.includes(MIME_TYPE.Audio)) {
+            return "Audio";
+        }
+
+        if (lower.includes(MIME_TYPE.Video)) {
+            return "Video";
+        }
+
+        if (lower.includes(MIME_TYPE.Image)) {
+            return "Image";
+        }
+
+        if (lower.includes(MIME_TYPE.App)) {
+            return "App";
+        }
+
+        return "Normal";
+    }
+
     toFile(dirent: Dirent): Mp.MediaFile {
         const fullPath = dirent.full_path;
         const attr = dirent.attributes;
@@ -45,12 +67,13 @@ class Util {
             size: Math.ceil(attr.size / 1000),
             extension: attr.is_directory ? "ファイルフォルダー" : path.extname(fullPath),
             isFile: attr.is_file,
+            fileType: attr.is_directory ? "None" : this.getFileType(dirent.mime_type),
         };
     }
 
     async toFileFromPath(fullPath: string): Promise<Mp.MediaFile> {
         const attr = await ipc.invoke("get_file_attribute", fullPath);
-
+        const mimeType = attr.is_directory ? "" : await ipc.invoke("get_mime_type", fullPath);
         const encodedPath = path.join(path.dirname(fullPath), encodeURIComponent(path.basename(fullPath)));
 
         return {
@@ -64,6 +87,7 @@ class Util {
             size: Math.ceil(attr.size / 1000),
             extension: attr.is_directory ? "ファイルフォルダー" : path.extname(fullPath),
             isFile: attr.is_file,
+            fileType: attr.is_directory ? "None" : this.getFileType(mimeType),
         };
     }
 
@@ -81,6 +105,7 @@ class Util {
             size: currentFile.size,
             extension: currentFile.isFile ? path.extname(fullPath) : "ファイルフォルダー",
             isFile: currentFile.isFile,
+            fileType: currentFile.fileType,
         };
     }
 

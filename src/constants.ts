@@ -43,3 +43,10 @@ export const DEFAULT_LABLES: Mp.HeaderLabels = {
         sortKey: "size",
     },
 };
+
+export const MIME_TYPE = {
+    Audio: "audio",
+    Video: "video",
+    Image: "image",
+    App: "application",
+};

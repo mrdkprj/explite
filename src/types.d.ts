@@ -98,6 +98,7 @@ declare global {
             type: Mp.SortType;
         };
 
+        type FileType = "Video" | "Audio" | "Image" | "App" | "Normal" | "None";
         type MediaFile = {
             id: string;
             fullPath: string;
@@ -109,6 +110,7 @@ declare global {
             size: number;
             extension: string;
             isFile: boolean;
+            fileType: FileType;
         };
 
         type LoadEvent = {
