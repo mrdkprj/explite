@@ -19,9 +19,10 @@ type FileAttribute = {
     is_read_only: boolean;
     is_symbolic_link: boolean;
     is_system: boolean;
-    atime: number;
-    ctime: number;
-    mtime: number;
+    atime_ms: number;
+    ctime_ms: number;
+    mtime_ms: number;
+    birthtime_ms: number;
     size: number;
 };
 

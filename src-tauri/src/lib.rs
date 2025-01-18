@@ -62,7 +62,7 @@ fn start_drag(payload: Vec<String>) -> Result<(), String> {
 
 #[tauri::command]
 fn get_file_attribute(payload: String) -> Result<FileAttribute, String> {
-    fs::get_file_attributes(&payload)
+    fs::get_file_attribute(&payload)
 }
 
 #[tauri::command]
