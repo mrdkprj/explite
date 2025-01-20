@@ -37,21 +37,20 @@
 
 <style>
     .container {
-        display: grid;
-        grid-template-columns: 300px 300px 300px;
+        display: flex;
         padding: 25px 25px;
         row-gap: 10px;
-        column-gap: 10px;
+        flex-wrap: wrap;
     }
     .ldisk {
         display: flex;
         flex-direction: row;
         align-items: center;
-        justify-content: center;
         justify-content: start;
         font-size: 13px;
         font-family: var(--font);
         cursor: pointer;
+        min-width: 280px;
     }
     .ldisk:hover {
         background-color: rgb(230 230 255 / 80%);

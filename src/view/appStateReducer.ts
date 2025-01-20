@@ -77,7 +77,7 @@ export const initialAppState: AppState = {
     preventBlur: false,
     selection: { selectedId: "", selectedIds: [] },
     favorites: [],
-    leftWidth: 0,
+    leftWidth: 250,
     slideState: {
         target: "Area",
         initial: 0,

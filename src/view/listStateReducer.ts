@@ -4,13 +4,14 @@ const EMPTY_FILE: Mp.MediaFile = {
     id: "tempid",
     fullPath: "",
     encName: "temp-name-id",
-    name: "新しいファイル",
+    name: "新しいファイル.txt",
     mdate: 0,
     cdate: 0,
     size: 0,
-    extension: "",
+    extension: ".txt",
     dir: "",
     isFile: true,
+    fileType: "Normal",
 };
 
 const EMPTY_FOLDER: Mp.MediaFile = {
@@ -24,6 +25,7 @@ const EMPTY_FOLDER: Mp.MediaFile = {
     extension: "",
     dir: "",
     isFile: false,
+    fileType: "None",
 };
 
 type RenameState = {
