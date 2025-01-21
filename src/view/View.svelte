@@ -88,15 +88,6 @@
         requestLoad(fullPath, false, "Forward");
     };
 
-    const endSearch = () => {
-        if ($appState.search.searching) {
-            dispatch({ type: "endSearch" });
-            const result = main.onSearchEnd();
-            resumeWatch();
-            onSearched(result);
-        }
-    };
-
     const requestLoad = async (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => {
         if (fullPath != $appState.currentDir.fullPath) {
             const result = await main.onSelect({ fullPath, isFile, navigation }, false);
@@ -633,140 +624,6 @@
         load(result);
     };
 
-    const onkeydown = async (e: KeyboardEvent) => {
-        if (e.ctrlKey && BROWSER_SHORTCUT_KEYS.includes(e.key)) {
-            e.preventDefault();
-        }
-
-        if (e.key == "F3" || e.key == "F5") {
-            e.preventDefault();
-        }
-
-        if ($listState.rename.renaming) return;
-        if ($appState.pathEditing) return;
-        if (header.hasSearchInputFocus()) return;
-        if ($listState.newItem.visible) return;
-
-        if (e.ctrlKey && e.key == "f") {
-            e.preventDefault();
-            header.searchInputFocus();
-            return;
-        }
-
-        if (e.key == "Enter") {
-            if ($appState.selection.selectedIds.length == 1) {
-                const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
-                if (file) {
-                    e.preventDefault();
-                    requestLoad(file.fullPath, file.isFile, "Direct");
-                }
-                return;
-            }
-        }
-
-        if (e.key == "F2") {
-            startEditFileName();
-            return;
-        }
-
-        if (e.key == "F5") {
-            e.preventDefault();
-            reload();
-            return;
-        }
-
-        if (e.ctrlKey && e.key === "a") {
-            e.preventDefault();
-            return selectAll();
-        }
-
-        if (e.ctrlKey && e.key === "z") {
-            e.preventDefault();
-            return undoRename();
-        }
-
-        if (e.ctrlKey && e.key === "y") {
-            e.preventDefault();
-            return redoRename();
-        }
-
-        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-            e.preventDefault();
-            return moveSelection(e);
-        }
-
-        if (e.altKey && e.key == "ArrowLeft") {
-            e.preventDefault();
-            goBack();
-            return;
-        }
-
-        if (e.altKey && e.key == "ArrowRight") {
-            e.preventDefault();
-            goForward();
-            return;
-        }
-
-        if (e.key === "Home" || e.key === "End") {
-            e.preventDefault();
-            if (e.shiftKey) {
-                return moveSelectionUpto(e);
-            } else {
-                return selectUpto(e);
-            }
-        }
-
-        if (e.ctrlKey && e.key == "c") {
-            e.preventDefault();
-            return markCopyCut(true);
-        }
-
-        if (e.ctrlKey && e.key == "x") {
-            e.preventDefault();
-            return markCopyCut(false);
-        }
-
-        if (e.ctrlKey && e.key == "v") {
-            e.preventDefault();
-            if ($appState.copyCutTargets.ids.length) {
-                return paste(false);
-            } else {
-                const result = await main.onPaste();
-                if (result) {
-                    onPasteEnd(result);
-                }
-                return;
-            }
-        }
-
-        if (e.key == "Delete") {
-            e.preventDefault();
-            return trashItem();
-        }
-
-        if (e.key == "Escape") {
-            e.preventDefault();
-            dispatch({ type: "clearCopyCut" });
-            return;
-        }
-
-        if (e.key.length == 1 && $listState.files.length) {
-            if (searchInterval) {
-                window.clearTimeout(searchInterval);
-            }
-            incrementalSearch(e.key);
-            searchInterval = window.setTimeout(() => {
-                dispatch({ type: "clearIncremental" });
-            }, 300);
-
-            return;
-        }
-
-        if (e.ctrlKey || e.shiftKey || e.altKey || e.key.length > 1) {
-            e.preventDefault();
-        }
-    };
-
     const searchNext = (key: string) => {
         if ($appState.selection.selectedIds.length) {
             const selectedId = $appState.selection.selectedIds[0];
@@ -793,6 +650,15 @@
         }
     };
 
+    const endSearch = () => {
+        if ($appState.search.searching) {
+            dispatch({ type: "endSearch" });
+            const result = main.onSearchEnd();
+            resumeWatch();
+            onSearched(result);
+        }
+    };
+
     const incrementalSearch = (key: string) => {
         let file;
         let incrementalKey = $appState.incrementalKey;
@@ -814,6 +680,29 @@
             dispatch({ type: "incremental", value: incrementalKey });
             select(file.id);
         }
+    };
+
+    const searchHighlight = (nodes: HTMLElement[]) => {
+        if (!$appState.search.key) return;
+
+        const searchTextHighlight = new Highlight();
+
+        Array.from(nodes).forEach((node) => {
+            const nameNode = node.childNodes[0].childNodes[0].childNodes[0].childNodes[2];
+            const text = nameNode.textContent;
+
+            if (text) {
+                const start = text.toLocaleLowerCase().indexOf($appState.search.key.toLocaleLowerCase());
+                const end = $appState.search.key.length;
+
+                const range = new Range();
+                range.setStart(nameNode.childNodes[0], start);
+                range.setEnd(nameNode.childNodes[0], start + end);
+                searchTextHighlight.add(range);
+            }
+        });
+
+        CSS.highlights.set("searched", searchTextHighlight);
     };
 
     const onSorted = async (e: Mp.SortResult) => {
@@ -976,6 +865,140 @@
         }
     };
 
+    const onkeydown = async (e: KeyboardEvent) => {
+        if (e.ctrlKey && BROWSER_SHORTCUT_KEYS.includes(e.key)) {
+            e.preventDefault();
+        }
+
+        if (e.key == "F3" || e.key == "F5") {
+            e.preventDefault();
+        }
+
+        if ($listState.rename.renaming) return;
+        if ($appState.pathEditing) return;
+        if (header.hasSearchInputFocus()) return;
+        if ($listState.newItem.visible) return;
+
+        if (e.ctrlKey && e.key == "f") {
+            e.preventDefault();
+            header.searchInputFocus();
+            return;
+        }
+
+        if (e.key == "Enter") {
+            if ($appState.selection.selectedIds.length == 1) {
+                const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                if (file) {
+                    e.preventDefault();
+                    requestLoad(file.fullPath, file.isFile, "Direct");
+                }
+                return;
+            }
+        }
+
+        if (e.key == "F2") {
+            startEditFileName();
+            return;
+        }
+
+        if (e.key == "F5") {
+            e.preventDefault();
+            reload();
+            return;
+        }
+
+        if (e.ctrlKey && e.key === "a") {
+            e.preventDefault();
+            return selectAll();
+        }
+
+        if (e.ctrlKey && e.key === "z") {
+            e.preventDefault();
+            return undoRename();
+        }
+
+        if (e.ctrlKey && e.key === "y") {
+            e.preventDefault();
+            return redoRename();
+        }
+
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+            e.preventDefault();
+            return moveSelection(e);
+        }
+
+        if (e.altKey && e.key == "ArrowLeft") {
+            e.preventDefault();
+            goBack();
+            return;
+        }
+
+        if (e.altKey && e.key == "ArrowRight") {
+            e.preventDefault();
+            goForward();
+            return;
+        }
+
+        if (e.key === "Home" || e.key === "End") {
+            e.preventDefault();
+            if (e.shiftKey) {
+                return moveSelectionUpto(e);
+            } else {
+                return selectUpto(e);
+            }
+        }
+
+        if (e.ctrlKey && e.key == "c") {
+            e.preventDefault();
+            return markCopyCut(true);
+        }
+
+        if (e.ctrlKey && e.key == "x") {
+            e.preventDefault();
+            return markCopyCut(false);
+        }
+
+        if (e.ctrlKey && e.key == "v") {
+            e.preventDefault();
+            if ($appState.copyCutTargets.ids.length) {
+                return paste(false);
+            } else {
+                const result = await main.onPaste();
+                if (result) {
+                    onPasteEnd(result);
+                }
+                return;
+            }
+        }
+
+        if (e.key == "Delete") {
+            e.preventDefault();
+            return trashItem();
+        }
+
+        if (e.key == "Escape") {
+            e.preventDefault();
+            dispatch({ type: "clearCopyCut" });
+            return;
+        }
+
+        if (e.key.length == 1 && $listState.files.length) {
+            if (searchInterval) {
+                window.clearTimeout(searchInterval);
+            }
+            incrementalSearch(e.key);
+            searchInterval = window.setTimeout(() => {
+                dispatch({ type: "clearIncremental" });
+            }, 300);
+
+            return;
+        }
+
+        if (e.ctrlKey || e.shiftKey || e.altKey || e.key.length > 1) {
+            e.preventDefault();
+        }
+    };
+
     const suspendWatch = () => {
         ignoreChange = true;
     };
@@ -1080,6 +1103,7 @@
                         bind:end={visibleEndIndex}
                         itemHeight={30}
                         headerHeight={30}
+                        onRefresh={searchHighlight}
                     >
                         {#snippet header()}
                             <div class="list-header nofocus">
@@ -1103,6 +1127,7 @@
                                 class:highlight={$appState.selection.selectedIds.includes(item.id)}
                                 class:cut={$appState.copyCutTargets.ids.includes(item.id) && $appState.copyCutTargets.op == "Cut"}
                                 class:drag-highlight={!item.isFile && $appState.dragTargetId == item.id}
+                                class:searched={$appState.search.searching}
                                 ondragenter={onDragEnter}
                                 onmouseover={clipMouseEnter}
                                 onmouseout={clipMouseLeave}
@@ -1113,7 +1138,7 @@
                                 tabindex="-1"
                             >
                                 <div class="col-detail" data-file-id={item.id} id={item.id} style="width: {$appState.headerLabels.name.width}px;">
-                                    <div class="entry-name" title={$appState.search.searching ? item.fullPath : ""} data-file-id={item.id}>
+                                    <div class="entry-name" title={$appState.search.searching ? item.fullPath : item.name} data-file-id={item.id}>
                                         <div class="icon">
                                             {#if item.isFile}
                                                 {#if item.fileType == "Audio"}

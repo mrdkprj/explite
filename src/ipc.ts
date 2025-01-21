@@ -82,7 +82,7 @@ type TauriCommandMap = {
     rename: TauriCommand<RenameInfo, boolean>;
     list_volumes: TauriCommand<undefined, Volume[]>;
     start_drag: TauriCommand<string[], undefined>;
-    get_file_attribute: TauriCommand<string, FileAttribute>;
+    stat: TauriCommand<string, FileAttribute>;
     get_mime_type: TauriCommand<string, string>;
     trash_item: TauriCommand<string, undefined>;
     copy_file: TauriCommand<CopyInfo, undefined>;

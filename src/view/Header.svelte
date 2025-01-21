@@ -41,6 +41,11 @@
             e.stopPropagation();
             onSearchInput();
         }
+
+        if (e.key == "Escape") {
+            searchInput.blur();
+            endSearch();
+        }
     };
 
     const onSearchInput = () => {

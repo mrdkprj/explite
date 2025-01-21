@@ -72,7 +72,7 @@ class Util {
     }
 
     async toFileFromPath(fullPath: string): Promise<Mp.MediaFile> {
-        const attr = await ipc.invoke("get_file_attribute", fullPath);
+        const attr = await ipc.invoke("stat", fullPath);
         const mimeType = attr.is_directory ? "" : await ipc.invoke("get_mime_type", fullPath);
         const encodedPath = path.join(path.dirname(fullPath), encodeURIComponent(path.basename(fullPath)));
 

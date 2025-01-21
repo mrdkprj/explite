@@ -15,6 +15,7 @@
         start = $bindable(0),
         end = $bindable(0),
         viewport = $bindable<HTMLDivElement>(),
+        onRefresh = undefined,
     }: {
         items: T[];
         item: Snippet<[T]>;
@@ -26,10 +27,11 @@
         start: number;
         end: number;
         viewport: HTMLDivElement | undefined;
+        onRefresh?: ((nodes: HTMLElement[]) => void) | undefined;
     } = $props();
 
     let height_map: number[] = [];
-    let rows: any;
+    let rows: HTMLElement[];
     let contents: any;
     let average_height: number;
     let scrollPromise: Deferred<boolean> | null;
@@ -86,6 +88,10 @@
 
         bottom = remaining * average_height;
         height_map.length = items.length;
+
+        if (rows.length && onRefresh) {
+            onRefresh(rows);
+        }
     }
 
     async function handle_scroll() {

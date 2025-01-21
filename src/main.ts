@@ -154,22 +154,26 @@ class Main {
             this.unfilteredFiles = [...this.files];
         }
 
-        const key = e.key.toLowerCase();
+        const key = e.key.toLocaleLowerCase();
         if (e.dir in this.searchCache) {
-            const filetedFiles = await Promise.all(
-                this.searchCache[e.dir].filter((fullPath) => path.basename(fullPath).toLowerCase().startsWith(key)).map(async (fullPath) => await util.toFileFromPath(fullPath))
-            );
+            const filetedFiles = await Promise.all(this.searchCache[e.dir].filter((fullPath) => this.found(path.basename(fullPath), key)).map(async (fullPath) => await util.toFileFromPath(fullPath)));
             return { files: filetedFiles };
         }
 
         const allDirents = await ipc.invoke("readdir", { directory: e.dir, recursive: true });
         this.searchCache[e.dir] = allDirents.filter((direcnt) => !direcnt.attributes.is_system).map((dirent) => path.join(dirent.parent_path, dirent.name));
         this.files.length = 0;
-        const filetedFiles = await Promise.all(
-            this.searchCache[e.dir].filter((fullPath) => path.basename(fullPath).toLowerCase().startsWith(key)).map(async (fullPath) => await util.toFileFromPath(fullPath))
-        );
+        const filetedFiles = await Promise.all(this.searchCache[e.dir].filter((fullPath) => this.found(path.basename(fullPath), key)).map(async (fullPath) => await util.toFileFromPath(fullPath)));
         filetedFiles.forEach((file) => this.files.push(file));
         return { files: filetedFiles };
+    };
+
+    private found = (value: string, key: string) => {
+        if (value.includes(" ") || value.includes("　")) {
+            return value.toLocaleLowerCase().includes(key);
+        }
+
+        return value.toLocaleLowerCase().startsWith(key);
     };
 
     onSearchEnd = (): Mp.SearchResult => {

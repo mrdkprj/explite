@@ -61,8 +61,8 @@ fn start_drag(payload: Vec<String>) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn get_file_attribute(payload: String) -> Result<FileAttribute, String> {
-    fs::get_file_attribute(&payload)
+fn stat(payload: String) -> Result<FileAttribute, String> {
+    fs::stat(&payload)
 }
 
 #[tauri::command]
@@ -205,7 +205,7 @@ pub fn run() {
             rename,
             list_volumes,
             start_drag,
-            get_file_attribute,
+            stat,
             get_mime_type,
             trash_item,
             copy_file,
