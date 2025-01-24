@@ -990,6 +990,7 @@ name = "explite"
 version = "0.1.0"
 dependencies = [
  "async-std",
+ "gtk",
  "nonstd",
  "notify",
  "once_cell",

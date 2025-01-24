@@ -5,6 +5,12 @@ use tauri::WebviewWindow;
 mod menu;
 mod watcher;
 
+#[cfg(target_os = "linux")]
+fn get_window_handel(_window: &WebviewWindow) -> isize {
+    0
+}
+
+#[cfg(target_os = "windows")]
 fn get_window_handel(window: &WebviewWindow) -> isize {
     window.hwnd().unwrap().0 as _
 }
@@ -67,7 +73,7 @@ fn list_volumes() -> Vec<Volume> {
 
 #[tauri::command]
 fn start_drag(payload: Vec<String>) -> Result<(), String> {
-    drag_drop::start_drag(payload, Operation::Copy)
+    drag_drop::start_drag(0, payload, Operation::Copy)
 }
 
 #[tauri::command]
@@ -185,18 +191,42 @@ struct ContextMenuArg {
 }
 #[tauri::command]
 async fn open_list_context_menu(window: WebviewWindow, payload: ContextMenuArg) {
-    menu::popup_menu(
-        &window,
-        menu::LIST,
-        payload.position,
-        Some(payload.full_path),
-    )
-    .await;
+    #[cfg(target_os = "windows")]
+    {
+        menu::popup_menu(
+            &window,
+            menu::LIST,
+            payload.position,
+            Some(payload.full_path),
+        )
+        .await;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        gtk::glib::spawn_future_local(async move {
+            menu::popup_menu(
+                &window,
+                menu::LIST,
+                payload.position,
+                Some(payload.full_path),
+            )
+            .await;
+        });
+    }
 }
 
 #[tauri::command]
 async fn open_fav_context_menu(window: WebviewWindow, payload: menu::Position) {
-    menu::popup_menu(&window, menu::FAV, payload, None).await;
+    #[cfg(target_os = "windows")]
+    {
+        menu::popup_menu(&window, menu::FAV, payload, None).await;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        gtk::glib::spawn_future_local(async move {
+            menu::popup_menu(&window, menu::FAV, payload, None).await;
+        });
+    }
 }
 
 #[tauri::command]
