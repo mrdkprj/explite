@@ -2265,7 +2265,7 @@ checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
 [[package]]
 name = "nonstd"
 version = "0.1.0"
-source = "git+https://github.com/mrdkprj/nonstd.git?rev=c73b2c93e8de5ee24d1e6fa48fba369fd06053cb#c73b2c93e8de5ee24d1e6fa48fba369fd06053cb"
+source = "git+https://github.com/mrdkprj/nonstd.git?rev=677ccbbc137d859abc0a11f19b61e70451b2894e#677ccbbc137d859abc0a11f19b61e70451b2894e"
 dependencies = [
  "gio",
  "gtk",

@@ -55,8 +55,12 @@ class Main {
         }
     };
 
-    openFileWith = async (fullPath: string) => {
-        await ipc.invoke("open_path_with", fullPath);
+    openFileWith = async (fullPath: string, appPath: string) => {
+        await ipc.invoke("open_path_with", { full_path: fullPath, app_path: appPath });
+    };
+
+    showAppSelector = async (fullPath: string) => {
+        await ipc.invoke("show_app_selector", fullPath);
     };
 
     private openFolder = async (fullPath: string, navigation: Mp.Navigation): Promise<Mp.LoadEvent | null> => {
@@ -264,8 +268,8 @@ class Main {
         await view.close();
     };
 
-    openListContextMenu = async (e: Mp.Position) => {
-        await ipc.invoke("open_list_context_menu", e);
+    openListContextMenu = async (e: Mp.Position, fullPath: string) => {
+        await ipc.invoke("open_list_context_menu", { position: e, full_path: fullPath });
     };
 
     openFavContextMenu = async (e: Mp.Position) => {

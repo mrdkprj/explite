@@ -40,7 +40,9 @@
         e.preventDefault();
         e.stopPropagation();
         if ($appState.currentDir.fullPath != "Home") {
-            main.openListContextMenu({ x: e.screenX, y: e.screenY });
+            const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+            const fullPath = !file || !file.isFile ? "" : file.fullPath;
+            main.openListContextMenu({ x: e.screenX, y: e.screenY }, fullPath);
         }
     };
 
@@ -794,10 +796,10 @@
                 break;
             }
 
-            case "OpenWith": {
+            case "SelectApp": {
                 const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (!file || !file.isFile) return;
-                await main.openFileWith(file.fullPath);
+                await main.showAppSelector(file.fullPath);
                 break;
             }
 
@@ -861,6 +863,12 @@
             case "RemoveFromFavorite": {
                 sendRemovingFavorite();
                 break;
+            }
+
+            default: {
+                const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                if (!file || !file.isFile) return;
+                await main.openFileWith(file.fullPath, e as string);
             }
         }
     };

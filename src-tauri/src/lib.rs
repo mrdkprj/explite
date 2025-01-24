@@ -15,18 +15,28 @@ fn exists(payload: String) -> bool {
 }
 
 #[tauri::command]
-fn open_path(window: WebviewWindow, payload: String) -> Result<(), String> {
-    shell::open_path(get_window_handel(&window), payload)
+fn open_path(payload: String) -> Result<(), String> {
+    shell::open_path(payload)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct OpenWithArg {
+    full_path: String,
+    app_path: String,
+}
+#[tauri::command]
+fn open_path_with(payload: OpenWithArg) -> Result<(), String> {
+    shell::open_path_with(payload.full_path, payload.app_path)
 }
 
 #[tauri::command]
-fn open_path_with(window: WebviewWindow, payload: String) -> Result<(), String> {
-    shell::open_path_with(get_window_handel(&window), payload)
+fn show_app_selector(payload: String) -> Result<(), String> {
+    shell::show_open_with_dialog(payload)
 }
 
 #[tauri::command]
-fn open_property_dielog(window: WebviewWindow, payload: String) -> Result<(), String> {
-    shell::open_file_property(get_window_handel(&window), payload)
+fn open_property_dielog(payload: String) -> Result<(), String> {
+    shell::open_file_property(payload)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,7 +76,7 @@ fn stat(payload: String) -> Result<FileAttribute, String> {
 }
 
 #[tauri::command]
-fn get_mime_type(payload: String) -> Result<String, String> {
+fn get_mime_type(payload: String) -> String {
     fs::get_mime_type(payload)
 }
 
@@ -168,14 +178,25 @@ fn prepare_menu(window: WebviewWindow, payload: menu::MenuInfo) {
     menu::create_fav_menu(window_handle);
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ContextMenuArg {
+    position: menu::Position,
+    full_path: String,
+}
 #[tauri::command]
-async fn open_list_context_menu(window: WebviewWindow, payload: menu::Position) {
-    menu::popup_menu(&window, menu::LIST, payload).await;
+async fn open_list_context_menu(window: WebviewWindow, payload: ContextMenuArg) {
+    menu::popup_menu(
+        &window,
+        menu::LIST,
+        payload.position,
+        Some(payload.full_path),
+    )
+    .await;
 }
 
 #[tauri::command]
 async fn open_fav_context_menu(window: WebviewWindow, payload: menu::Position) {
-    menu::popup_menu(&window, menu::FAV, payload).await;
+    menu::popup_menu(&window, menu::FAV, payload, None).await;
 }
 
 #[tauri::command]
@@ -200,6 +221,7 @@ pub fn run() {
             exists,
             open_path,
             open_path_with,
+            show_app_selector,
             open_property_dielog,
             readdir,
             rename,

@@ -53,7 +53,7 @@ declare global {
 
         type MainContextMenuSubTypeMap = {
             Open: null;
-            OpenWith: null;
+            SelectApp: null;
             Copy: null;
             Cut: null;
             Paste: null;

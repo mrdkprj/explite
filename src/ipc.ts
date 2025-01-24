@@ -70,13 +70,24 @@ type MenuInfo = {
     allowExecute: boolean;
 };
 
+type OpenWithArg = {
+    full_path: string;
+    app_path: string;
+};
+
+type ContextMenuArg = {
+    position: Mp.Position;
+    full_path: string;
+};
+
 type TauriCommandMap = {
     prepare_menu: TauriCommand<MenuInfo, undefined>;
-    open_list_context_menu: TauriCommand<Mp.Position, undefined>;
+    open_list_context_menu: TauriCommand<ContextMenuArg, undefined>;
     open_fav_context_menu: TauriCommand<Mp.Position, undefined>;
     exists: TauriCommand<string, boolean>;
     open_path: TauriCommand<string, undefined>;
-    open_path_with: TauriCommand<string, undefined>;
+    open_path_with: TauriCommand<OpenWithArg, undefined>;
+    show_app_selector: TauriCommand<string, undefined>;
     open_property_dielog: TauriCommand<string, undefined>;
     readdir: TauriCommand<ReadDirRequest, Dirent[]>;
     rename: TauriCommand<RenameInfo, boolean>;
