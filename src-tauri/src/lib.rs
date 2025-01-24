@@ -73,7 +73,7 @@ fn list_volumes() -> Vec<Volume> {
 
 #[tauri::command]
 fn start_drag(payload: Vec<String>) -> Result<(), String> {
-    drag_drop::start_drag(0, payload, Operation::Copy)
+    drag_drop::start_drag(payload, Operation::Copy)
 }
 
 #[tauri::command]

@@ -3,16 +3,23 @@ use async_std::{
     sync::Mutex,
     task::block_on,
 };
+#[cfg(target_os = "linux")]
+use notify::INotifyWatcher;
+#[cfg(target_os = "windows")]
+use notify::ReadDirectoryChangesWatcher;
 use notify::{
     event::{ModifyKind, RenameMode},
-    recommended_watcher, Event, EventKind, INotifyWatcher, RecommendedWatcher, RecursiveMode,
-    Watcher,
+    recommended_watcher, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
 use once_cell::sync::Lazy;
 use std::path::Path;
 use tauri::{Emitter, EventTarget, WebviewWindow};
 
+#[cfg(target_os = "linux")]
 static WATCHER: Lazy<Mutex<Option<INotifyWatcher>>> = Lazy::new(|| Mutex::new(None));
+#[cfg(target_os = "windows")]
+static WATCHER: Lazy<Mutex<Option<ReadDirectoryChangesWatcher>>> = Lazy::new(|| Mutex::new(None));
+
 const WATCH_EVENT_NAME: &str = "watch_event";
 
 fn async_watcher() -> notify::Result<(RecommendedWatcher, Receiver<notify::Result<Event>>)> {
