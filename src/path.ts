@@ -2,7 +2,10 @@ const SEPARATOR = navigator.userAgent.includes("Windows") ? "\\" : "/";
 
 export class path {
     static join(...paths: string[]) {
-        const components = paths.map((a) => a.split(SEPARATOR)).flat();
+        const components = paths
+            .map((a) => a.split(SEPARATOR))
+            .flat()
+            .filter(Boolean);
         return components.join(SEPARATOR);
     }
 

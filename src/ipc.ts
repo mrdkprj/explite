@@ -66,10 +66,6 @@ type WriteFileInfo = {
     data: string;
 };
 
-type MenuInfo = {
-    allowExecute: boolean;
-};
-
 type OpenWithArg = {
     full_path: string;
     app_path: string;
@@ -81,7 +77,7 @@ type ContextMenuArg = {
 };
 
 type TauriCommandMap = {
-    prepare_menu: TauriCommand<MenuInfo, undefined>;
+    prepare_menu: TauriCommand<undefined, undefined>;
     open_list_context_menu: TauriCommand<ContextMenuArg, undefined>;
     open_fav_context_menu: TauriCommand<Mp.Position, undefined>;
     exists: TauriCommand<string, boolean>;
@@ -110,6 +106,7 @@ type TauriCommandMap = {
     write_text_file: TauriCommand<WriteFileInfo, undefined>;
     watch: TauriCommand<string, undefined>;
     unwatch: TauriCommand<string, undefined>;
+    open_terminal: TauriCommand<string, undefined>;
 };
 
 export class IPCBase {

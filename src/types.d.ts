@@ -61,8 +61,8 @@ declare global {
             AddToFavorite: null;
             CopyFullpath: null;
             Property: null;
-            AllowExecute: null;
             Settings: null;
+            Terminal: null;
         };
 
         type FavContextMenuSubTypeMap = {
@@ -88,8 +88,6 @@ declare global {
             headerLabels: Mp.HeaderLabels;
             favorites: Mp.MediaFile[];
             leftAreaWidth: number;
-            allowWriteClipboard: boolean;
-            allowExecute: boolean;
             sortHistory: { [key: string]: Mp.SortSetting };
         };
 
@@ -163,6 +161,7 @@ declare global {
         type SearchRequest = {
             dir: string;
             key: string;
+            refresh: boolean;
         };
 
         type SearchResult = {

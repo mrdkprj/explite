@@ -92,7 +92,7 @@
 
     const requestLoad = async (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => {
         if (fullPath != $appState.currentDir.fullPath) {
-            const result = await main.onSelect({ fullPath, isFile, navigation }, false);
+            const result = await main.onSelect({ fullPath, isFile, navigation });
             if (result) {
                 load(result);
             }
@@ -524,23 +524,6 @@
         await main.writeClipboard({ files, operation: copy ? "Copy" : "Move" });
     };
 
-    const paste = async (useSelectedTarget: boolean) => {
-        if (!$appState.copyCutTargets.ids.length) return;
-
-        let dir = $appState.currentDir.fullPath;
-
-        if (useSelectedTarget && $appState.selection.selectedIds.length == 1) {
-            const targetItem = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
-            if (!targetItem) return;
-            if (!targetItem.isFile) {
-                dir = targetItem.fullPath;
-            }
-        }
-
-        const files = $appState.copyCutTargets.files;
-        await moveItesm(files, dir, $appState.copyCutTargets.op == "Copy");
-    };
-
     const moveItesm = async (files: Mp.MediaFile[], dir: string, copy: boolean) => {
         suspendWatch();
         const result = await main.moveItems({ files, dir, copy });
@@ -622,8 +605,13 @@
     };
 
     const reload = async () => {
-        const result = await main.reload();
-        load(result);
+        if ($appState.search.searching) {
+            main.onSearchEnd();
+            await header.startSearch();
+        } else {
+            const result = await main.reload();
+            load(result);
+        }
     };
 
     const searchNext = (key: string) => {
@@ -789,7 +777,7 @@
             case "Open": {
                 const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (!file) return;
-                const result = await main.onSelect({ fullPath: file.fullPath, isFile: file.isFile, navigation: "Direct" }, true);
+                const result = await main.onSelect({ fullPath: file.fullPath, isFile: file.isFile, navigation: "Direct" });
                 if (result) {
                     load(result);
                 }
@@ -819,7 +807,11 @@
             }
 
             case "Paste": {
-                paste(true);
+                const result = await main.onPaste();
+                if (result) {
+                    onPasteEnd(result);
+                }
+
                 break;
             }
 
@@ -852,18 +844,17 @@
                 break;
             }
 
-            case "AllowExecute":
-                main.toggleAllowExecute();
-                break;
-
             case "Settings":
                 await main.openConfigFileJson();
                 break;
 
-            case "RemoveFromFavorite": {
+            case "RemoveFromFavorite":
                 sendRemovingFavorite();
                 break;
-            }
+
+            case "Terminal":
+                await main.openTerminal($appState.currentDir.fullPath);
+                break;
 
             default: {
                 const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
@@ -968,15 +959,12 @@
 
         if (e.ctrlKey && e.key == "v") {
             e.preventDefault();
-            if ($appState.copyCutTargets.ids.length) {
-                return paste(false);
-            } else {
-                const result = await main.onPaste();
-                if (result) {
-                    onPasteEnd(result);
-                }
-                return;
+
+            const result = await main.onPaste();
+            if (result) {
+                onPasteEnd(result);
             }
+            return;
         }
 
         if (e.key == "Delete") {
@@ -1085,6 +1073,7 @@
                         onkeydown={onRenameInputKeyDown}
                         bind:value={$listState.rename.inputValue}
                         use:setFocusAndSelect
+                        autocomplete={undefined}
                     />
                 {/if}
                 {#if $listState.newItem.visible}
@@ -1097,6 +1086,7 @@
                         onkeydown={onNewItemInputKeyDown}
                         bind:value={$listState.newItem.inputValue}
                         use:setFocusAndSelect
+                        autocomplete={undefined}
                     />
                 {/if}
 

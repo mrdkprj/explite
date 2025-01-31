@@ -61,11 +61,11 @@
         }, 300);
     };
 
-    const startSearch = async () => {
+    export const startSearch = async () => {
         dispatch({ type: "clearCopyCut" });
         dispatch({ type: "startSearch" });
         suspendWatch();
-        const result = await main.onSearchRequest({ dir: $appState.currentDir.fullPath, key: $appState.search.key.trim() });
+        const result = await main.onSearchRequest({ dir: $appState.currentDir.fullPath, key: $appState.search.key.trim(), refresh: false });
         onSearched(result);
     };
 
@@ -145,6 +145,9 @@
 
     export const searchInputFocus = () => {
         searchInput.focus();
+        if (searchInput.value) {
+            searchInput.setSelectionRange(0, searchInput.value.length);
+        }
     };
 
     export const hasSearchInputFocus = () => {
@@ -172,7 +175,17 @@
     </div>
     <div class="path-area">
         {#if $appState.pathEditing}
-            <input class="path-input" spellcheck="false" type="text" id="path" use:setPathInputFocus onblur={onPathInputLeave} bind:value={pathValue} onkeydown={onPathInputKeyDown} />
+            <input
+                class="path-input"
+                spellcheck="false"
+                type="text"
+                id="path"
+                use:setPathInputFocus
+                onblur={onPathInputLeave}
+                bind:value={pathValue}
+                onkeydown={onPathInputKeyDown}
+                autocomplete={undefined}
+            />
         {:else}
             <div class="path">
                 {#each $appState.currentDir.paths as path}
@@ -193,6 +206,7 @@
             bind:value={$appState.search.key}
             onkeydown={onSearchInputKeyDown}
             disabled={$appState.currentDir.fullPath == "Home"}
+            autocomplete={undefined}
         />
         {#if $appState.search.searching}
             <div class="clear" onclick={endSearch} onkeydown={handleKeyEvent} role="button" tabindex="-1">

@@ -12,8 +12,6 @@ const defaultSettings: Mp.Settings = {
     headerLabels: DEFAULT_LABLES,
     favorites: [],
     leftAreaWidth: 0,
-    allowWriteClipboard: false,
-    allowExecute: false,
     sortHistory: {},
 };
 

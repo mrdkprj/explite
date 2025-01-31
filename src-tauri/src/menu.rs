@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use tauri::{Emitter, EventTarget, WebviewWindow};
 use wcpopup::{
     config::{ColorScheme, Config, MenuSize, Theme, ThemeColor, DEFAULT_DARK_COLOR_SCHEME},
-    Menu, MenuBuilder, MenuItem,
+    Menu, MenuBuilder, MenuIcon, MenuItem, MenuItemType,
 };
 
 static MENU_MAP: Lazy<Mutex<HashMap<String, Menu>>> = Lazy::new(|| Mutex::new(HashMap::new()));
@@ -15,13 +15,6 @@ pub const FAV: &str = "fav";
 const MENU_EVENT_NAME: &str = "contextmenu_event";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(non_snake_case)]
-pub struct MenuInfo {
-    allowExecute: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(non_snake_case)]
 pub struct Position {
     x: i32,
     y: i32,
@@ -88,9 +81,22 @@ fn update_open_with(menu: &Menu, file_path: String) {
 
     for app in apps {
         submenu.insert(
-            MenuItem::new_text_item(&app.path, &app.name, None, None, None),
+            MenuItem::builder(MenuItemType::Text)
+                .id(&app.path)
+                .label(&app.name)
+                .build(),
             0,
         );
+        let mut item = submenu.get_menu_item_by_id(&app.path).unwrap();
+        if app.icon.is_empty() {
+            item.set_icon(Some(MenuIcon::from_rgba(
+                app.rgba_icon.rgba,
+                app.rgba_icon.width,
+                app.rgba_icon.height,
+            )));
+        } else {
+            item.set_icon(Some(MenuIcon::new(app.icon)));
+        }
     }
 }
 
@@ -113,25 +119,25 @@ fn get_menu_config(theme: Theme) -> Config {
     }
 }
 
-pub fn create_list_menu(window_handle: isize, info: MenuInfo) {
+pub fn create_list_menu(window_handle: isize) {
     let config = get_menu_config(Theme::System);
     let mut builder = MenuBuilder::new_from_config(window_handle, config);
-    builder.text("Open", "Open", None);
-    let mut sub = builder.submenu("OpenWith", "Open With", None);
-    sub.text("SelectApp", "Select another program...", None);
+    builder.text("Open", "Open", false);
+    let mut sub = builder.submenu("OpenWith", "Open With", false);
+    sub.text("SelectApp", "Select another program...", false);
     sub.build().unwrap();
     builder.separator();
-    builder.text_with_accelerator("Copy", "Copy", None, "Ctrl+C");
-    builder.text_with_accelerator("Cut", "Cut", None, "Ctrl+X");
-    builder.text_with_accelerator("Paste", "Paste", None, "Ctrl+V");
-    builder.text_with_accelerator("Delete", "Delete", None, "Delete");
+    builder.text_with_accelerator("Copy", "Copy", false, "Ctrl+C");
+    builder.text_with_accelerator("Cut", "Cut", false, "Ctrl+X");
+    builder.text_with_accelerator("Paste", "Paste", false, "Ctrl+V");
+    builder.text_with_accelerator("Delete", "Delete", false, "Delete");
     builder.separator();
-    builder.text("AddToFavorite", "Add To Favorite", None);
-    builder.text("CopyFullpath", "Copy Fullpath", None);
-    builder.text("Property", "Property", None);
+    builder.text("AddToFavorite", "Add To Favorite", false);
+    builder.text("CopyFullpath", "Copy Fullpath", false);
+    builder.text("Property", "Property", false);
     builder.separator();
-    builder.check("AllowExecute", "Allow Execute", info.allowExecute, None);
-    builder.text("Settings", "Settings", None);
+    builder.text("Terminal", "Open Terminal", false);
+    builder.text("Settings", "Settings", false);
 
     let menu = builder.build().unwrap();
 
@@ -142,8 +148,8 @@ pub fn create_list_menu(window_handle: isize, info: MenuInfo) {
 pub fn create_fav_menu(window_handle: isize) {
     let config = get_menu_config(Theme::System);
     let mut builder = MenuBuilder::new_from_config(window_handle, config);
-    builder.text("RemoveFromFavorite", "Remove From Favorite", None);
-    builder.text("Property", "Property", None);
+    builder.text("RemoveFromFavorite", "Remove From Favorite", false);
+    builder.text("Property", "Property", false);
 
     let menu = builder.build().unwrap();
 

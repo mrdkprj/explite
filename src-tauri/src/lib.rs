@@ -178,9 +178,9 @@ fn write_text_file(payload: WriteFileInfo) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn prepare_menu(window: WebviewWindow, payload: menu::MenuInfo) {
+fn prepare_menu(window: WebviewWindow) {
     let window_handle = get_window_handel(&window);
-    menu::create_list_menu(window_handle, payload);
+    menu::create_list_menu(window_handle);
     menu::create_fav_menu(window_handle);
 }
 
@@ -239,6 +239,13 @@ fn unwatch(payload: String) {
     watcher::unwatch(payload);
 }
 
+#[tauri::command]
+fn open_terminal(payload: String) -> Result<(), String> {
+    let mut arg = "-d ".to_string();
+    arg.push_str(&payload);
+    nonstd::shell::open_path_with(arg, "wt.exe")
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[allow(deprecated)]
 pub fn run() {
@@ -274,6 +281,7 @@ pub fn run() {
             write_text_file,
             watch,
             unwatch,
+            open_terminal,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

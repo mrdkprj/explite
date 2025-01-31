@@ -19,7 +19,7 @@ class Main {
 
     onMainReady = async (): Promise<Mp.ReadyEvent> => {
         await this.settings.init();
-        await ipc.invoke("prepare_menu", { allowExecute: this.settings.data.allowExecute });
+        await ipc.invoke("prepare_menu", undefined);
         const disks = await util.getDriveInfo();
 
         return {
@@ -36,23 +36,22 @@ class Main {
         }
     };
 
-    onSelect = async (e: Mp.SelectEvent, ignoreSettings: boolean): Promise<Mp.LoadEvent | null> => {
+    onSelect = async (e: Mp.SelectEvent): Promise<Mp.LoadEvent | null> => {
         if (e.isFile) {
-            this.openFile(e.fullPath, ignoreSettings);
+            this.openFile(e.fullPath);
             return null;
         } else {
             return this.openFolder(e.fullPath, e.navigation);
         }
     };
 
-    private openFile = async (fullPath: string, ignoreSettings: boolean) => {
-        if (this.settings.data.allowExecute || ignoreSettings) {
-            if (!util.exists(fullPath)) {
-                await this.showErrorMessage(`"${fullPath}" does not exist.`);
-                return;
-            }
-            await ipc.invoke("open_path", fullPath);
+    private openFile = async (fullPath: string) => {
+        const found = await util.exists(fullPath);
+        if (!found) {
+            await this.showErrorMessage(`"${fullPath}" does not exist.`);
+            return;
         }
+        await ipc.invoke("open_path", fullPath);
     };
 
     openFileWith = async (fullPath: string, appPath: string) => {
@@ -166,9 +165,11 @@ class Main {
 
         const allDirents = await ipc.invoke("readdir", { directory: e.dir, recursive: true });
         this.searchCache[e.dir] = allDirents.filter((direcnt) => !direcnt.attributes.is_system).map((dirent) => path.join(dirent.parent_path, dirent.name));
+
         this.files.length = 0;
         const filetedFiles = await Promise.all(this.searchCache[e.dir].filter((fullPath) => this.found(path.basename(fullPath), key)).map(async (fullPath) => await util.toFileFromPath(fullPath)));
         filetedFiles.forEach((file) => this.files.push(file));
+
         return { files: filetedFiles };
     };
 
@@ -195,7 +196,8 @@ class Main {
         const newPath = path.join(path.dirname(filePath), e.data.name);
 
         try {
-            if (await util.exists(newPath)) {
+            const found = await util.exists(newPath);
+            if (found) {
                 throw new Error(`File name "${e.data.name}" exists`);
             }
 
@@ -395,7 +397,8 @@ class Main {
     onPaste = async (): Promise<Mp.MoveItemResult | null> => {
         if (!this.currentDir) return null;
 
-        if (await ipc.invoke("is_uris_available", undefined)) {
+        const uriAvailable = await ipc.invoke("is_uris_available", undefined);
+        if (uriAvailable) {
             const data = await ipc.invoke("read_uris", undefined);
             if (!data.urls.length) return null;
 
@@ -404,29 +407,14 @@ class Main {
 
             const copy = data.operation == "None" ? util.getRootDirectory(files[0].fullPath) != util.getRootDirectory(this.currentDir) : data.operation == "Copy";
             return this.moveItems({ files, dir: this.currentDir, copy });
-        } else {
-            const text = await ipc.invoke("read_text", undefined);
-            if (text) {
-                const fullPaths = text.split("\r\n");
-                const files = await Promise.all(fullPaths.map(async (fullPath) => await util.toFileFromPath(fullPath)));
-                if (!files.length) return null;
-
-                const copy = util.getRootDirectory(files[0].fullPath) != util.getRootDirectory(this.currentDir);
-                return this.moveItems({ files, dir: this.currentDir, copy });
-            } else {
-                return null;
-            }
         }
+
+        return null;
     };
 
     writeClipboard = async (e: Mp.WriteClipboardRequest) => {
-        if (this.settings.data.allowWriteClipboard) {
-            const fullPaths = e.files.map((file) => file.fullPath);
-            await ipc.invoke("write_uris", { fullPaths, operation: e.operation });
-        } else {
-            const fullPaths = e.files.map((file) => file.fullPath).join("\r\n");
-            await ipc.invoke("write_text", fullPaths);
-        }
+        const fullPaths = e.files.map((file) => file.fullPath);
+        await ipc.invoke("write_uris", { fullPaths, operation: e.operation });
     };
 
     writeFullpathToClipboard = async (fullPaths: string) => {
@@ -438,8 +426,8 @@ class Main {
         return this.settings.data.favorites;
     };
 
-    toggleAllowExecute = () => {
-        this.settings.data.allowExecute = !this.settings.data.allowExecute;
+    openTerminal = async (dir: string) => {
+        await ipc.invoke("open_terminal", dir);
     };
 }
 
