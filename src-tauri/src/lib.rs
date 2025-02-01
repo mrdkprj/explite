@@ -133,11 +133,7 @@ struct WriteUriInfo {
 
 #[tauri::command]
 fn write_uris(window: WebviewWindow, payload: WriteUriInfo) -> Result<(), String> {
-    clipboard::write_uris(
-        get_window_handel(&window),
-        &payload.fullPaths,
-        payload.operation,
-    )
+    clipboard::write_uris(get_window_handel(&window), &payload.fullPaths, payload.operation)
 }
 
 #[tauri::command]
@@ -196,25 +192,18 @@ struct ContextMenuArg {
 async fn open_list_context_menu(window: WebviewWindow, payload: ContextMenuArg) {
     #[cfg(target_os = "windows")]
     {
-        menu::popup_menu(
-            &window,
-            menu::LIST,
-            payload.position,
-            Some(payload.full_path),
-        )
-        .await;
+        menu::popup_menu(&window, menu::LIST, payload.position, Some(payload.full_path)).await;
     }
     #[cfg(target_os = "linux")]
     {
-        gtk::glib::spawn_future_local(async move {     
-            menu::popup_menu(
-                &window,
-                menu::LIST,
-                payload.position,
-                Some(payload.full_path),
-            )
-            .await;
-        });
+        let gtk_window = window.clone();
+        window
+            .run_on_main_thread(move || {
+                gtk::glib::spawn_future_local(async move {
+                    menu::popup_menu(&gtk_window, menu::LIST, payload.position, Some(payload.full_path)).await;
+                });
+            })
+            .unwrap();
     }
 }
 
@@ -244,17 +233,17 @@ fn unwatch(payload: String) {
 
 #[tauri::command]
 fn open_terminal(payload: String) -> Result<(), String> {
-    #[cfg(target_os="windows")]
+    #[cfg(target_os = "windows")]
     {
         let mut arg = "-d ".to_string();
         arg.push_str(&payload);
         nonstd::shell::open_path_with(arg, "wt.exe")
     }
-    #[cfg(target_os="linux")]
+    #[cfg(target_os = "linux")]
     {
         let mut arg = "--working-directory=".to_string();
         arg.push_str(&payload);
-        nonstd::shell::open_path_with(arg, "gnome-terminal")        
+        nonstd::shell::open_path_with(arg, "gnome-terminal")
     }
 }
 
