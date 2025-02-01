@@ -88,13 +88,20 @@ fn update_open_with(menu: &Menu, file_path: String) {
             0,
         );
         let mut item = submenu.get_menu_item_by_id(&app.path).unwrap();
-        if app.icon.is_empty() {
-            item.set_icon(Some(MenuIcon::from_rgba(
-                app.rgba_icon.rgba,
-                app.rgba_icon.width,
-                app.rgba_icon.height,
-            )));
-        } else {
+        #[cfg(target_os="windows")]
+        {
+            if app.icon.is_empty() {
+                item.set_icon(Some(MenuIcon::from_rgba(
+                    app.rgba_icon.rgba,
+                    app.rgba_icon.width,
+                    app.rgba_icon.height,
+                )));
+            } else {
+                item.set_icon(Some(MenuIcon::new(app.icon)));
+            }
+        }
+        #[cfg(target_os="linux")]
+        {
             item.set_icon(Some(MenuIcon::new(app.icon)));
         }
     }

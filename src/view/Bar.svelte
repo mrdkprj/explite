@@ -19,11 +19,11 @@
     };
 </script>
 
-<div class="title-bar">
-    <div class="icon-area">
+<div class="title-bar" data-tauri-drag-region style="user-select: none;">
+    <div class="icon-area" data-tauri-drag-region>
         <span>{$listState.files.length ? `${$appState.selection.selectedIds.length} / ${$listState.files.length}` : ""}</span>
     </div>
-    <div class="title">{$appState.currentDir.paths.length ? $appState.currentDir.paths[$appState.currentDir.paths.length - 1] : ""}</div>
+    <div class="title" data-tauri-drag-region>{$appState.currentDir.paths.length ? $appState.currentDir.paths[$appState.currentDir.paths.length - 1] : ""}</div>
     <div class="window-area">
         <div class="minimize" onclick={minimize} onkeydown={handleKeyEvent} role="button" tabindex="-1">&minus;</div>
         <div class="maximize" onclick={toggleMaximize} onkeydown={handleKeyEvent} role="button" tabindex="-1">

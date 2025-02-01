@@ -6,8 +6,11 @@ mod menu;
 mod watcher;
 
 #[cfg(target_os = "linux")]
-fn get_window_handel(_window: &WebviewWindow) -> isize {
-    0
+fn get_window_handel(window: &WebviewWindow) -> isize {
+    use gtk::{ffi::GtkApplicationWindow, glib::translate::ToGlibPtr};
+
+    let ptr: *mut GtkApplicationWindow = window.gtk_window().unwrap().to_glib_none().0;
+    ptr as isize
 }
 
 #[cfg(target_os = "windows")]
@@ -203,7 +206,7 @@ async fn open_list_context_menu(window: WebviewWindow, payload: ContextMenuArg) 
     }
     #[cfg(target_os = "linux")]
     {
-        gtk::glib::spawn_future_local(async move {
+        gtk::glib::spawn_future_local(async move {     
             menu::popup_menu(
                 &window,
                 menu::LIST,
@@ -241,9 +244,18 @@ fn unwatch(payload: String) {
 
 #[tauri::command]
 fn open_terminal(payload: String) -> Result<(), String> {
-    let mut arg = "-d ".to_string();
-    arg.push_str(&payload);
-    nonstd::shell::open_path_with(arg, "wt.exe")
+    #[cfg(target_os="windows")]
+    {
+        let mut arg = "-d ".to_string();
+        arg.push_str(&payload);
+        nonstd::shell::open_path_with(arg, "wt.exe")
+    }
+    #[cfg(target_os="linux")]
+    {
+        let mut arg = "--working-directory=".to_string();
+        arg.push_str(&payload);
+        nonstd::shell::open_path_with(arg, "gnome-terminal")        
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
