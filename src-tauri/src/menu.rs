@@ -20,12 +20,7 @@ pub struct Position {
     y: i32,
 }
 
-pub async fn popup_menu(
-    window: &WebviewWindow,
-    menu_name: &str,
-    position: Position,
-    full_path: Option<String>,
-) {
+pub async fn popup_menu(window: &WebviewWindow, menu_name: &str, position: Position, full_path: Option<String>) {
     let map = MENU_MAP.lock().await;
     let menu = map.get(menu_name).unwrap();
     if menu_name == LIST {
@@ -69,38 +64,24 @@ fn update_open_with(menu: &Menu, file_path: String) {
 
     let apps = nonstd::shell::get_open_with(file_path);
 
-    let apps: Vec<AppInfo> = apps
-        .into_iter()
-        .filter(|app| !app.path.is_empty())
-        .rev()
-        .collect();
+    let apps: Vec<AppInfo> = apps.into_iter().filter(|app| !app.path.is_empty()).rev().collect();
 
     if !apps.is_empty() {
         submenu.insert(MenuItem::new_separator(), 0);
     }
 
     for app in apps {
-        submenu.insert(
-            MenuItem::builder(MenuItemType::Text)
-                .id(&app.path)
-                .label(&app.name)
-                .build(),
-            0,
-        );
+        submenu.insert(MenuItem::builder(MenuItemType::Text).id(&app.path).label(&app.name).build(), 0);
         let mut item = submenu.get_menu_item_by_id(&app.path).unwrap();
-        #[cfg(target_os="windows")]
+        #[cfg(target_os = "windows")]
         {
             if app.icon.is_empty() {
-                item.set_icon(Some(MenuIcon::from_rgba(
-                    app.rgba_icon.rgba,
-                    app.rgba_icon.width,
-                    app.rgba_icon.height,
-                )));
+                item.set_icon(Some(MenuIcon::from_rgba(app.rgba_icon.rgba, app.rgba_icon.width, app.rgba_icon.height)));
             } else {
                 item.set_icon(Some(MenuIcon::new(app.icon)));
             }
         }
-        #[cfg(target_os="linux")]
+        #[cfg(target_os = "linux")]
         {
             item.set_icon(Some(MenuIcon::new(app.icon)));
         }

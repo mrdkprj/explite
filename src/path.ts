@@ -1,4 +1,4 @@
-const SEPARATOR = navigator.userAgent.includes("Windows") ? "\\" : "/";
+import { SEPARATOR } from "./constants";
 
 export class path {
     static join(...paths: string[]) {

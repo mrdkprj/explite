@@ -1,7 +1,7 @@
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
 import { Dirent, IPC } from "./ipc";
 import { path } from "./path";
-import { MIME_TYPE } from "./constants";
+import { MIME_TYPE, SEPARATOR } from "./constants";
 
 const ipc = new IPC("View");
 
@@ -145,7 +145,7 @@ class Util {
         const drives: Mp.DriveInfo[] = volumes
             .map((volume) => {
                 return {
-                    label: volume.mount_point.replaceAll("\\", ""),
+                    label: volume.mount_point.replaceAll(SEPARATOR, ""),
                     path: volume.mount_point,
                     name: volume.volume_label,
                     available: volume.available_units,

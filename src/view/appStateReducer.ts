@@ -1,6 +1,6 @@
 import { writable } from "svelte/store";
 import { dispatchList } from "./listStateReducer";
-import { DEFAULT_LABLES } from "../constants";
+import { DEFAULT_LABLES, SEPARATOR } from "../constants";
 
 type SlideState = {
     target: "Area" | Mp.SortKey;
@@ -161,7 +161,7 @@ const updater = (state: AppState, action: AppAction): AppState => {
                 disks: action.value.disks,
                 currentDir: {
                     fullPath: action.value.directory,
-                    paths: action.value.directory == "Home" ? [] : action.value.directory.split("\\").filter((i) => i),
+                    paths: action.value.directory == "Home" ? [] : action.value.directory.split(SEPARATOR).filter((i) => i),
                 },
             };
 
@@ -192,7 +192,7 @@ const updater = (state: AppState, action: AppAction): AppState => {
                     search: { ...state.search, searching: false, key: "" },
                     currentDir: {
                         fullPath: action.value.directory,
-                        paths: action.value.directory == "Home" ? [] : action.value.directory.split("\\").filter((i) => i),
+                        paths: action.value.directory == "Home" ? [] : action.value.directory.split(SEPARATOR).filter((i) => i),
                     },
                     selection: state.prevSelection ?? { selectedId: "", selectedIds: [] },
                     prevSelection: state.selection,
@@ -204,7 +204,7 @@ const updater = (state: AppState, action: AppAction): AppState => {
                     search: { ...state.search, searching: false, key: "" },
                     currentDir: {
                         fullPath: action.value.directory,
-                        paths: action.value.directory == "Home" ? [] : action.value.directory.split("\\").filter((i) => i),
+                        paths: action.value.directory == "Home" ? [] : action.value.directory.split(SEPARATOR).filter((i) => i),
                     },
                     selection: { selectedId: "", selectedIds: [] },
                     prevSelection: state.selection,

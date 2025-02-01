@@ -9,7 +9,7 @@
     import ClearSvg from "../svg/ClearSvg.svelte";
     import { appState, dispatch } from "./appStateReducer";
     import main from "../main";
-    import { handleKeyEvent } from "../constants";
+    import { handleKeyEvent, SEPARATOR } from "../constants";
 
     let {
         onSearched,
@@ -88,7 +88,7 @@
 
         const fullPath = $appState.currentDir.fullPath;
         const tempPath = fullPath.substring(0, fullPath.indexOf(path) + path.length);
-        const targetPath = tempPath.endsWith(":") ? `${tempPath}\\` : tempPath;
+        const targetPath = tempPath.endsWith(":") ? `${tempPath}${SEPARATOR}` : tempPath;
 
         requestLoad(targetPath, false, "Direct");
     };

@@ -215,9 +215,14 @@ async fn open_fav_context_menu(window: WebviewWindow, payload: menu::Position) {
     }
     #[cfg(target_os = "linux")]
     {
-        gtk::glib::spawn_future_local(async move {
-            menu::popup_menu(&window, menu::FAV, payload, None).await;
-        });
+        let gtk_window = window.clone();
+        window
+            .run_on_main_thread(move || {
+                gtk::glib::spawn_future_local(async move {
+                    menu::popup_menu(&gtk_window, menu::FAV, payload, None).await;
+                });
+            })
+            .unwrap();
     }
 }
 

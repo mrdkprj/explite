@@ -4,6 +4,8 @@ export const handleKeyEvent = () => {
 
 export const HOME = "Home";
 
+export const SEPARATOR = navigator.userAgent.includes("Windows") ? "\\" : "/";
+
 export const DEFAULT_SORT_TYPE: Mp.SortType = {
     asc: true,
     key: "name",
