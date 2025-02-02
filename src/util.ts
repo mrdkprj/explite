@@ -3,6 +3,7 @@ import { Dirent, IPC } from "./ipc";
 import { path } from "./path";
 import { MIME_TYPE, SEPARATOR } from "./constants";
 
+const REGULAR_TYPES = [".ts", ".json", ".mjs", ".cjs"];
 const ipc = new IPC("View");
 
 class Util {
@@ -30,7 +31,11 @@ class Util {
         return hash;
     }
 
-    getFileType(mimeType: string): Mp.FileType {
+    getFileType(mimeType: string, extension: string): Mp.FileType {
+        if (REGULAR_TYPES.includes(extension)) {
+            return "Normal";
+        }
+
         const lower = mimeType.toLowerCase();
         if (lower.includes(MIME_TYPE.Audio)) {
             return "Audio";
@@ -55,6 +60,7 @@ class Util {
         const fullPath = dirent.full_path;
         const attr = dirent.attributes;
         const encodedPath = path.join(path.dirname(fullPath), encodeURIComponent(path.basename(fullPath)));
+        const extension = attr.is_directory ? "ファイルフォルダー" : path.extname(fullPath);
 
         return {
             id: encodeURIComponent(fullPath),
@@ -65,9 +71,9 @@ class Util {
             mdate: attr.mtime_ms,
             cdate: attr.birthtime_ms,
             size: Math.ceil(attr.size / 1000),
-            extension: attr.is_directory ? "ファイルフォルダー" : path.extname(fullPath),
+            extension,
             isFile: attr.is_file,
-            fileType: attr.is_directory ? "None" : this.getFileType(dirent.mime_type),
+            fileType: attr.is_directory ? "None" : this.getFileType(dirent.mime_type, extension),
         };
     }
 
@@ -75,6 +81,7 @@ class Util {
         const attr = await ipc.invoke("stat", fullPath);
         const mimeType = attr.is_directory ? "" : await ipc.invoke("get_mime_type", fullPath);
         const encodedPath = path.join(path.dirname(fullPath), encodeURIComponent(path.basename(fullPath)));
+        const extension = attr.is_directory ? "ファイルフォルダー" : path.extname(fullPath);
 
         return {
             id: encodeURIComponent(fullPath),
@@ -85,14 +92,17 @@ class Util {
             mdate: attr.mtime_ms,
             cdate: attr.birthtime_ms,
             size: Math.ceil(attr.size / 1000),
-            extension: attr.is_directory ? "ファイルフォルダー" : path.extname(fullPath),
+            extension,
             isFile: attr.is_file,
-            fileType: attr.is_directory ? "None" : this.getFileType(mimeType),
+            fileType: attr.is_directory ? "None" : this.getFileType(mimeType, extension),
         };
     }
 
-    updateFile(fullPath: string, currentFile: Mp.MediaFile): Mp.MediaFile {
+    async updateFile(fullPath: string, currentFile: Mp.MediaFile): Promise<Mp.MediaFile> {
+        const attr = await ipc.invoke("stat", fullPath);
+        const mimeType = attr.is_directory ? "" : await ipc.invoke("get_mime_type", fullPath);
         const encodedPath = path.join(path.dirname(fullPath), encodeURIComponent(path.basename(fullPath)));
+        const extension = attr.is_directory ? "ファイルフォルダー" : path.extname(fullPath);
 
         return {
             id: currentFile.id,
@@ -100,12 +110,12 @@ class Util {
             dir: path.dirname(fullPath),
             encName: encodedPath,
             name: decodeURIComponent(encodeURIComponent(path.basename(fullPath))),
-            mdate: currentFile.mdate,
-            cdate: currentFile.cdate,
-            size: currentFile.size,
-            extension: currentFile.isFile ? path.extname(fullPath) : "ファイルフォルダー",
-            isFile: currentFile.isFile,
-            fileType: currentFile.fileType,
+            mdate: attr.mtime_ms,
+            cdate: attr.birthtime_ms,
+            size: Math.ceil(attr.size / 1000),
+            extension,
+            isFile: attr.is_file,
+            fileType: attr.is_directory ? "None" : this.getFileType(mimeType, extension),
         };
     }
 

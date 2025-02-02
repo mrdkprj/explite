@@ -203,7 +203,7 @@ class Main {
 
             await ipc.invoke("rename", { new: newPath, old: filePath });
 
-            const newMediaFile = util.updateFile(newPath, file);
+            const newMediaFile = await util.updateFile(newPath, file);
             this.files[fileIndex] = newMediaFile;
 
             return { file: newMediaFile };
