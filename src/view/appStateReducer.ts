@@ -149,6 +149,7 @@ type AppAction =
     | { type: "incremental"; value: string }
     | { type: "clearIncremental" }
     | { type: "hoverFavoriteId"; value: string }
+    | { type: "disks"; value: Mp.DriveInfo[] }
     | { type: "load"; value: Mp.LoadEvent };
 
 const updater = (state: AppState, action: AppAction): AppState => {
@@ -219,6 +220,9 @@ const updater = (state: AppState, action: AppAction): AppState => {
             } else {
                 return state;
             }
+
+        case "disks":
+            return { ...state, disks: action.value };
 
         case "startSearch":
             return { ...state, search: { ...state.search, searching: true } };

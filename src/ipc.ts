@@ -52,7 +52,7 @@ type RenameInfo = {
 };
 
 type CopyInfo = {
-    from: string;
+    from: string[];
     to: string;
 };
 
@@ -76,6 +76,15 @@ type ContextMenuArg = {
     full_path: string;
 };
 
+type DialogOptions = {
+    dialog_type: "message" | "confirm" | "ask";
+    title?: string;
+    kind?: "info" | "warning" | "error";
+    ok_label?: string;
+    cancel_label?: string;
+    message: string;
+};
+
 type TauriCommandMap = {
     prepare_menu: TauriCommand<undefined, undefined>;
     open_list_context_menu: TauriCommand<ContextMenuArg, undefined>;
@@ -91,8 +100,8 @@ type TauriCommandMap = {
     start_drag: TauriCommand<string[], undefined>;
     stat: TauriCommand<string, FileAttribute>;
     get_mime_type: TauriCommand<string, string>;
-    trash_item: TauriCommand<string, undefined>;
-    copy_file: TauriCommand<CopyInfo, undefined>;
+    trash: TauriCommand<string[], undefined>;
+    copy: TauriCommand<CopyInfo, undefined>;
     mv: TauriCommand<CopyInfo, undefined>;
     is_uris_available: TauriCommand<undefined, boolean>;
     read_uris: TauriCommand<undefined, ClipboardData>;
@@ -106,7 +115,9 @@ type TauriCommandMap = {
     write_text_file: TauriCommand<WriteFileInfo, undefined>;
     watch: TauriCommand<string, undefined>;
     unwatch: TauriCommand<string, undefined>;
+    message: TauriCommand<DialogOptions, boolean>;
     open_terminal: TauriCommand<string, undefined>;
+    launch_new: TauriCommand<undefined, undefined>;
 };
 
 export class IPCBase {

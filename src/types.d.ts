@@ -68,6 +68,7 @@ declare global {
         type FavContextMenuSubTypeMap = {
             RemoveFromFavorite: null;
             Property: null;
+            Refresh: null;
         };
 
         type Bounds = {
@@ -136,6 +137,10 @@ declare global {
             total: number;
         };
 
+        type RefreshResult = {
+            disks: Mp.DriveInfo[];
+        };
+
         type Navigation = "Direct" | "Back" | "Forward" | "Reload";
         type SelectEvent = {
             fullPath: string;
@@ -192,13 +197,12 @@ declare global {
         };
 
         type MoveItemsRequest = {
-            files: Mp.MediaFile[];
+            fullPaths: string[];
             dir: string;
             copy: boolean;
         };
 
         type MoveItemResult = {
-            movedItems?: Mp.MediaFile[];
             files: Mp.MediaFile[];
             done: boolean;
         };

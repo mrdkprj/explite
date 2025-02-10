@@ -2,7 +2,7 @@ export const handleKeyEvent = () => {
     /**/
 };
 
-export const HOME = "Home";
+export const HOME = "PC";
 
 export const SEPARATOR = navigator.userAgent.includes("Windows") ? "\\" : "/";
 

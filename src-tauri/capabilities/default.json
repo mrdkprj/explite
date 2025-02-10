@@ -28,11 +28,6 @@
     "core:window:allow-set-focus",
     "core:window:allow-set-position",
     "core:window:allow-set-size",
-    "dialog:allow-open",
-    "dialog:allow-save",
-    "dialog:allow-message",
-    "dialog:allow-ask",
-    "dialog:allow-confirm",
     "core:webview:allow-internal-toggle-devtools",
     "core:webview:allow-webview-position",
     "core:webview:allow-webview-size"

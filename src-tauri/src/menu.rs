@@ -138,6 +138,8 @@ pub fn create_fav_menu(window_handle: isize) {
     let mut builder = MenuBuilder::new_from_config(window_handle, config);
     builder.text("RemoveFromFavorite", "Remove From Favorite", false);
     builder.text("Property", "Property", false);
+    builder.separator();
+    builder.text("Refresh", "Refresh", false);
 
     let menu = builder.build().unwrap();
 

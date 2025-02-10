@@ -1,4 +1,3 @@
-import { confirm, message } from "@tauri-apps/plugin-dialog";
 import Settings from "./settings";
 import util from "./util";
 import Deferred from "./deferred";
@@ -30,9 +29,9 @@ class Main {
 
     showErrorMessage = async (ex: any | string) => {
         if (typeof ex == "string") {
-            await message(ex, { kind: "error" });
+            await ipc.invoke("message", { dialog_type: "message", message: ex, kind: "error" });
         } else {
-            await message(ex.message, { kind: "error" });
+            await ipc.invoke("message", { dialog_type: "message", message: ex.message, kind: "error" });
         }
     };
 
@@ -317,7 +316,8 @@ class Main {
 
     trashItems = async (e: Mp.TrashItemRequest): Promise<Mp.LoadEvent | null> => {
         try {
-            await Promise.all(e.files.map(async (item) => await ipc.invoke("trash_item", item.fullPath)));
+            const fullPaths = e.files.map((file) => file.fullPath);
+            await ipc.invoke("trash", fullPaths);
             return this.reload();
         } catch (ex: any) {
             this.showErrorMessage(ex);
@@ -325,23 +325,25 @@ class Main {
         }
     };
 
-    beforeMoveItems = async (directory: string, files: Mp.MediaFile[]) => {
+    beforeMoveItems = async (directory: string, fullPaths: string[]) => {
         let cancelAll = false;
 
         const mapped = await Promise.all(
-            files.map(async (item) => {
-                const dist = path.join(directory, item.name);
+            fullPaths.map(async (fullPath) => {
+                const dist = path.join(directory, path.basename(fullPath));
 
-                if (dist == item.fullPath) return null;
+                if (dist == fullPath) return null;
 
                 if (cancelAll) return null;
 
                 const found = await util.exists(dist);
                 if (found) {
-                    const isOK = await confirm(`宛先には既に${item.name}という名前のファイルが存在します\nファイルを置き換えますか`, {
+                    const isOK = await ipc.invoke("message", {
+                        dialog_type: "confirm",
+                        message: `宛先には既に${path.basename(fullPath)}という名前のファイルが存在します\nファイルを置き換えますか`,
                         kind: "warning",
-                        okLabel: "ファイルを置き換える",
-                        cancelLabel: "ファイルは置き換えずスキップする",
+                        ok_label: "ファイルを置き換える",
+                        cancel_label: "ファイルは置き換えずスキップする",
                     });
 
                     if (!isOK) {
@@ -350,41 +352,36 @@ class Main {
                     }
                 }
 
-                return item;
+                return fullPath;
             })
         );
         return mapped.filter((item) => item != null);
     };
 
     moveItems = async (e: Mp.MoveItemsRequest): Promise<Mp.MoveItemResult> => {
-        const targetFiles = await this.beforeMoveItems(e.dir, e.files);
+        if (path.dirname(e.fullPaths[0]) == e.dir) {
+            return { files: this.files, done: false };
+        }
+
+        const targetFiles = navigator.userAgent.includes("Linux") ? await this.beforeMoveItems(e.dir, e.fullPaths) : e.fullPaths;
 
         if (!targetFiles.length) {
             return { files: this.files, done: false };
         }
 
-        const movedFiles: Mp.MediaFile[] = [];
-
         try {
-            await Promise.all(
-                targetFiles.map(async (item) => {
-                    const dist = path.join(e.dir, item.name);
-
-                    if (e.copy) {
-                        await ipc.invoke("copy_file", { from: item.fullPath, to: dist });
-                    } else {
-                        await ipc.invoke("mv", { from: item.fullPath, to: dist });
-                    }
-
-                    const moved = await util.toFileFromPath(dist);
-                    movedFiles.push(moved);
-                })
-            );
+            const from = e.fullPaths;
+            const to = e.dir;
+            if (e.copy) {
+                await ipc.invoke("copy", { from, to });
+            } else {
+                await ipc.invoke("mv", { from, to });
+            }
         } catch (ex: any) {
             this.showErrorMessage(ex);
         } finally {
             await this.readFiles(this.currentDir);
-            return { movedItems: movedFiles, files: this.files, done: true };
+            return { files: this.files, done: true };
         }
     };
 
@@ -402,11 +399,9 @@ class Main {
             const data = await ipc.invoke("read_uris", undefined);
             if (!data.urls.length) return null;
 
-            const files = await Promise.all(data.urls.map(async (fullPath) => await util.toFileFromPath(fullPath)));
-            if (!files.length) return null;
+            const copy = data.operation == "None" ? util.getRootDirectory(data.urls[0]) != util.getRootDirectory(this.currentDir) : data.operation == "Copy";
 
-            const copy = data.operation == "None" ? util.getRootDirectory(files[0].fullPath) != util.getRootDirectory(this.currentDir) : data.operation == "Copy";
-            return this.moveItems({ files, dir: this.currentDir, copy });
+            return this.moveItems({ fullPaths: data.urls, dir: this.currentDir, copy });
         }
 
         return null;
@@ -428,6 +423,10 @@ class Main {
 
     openTerminal = async (dir: string) => {
         await ipc.invoke("open_terminal", dir);
+    };
+
+    launchNew = async () => {
+        await ipc.invoke("launch_new", undefined);
     };
 }
 

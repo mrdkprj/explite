@@ -14,7 +14,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     position: absolute;
-    left: 20px;
+    left: 5px;
     top: 0;
     height: 35px;
 }
@@ -130,13 +130,13 @@
     margin-left: 10px;
 }
 
-.btns .button{
+.button{
     width: 16px;
     height: 16px;
     padding: 10px;
 }
 
-.btns .button.disabled {
+.button.disabled {
     pointer-events: none;
     color: #9f8e8e;
 }
@@ -297,6 +297,10 @@
 
 .btns .button:hover{
     background-color: #e1e4ed;
+}
+
+.icon-area .button:hover{
+    background-color:#c1c1d1;
 }
 
 .path-data:hover{

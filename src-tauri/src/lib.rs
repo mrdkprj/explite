@@ -1,7 +1,9 @@
+use dialog::DialogOptions;
 use nonstd::*;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use tauri::WebviewWindow;
+use tauri::{AppHandle, Manager, WebviewWindow};
+mod dialog;
 mod menu;
 mod watcher;
 
@@ -90,23 +92,23 @@ fn get_mime_type(payload: String) -> String {
 }
 
 #[tauri::command]
-fn trash_item(payload: String) -> Result<(), String> {
-    shell::trash(payload)
+fn trash(payload: Vec<String>) -> Result<(), String> {
+    fs::trash_all(&payload)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct CopyInfo {
-    from: String,
+    from: Vec<String>,
     to: String,
 }
 #[tauri::command]
-fn copy_file(payload: CopyInfo) -> Result<u64, String> {
-    std::fs::copy(payload.from, payload.to).map_err(|e| e.to_string())
+fn copy(payload: CopyInfo) -> Result<(), String> {
+    fs::copy_all(&payload.from, payload.to)
 }
 
 #[tauri::command]
 fn mv(payload: CopyInfo) -> Result<(), String> {
-    fs::mv(payload.from, payload.to, None, None)
+    fs::mv_all(&payload.from, payload.to)
 }
 
 #[tauri::command]
@@ -237,6 +239,11 @@ fn unwatch(payload: String) {
 }
 
 #[tauri::command]
+async fn message(payload: DialogOptions) -> bool {
+    dialog::show(payload).await
+}
+
+#[tauri::command]
 fn open_terminal(payload: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
@@ -252,11 +259,16 @@ fn open_terminal(payload: String) -> Result<(), String> {
     }
 }
 
+#[tauri::command]
+fn launch_new(app: AppHandle) -> Result<(), String> {
+    let path = tauri::process::current_binary(&app.env()).map_err(|e| e.to_string())?;
+    nonstd::shell::open_path(path)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[allow(deprecated)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             prepare_menu,
             open_list_context_menu,
@@ -272,8 +284,8 @@ pub fn run() {
             start_drag,
             stat,
             get_mime_type,
-            trash_item,
-            copy_file,
+            trash,
+            copy,
             mv,
             is_uris_available,
             read_uris,
@@ -288,6 +300,8 @@ pub fn run() {
             watch,
             unwatch,
             open_terminal,
+            message,
+            launch_new
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

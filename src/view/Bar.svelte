@@ -2,6 +2,7 @@
     import { appState, dispatch } from "./appStateReducer";
     import { listState } from "./listStateReducer";
     import { handleKeyEvent } from "../constants";
+    import Launch from "../svg/Launch.svelte";
     import main from "../main";
     import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
@@ -14,6 +15,10 @@
         dispatch({ type: "isMaximized", value: !$appState.isMaximized });
     };
 
+    const launchNew = async () => {
+        await main.launchNew();
+    };
+
     const close = async () => {
         await main.closeWindow(WebviewWindow.getCurrent());
     };
@@ -21,7 +26,10 @@
 
 <div class="title-bar" data-tauri-drag-region style="user-select: none;">
     <div class="icon-area" data-tauri-drag-region>
-        <span>{$listState.files.length ? `${$appState.selection.selectedIds.length} / ${$listState.files.length}` : ""}</span>
+        <div class="button" onclick={launchNew} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+            <Launch />
+        </div>
+        <div style="margin-left: 10px;">{$listState.files.length ? `${$appState.selection.selectedIds.length} / ${$listState.files.length}` : ""}</div>
     </div>
     <div class="title" data-tauri-drag-region>{$appState.currentDir.paths.length ? $appState.currentDir.paths[$appState.currentDir.paths.length - 1] : ""}</div>
     <div class="window-area">

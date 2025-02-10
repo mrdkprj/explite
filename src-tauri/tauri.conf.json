@@ -8,5 +8,26 @@
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "yarn build",
     "frontendDist": "../dist"
+  },
+  "app": {
+    "security": {
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "**"
+        ]
+      },
+      "csp": {
+        "default-src": "'self' customprotocol: asset:",
+        "connect-src": "ipc: http://ipc.localhost",
+        "img-src": "'self' asset: http://asset.localhost blob: data:",
+        "media-src":"'self' asset: http://asset.localhost",
+        "style-src": "'unsafe-inline' 'self'"
+      }
+    },
+    "trayIcon": {
+      "iconPath": "icons/icon.ico",
+      "showMenuOnLeftClick": true
+    }
   }
 }

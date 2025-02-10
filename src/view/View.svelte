@@ -524,9 +524,10 @@
         await main.writeClipboard({ files, operation: copy ? "Copy" : "Move" });
     };
 
-    const moveItesm = async (files: Mp.MediaFile[], dir: string, copy: boolean) => {
+    const moveItems = async (files: Mp.MediaFile[], dir: string, copy: boolean) => {
         suspendWatch();
-        const result = await main.moveItems({ files, dir, copy });
+        const fullPaths = files.map((file) => file.fullPath);
+        const result = await main.moveItems({ fullPaths, dir, copy });
         resumeWatch();
         onPasteEnd(result);
     };
@@ -536,12 +537,6 @@
         if (e.done) {
             clearSelection();
             dispatch({ type: "updateFiles", value: { files: e.files, reload: true } });
-
-            if (e.movedItems) {
-                await tick();
-                const ids = e.movedItems.map((file) => file.id);
-                dispatch({ type: "appendSelectedIds", value: ids });
-            }
         }
     };
 
@@ -601,7 +596,7 @@
 
         const files = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
 
-        await moveItesm(files, target.fullPath, false);
+        await moveItems(files, target.fullPath, false);
     };
 
     const reload = async () => {
@@ -731,7 +726,7 @@
         }
     };
 
-    const load = (e: Mp.LoadEvent) => {
+    const load = async (e: Mp.LoadEvent) => {
         if (e.disks) {
             dispatch({ type: "init", value: { files: e.files, disks: e.disks, directory: e.directory } });
         }
@@ -770,6 +765,9 @@
         dispatch({ type: "history", value: { canUndo: back.length > 0, canRedo: forward.length > 0 } });
         dispatch({ type: "sort", value: e.sortType });
         dispatch({ type: "load", value: e });
+
+        const title = $appState.currentDir.paths.length ? $appState.currentDir.paths[$appState.currentDir.paths.length - 1] : HOME;
+        await WebviewWindow.getCurrent().setTitle(title);
     };
 
     const handleContextMenuEvent = async (e: keyof Mp.MainContextMenuSubTypeMap | keyof Mp.FavContextMenuSubTypeMap) => {
@@ -811,7 +809,6 @@
                 if (result) {
                     onPasteEnd(result);
                 }
-
                 break;
             }
 
@@ -850,6 +847,11 @@
 
             case "RemoveFromFavorite":
                 sendRemovingFavorite();
+                break;
+
+            case "Refresh":
+                const result = await util.getDriveInfo();
+                dispatch({ type: "disks", value: result });
                 break;
 
             case "Terminal":
