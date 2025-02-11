@@ -63,8 +63,8 @@ class Main {
 
     private openFolder = async (fullPath: string, navigation: Mp.Navigation): Promise<Mp.LoadEvent | null> => {
         const directory = fullPath;
-
-        if (directory != HOME && !util.exists(directory)) {
+        const found = await util.exists(directory);
+        if (directory != HOME && !found) {
             await this.showErrorMessage(`"${directory}" does not exist.`);
             return null;
         }

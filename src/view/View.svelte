@@ -1075,7 +1075,7 @@
                         onkeydown={onRenameInputKeyDown}
                         bind:value={$listState.rename.inputValue}
                         use:setFocusAndSelect
-                        autocomplete={undefined}
+                        autocomplete="new-password"
                     />
                 {/if}
                 {#if $listState.newItem.visible}
@@ -1088,7 +1088,7 @@
                         onkeydown={onNewItemInputKeyDown}
                         bind:value={$listState.newItem.inputValue}
                         use:setFocusAndSelect
-                        autocomplete={undefined}
+                        autocomplete="new-password"
                     />
                 {/if}
 

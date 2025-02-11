@@ -184,7 +184,7 @@
                 onblur={onPathInputLeave}
                 bind:value={pathValue}
                 onkeydown={onPathInputKeyDown}
-                autocomplete={undefined}
+                autocomplete="new-password"
             />
         {:else}
             <div class="path">
@@ -206,7 +206,7 @@
             bind:value={$appState.search.key}
             onkeydown={onSearchInputKeyDown}
             disabled={$appState.currentDir.fullPath == "Home"}
-            autocomplete={undefined}
+            autocomplete="new-password"
         />
         {#if $appState.search.searching}
             <div class="clear" onclick={endSearch} onkeydown={handleKeyEvent} role="button" tabindex="-1">
