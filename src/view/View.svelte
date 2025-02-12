@@ -727,6 +727,10 @@
     };
 
     const load = async (e: Mp.LoadEvent) => {
+        if (fileListContainer) {
+            fileListContainer.scrollLeft = 0;
+        }
+
         if (e.disks) {
             dispatch({ type: "init", value: { files: e.files, disks: e.disks, directory: e.directory } });
         }
@@ -882,7 +886,7 @@
 
         if (e.ctrlKey && e.key == "f") {
             e.preventDefault();
-            header.searchInputFocus();
+            header.focusSearchInput();
             return;
         }
 
@@ -1051,9 +1055,6 @@
             <div
                 class="main"
                 class:clipping={$appState.clip.clipping}
-                onmousedown={onItemMouseDown}
-                onmouseup={onItemMouseUp}
-                ondblclick={onSelect}
                 oncontextmenu={onListContextMenu}
                 onkeydown={handleKeyEvent}
                 onscroll={endEditFileName}
@@ -1075,7 +1076,7 @@
                         onkeydown={onRenameInputKeyDown}
                         bind:value={$listState.rename.inputValue}
                         use:setFocusAndSelect
-                        autocomplete="new-password"
+                        autocomplete="one-time-code"
                     />
                 {/if}
                 {#if $listState.newItem.visible}
@@ -1088,7 +1089,7 @@
                         onkeydown={onNewItemInputKeyDown}
                         bind:value={$listState.newItem.inputValue}
                         use:setFocusAndSelect
-                        autocomplete="new-password"
+                        autocomplete="one-time-code"
                     />
                 {/if}
 
@@ -1133,6 +1134,9 @@
                                 onmouseout={clipMouseLeave}
                                 onfocus={handleKeyEvent}
                                 onblur={handleKeyEvent}
+                                onmousedown={onItemMouseDown}
+                                onmouseup={onItemMouseUp}
+                                ondblclick={onSelect}
                                 data-file-id={item.id}
                                 role="button"
                                 tabindex="-1"

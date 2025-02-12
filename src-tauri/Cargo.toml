@@ -22,7 +22,7 @@ tauri = { version = "2.2.5", features = [ "tray-icon", "devtools", "protocol-ass
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 wcpopup = "0.5.1"
-nonstd = { git = "https://github.com/mrdkprj/nonstd.git", rev="b9ef625458cc59ebaaad0e063bcab15de1f6c987" }
+nonstd = { git = "https://github.com/mrdkprj/nonstd.git", rev="e932cedab14a993d52d7fac823752373581ec435" }
 once_cell = "1.19.0"
 async-std = "1.13.0"
 notify = "8.0.0"
