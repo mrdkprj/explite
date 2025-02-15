@@ -247,15 +247,15 @@ async fn message(payload: DialogOptions) -> bool {
 fn open_terminal(payload: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        let mut arg = "-d ".to_string();
+        let mut arg = "wt.exe -d ".to_string();
         arg.push_str(&payload);
-        nonstd::shell::open_path_with(arg, "wt.exe")
+        nonstd::shell::execute(arg, "powershell")
     }
     #[cfg(target_os = "linux")]
     {
         let mut arg = "--working-directory=".to_string();
         arg.push_str(&payload);
-        nonstd::shell::open_path_with(arg, "gnome-terminal")
+        nonstd::shell::execute(arg, "gnome-terminal")
     }
 }
 
