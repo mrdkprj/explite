@@ -333,6 +333,9 @@
     align-items: center;
     justify-content: flex-start;
     width: fit-content;
+    outline: 1px solid transparent;
+    border-radius: 2px;
+    outline-offset: -1px;
 }
 
 .col-detail{
@@ -392,8 +395,6 @@
 .highlight{
     background-color: #e6e6ff;
     outline: 1px solid #000;
-    border-radius: 2px;
-    outline-offset: -1px;
 }
 
 .current {
