@@ -464,6 +464,7 @@
     text-indent: 5px;
     font-size: 14px;
     background-color: #fff;
+    border-bottom: 2px solid transparent;
 }
 
 .header input:focus{

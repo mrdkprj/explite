@@ -144,8 +144,13 @@
     };
 
     export const focusSearchInput = () => {
-        searchInput.focus();
+        if (!hasSearchInputFocus()) {
+            searchInput.focus();
+        }
+
         if (searchInput.value) {
+            // clear first
+            searchInput.setSelectionRange(0, 0);
             searchInput.setSelectionRange(0, searchInput.value.length);
         }
     };
@@ -204,6 +209,7 @@
             bind:this={searchInput}
             oninput={onSearchInput}
             bind:value={$appState.search.key}
+            onfocus={focusSearchInput}
             onkeydown={onSearchInputKeyDown}
             disabled={$appState.currentDir.fullPath == "Home"}
             autocomplete="one-time-code"
