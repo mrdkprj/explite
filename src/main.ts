@@ -179,7 +179,7 @@ class Main {
     private found = (value: string, key: string) => {
         const withoutExt = value.replace(path.extname(value), "");
         const strippedText = withoutExt.replace(/[\!#\$\%&'\(\)\=\~\^\-\|`@\{\[\+;\]\}\,\_\s]/g, " ").split(" ");
-        return strippedText.some((s) => s.toLocaleLowerCase().startsWith(key));
+        return strippedText.some((s) => s.toLocaleLowerCase().startsWith(key)) || withoutExt.toLocaleLowerCase() == key;
     };
 
     onSearchEnd = (): Mp.SearchResult => {
