@@ -123,7 +123,7 @@
             return;
         }
 
-        const fileName = selectedElement.textContent ?? "";
+        const fileName = selectedElement.getAttribute("data-name") ?? "";
         const rect = selectedElement.getBoundingClientRect();
 
         dispatch({

@@ -63,7 +63,7 @@ class Util {
         const extension = attr.is_directory ? "ファイルフォルダー" : path.extname(fullPath);
 
         return {
-            id: encodeURIComponent(fullPath),
+            id: encodeURIComponent(fullPath) + crypto.randomUUID(),
             fullPath,
             dir: path.dirname(fullPath),
             encName: encodedPath,
@@ -84,7 +84,7 @@ class Util {
         const extension = attr.is_directory ? "ファイルフォルダー" : path.extname(fullPath);
 
         return {
-            id: encodeURIComponent(fullPath),
+            id: encodeURIComponent(fullPath) + crypto.randomUUID(),
             fullPath,
             dir: path.dirname(fullPath),
             encName: encodedPath,

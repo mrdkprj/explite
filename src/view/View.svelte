@@ -351,7 +351,7 @@
 
         if (!selectedElement) return;
 
-        const fileName = selectedElement.textContent ?? "";
+        const fileName = selectedElement.getAttribute("data-name") ?? "";
 
         const rect = selectedElement.getBoundingClientRect();
 
@@ -1160,7 +1160,7 @@
                                                 <FolderSvg />
                                             {/if}
                                         </div>
-                                        <div class="name" id={item.encName}>{item.name}</div>
+                                        <div class="name" id={item.encName} data-name={item.name}>{item.name}</div>
                                     </div>
                                 </div>
                                 {#if $appState.search.searching}

@@ -158,7 +158,7 @@ class Main {
 
         const key = e.key.toLocaleLowerCase();
         if (e.dir in this.searchCache) {
-            const filetedFiles = await Promise.all(this.searchCache[e.dir].filter((fullPath) => this.found(path.basename(fullPath), key)).map(async (fullPath) => await util.toFileFromPath(fullPath)));
+            const filetedFiles = await this.filterCache(e.dir, key);
             return { files: filetedFiles };
         }
 
@@ -166,18 +166,20 @@ class Main {
         this.searchCache[e.dir] = allDirents.filter((direcnt) => !direcnt.attributes.is_system).map((dirent) => path.join(dirent.parent_path, dirent.name));
 
         this.files.length = 0;
-        const filetedFiles = await Promise.all(this.searchCache[e.dir].filter((fullPath) => this.found(path.basename(fullPath), key)).map(async (fullPath) => await util.toFileFromPath(fullPath)));
+        const filetedFiles = await this.filterCache(e.dir, key);
         filetedFiles.forEach((file) => this.files.push(file));
 
         return { files: filetedFiles };
     };
 
-    private found = (value: string, key: string) => {
-        if (value.includes(" ") || value.includes("　")) {
-            return value.toLocaleLowerCase().includes(key);
-        }
+    private filterCache = async (dir: string, key: string) => {
+        return await Promise.all(this.searchCache[dir].filter((fullPath) => this.found(path.basename(fullPath), key)).map(async (fullPath) => await util.toFileFromPath(fullPath)));
+    };
 
-        return value.toLocaleLowerCase().startsWith(key);
+    private found = (value: string, key: string) => {
+        const withoutExt = value.replace(path.extname(value), "");
+        const strippedText = withoutExt.replace(/[\!#\$\%&'\(\)\=\~\^\-\|`@\{\[\+;\]\}\,\_\s]/g, " ").split(" ");
+        return strippedText.some((s) => s.toLocaleLowerCase().startsWith(key));
     };
 
     onSearchEnd = (): Mp.SearchResult => {
