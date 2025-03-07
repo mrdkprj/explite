@@ -47,9 +47,9 @@ async fn show_confirm(info: DialogOptions) -> bool {
     let options = MessageDialogOptions {
         title: info.title,
         kind: Some(get_level(&info.kind)),
-        buttons: vec!["OK".to_string(), "Cancel".to_string()],
+        buttons: vec![info.ok_label.unwrap_or("OK".to_string()), info.cancel_label.unwrap_or("Cancel".to_string())],
         message: info.message,
-        cancel_id: None,
+        cancel_id: Some(1),
     };
     message(options).await
 }

@@ -2,7 +2,6 @@
     import { onMount, tick } from "svelte";
     import { appState, dispatch } from "./appStateReducer";
     import { listState } from "./listStateReducer";
-    import editor from "./editor";
     import Bar from "./Bar.svelte";
     import Header from "./Header.svelte";
     import Left from "./Left.svelte";
@@ -20,6 +19,8 @@
     import main from "../main";
     import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
     import util from "../util";
+    import { path } from "../path";
+    import Deferred from "../deferred";
 
     let fileListContainer = $state<HTMLDivElement>();
     let virtualList = $state<VirtualList<Mp.MediaFile>>();
@@ -28,6 +29,7 @@
     let visibleStartIndex = $state(0);
     let visibleEndIndex = $state(0);
     let ignoreChange = false;
+    let folderUpdatePromise: Deferred<boolean> | null;
 
     const ipc = new IPC("View");
     const HEADER_DIVIDER_WIDTh = 10;
@@ -242,6 +244,15 @@
         await scrollToElement(id);
     };
 
+    const selectMultiple = async (ids: string[]) => {
+        clearSelection();
+
+        const lastItem = ids[ids.length - 1];
+        dispatch({ type: "updateSelection", value: { selectedId: lastItem, selectedIds: ids } });
+
+        await scrollToElement(lastItem);
+    };
+
     const selectByClick = (id: string) => {
         select(id);
     };
@@ -351,11 +362,7 @@
 
         if (!selectedElement) return;
 
-        const fileName = selectedElement.getAttribute("data-name") ?? "";
-
         const rect = selectedElement.getBoundingClientRect();
-
-        editor.begin(file.id, fileName, $listState.files[$listState.files.length - 1].isFile);
 
         dispatch({
             type: "startRename",
@@ -367,7 +374,8 @@
                     height: rect.height,
                     origWidth: rect.width,
                 },
-                inputValue: fileName,
+                oldName: path.basename(file.fullPath),
+                fullPath: file.fullPath,
             },
         });
 
@@ -381,56 +389,27 @@
     const endEditFileName = () => {
         if (!$listState.rename.renaming) return;
 
-        if (editor.data.name === $listState.rename.inputValue) {
+        if ($listState.rename.oldName === $listState.rename.newName) {
             endRename();
         } else {
-            editor.update($listState.rename.inputValue);
             requestRename();
         }
     };
 
     const requestRename = async () => {
         dispatch({ type: "preventBlur", value: true });
-        suspendWatch();
-        const result = await main.renameItem({ data: editor.data });
-        resumeWatch();
-        onRename(result);
-        if (!result.error) {
-            const result = main.sortFile();
-            onSorted(result);
-        }
-    };
-
-    const onRename = (data: Mp.RenameResult) => {
-        if (data.error) {
-            editor.rollback();
-            select(editor.data.id);
-        } else {
-            editor.end();
-            dispatch({ type: "rename", value: editor.data });
-        }
-
+        folderUpdatePromise = new Deferred();
+        const result = await main.renameItem($listState.rename.fullPath, $listState.rename.newName);
         endRename();
-    };
+        if (!result.done) {
+            folderUpdatePromise = null;
+            const files = $listState.files.filter((file) => file.fullPath == $listState.rename.fullPath);
+            select(files[0].id);
+            return;
+        }
 
-    const undoRename = () => {
-        if (!editor.canUndo()) return;
-
-        editor.undo();
-
-        select(editor.data.id);
-
-        requestRename();
-    };
-
-    const redoRename = () => {
-        if (!editor.canRedo()) return;
-
-        editor.redo();
-
-        select(editor.data.id);
-
-        requestRename();
+        await folderUpdatePromise.promise;
+        select(result.newId);
     };
 
     const setFocusAndSelect = (node: HTMLInputElement) => {
@@ -450,63 +429,37 @@
             }
 
             if (e.key == "z" && e.ctrlKey) {
-                dispatch({ type: "changeInputWidth", value: { target: "Rename", width: $listState.rename.rect.origWidth } });
+                dispatch({ type: "changeInputWidth", value: $listState.rename.rect.origWidth });
             } else if (e.key && e.key.length == 1 && !e.ctrlKey && !e.shiftKey && !e.altKey) {
-                dispatch({ type: "changeInputWidth", value: { target: "Rename", width: e.target.scrollWidth } });
+                dispatch({ type: "changeInputWidth", value: e.target.scrollWidth });
             }
         }
     };
 
-    const createItem = async () => {
-        if (!$listState.newItem) return;
+    const createItem = async (isFile: boolean) => {
+        folderUpdatePromise = new Deferred();
+        const result = await main.createItem(isFile);
 
-        const item = $listState.files[$listState.files.length - 1];
-        item.dir = $appState.currentDir.fullPath;
-        item.name = $listState.newItem.inputValue;
-        dispatch({ type: "preventBlur", value: true });
-        dispatch({ type: "hideNewItem" });
-
-        suspendWatch();
-        const result = await main.createItem({ file: item });
-        resumeWatch();
-        onNewItemCreated(result);
-    };
-
-    const onNewItemInputKeyDown = (e: KeyboardEvent) => {
-        if (!e.target || !(e.target instanceof HTMLInputElement)) return;
-
-        if (e.key == "Enter") {
-            e.preventDefault();
-            e.stopPropagation();
-            createItem();
-            return;
-        }
-
-        if (e.key == "z" && e.ctrlKey) {
-            dispatch({ type: "changeInputWidth", value: { target: "NewItem", width: $listState.newItem.rect.origWidth } });
-        } else if (e.key && e.key.length == 1 && !e.ctrlKey && !e.shiftKey && !e.altKey) {
-            dispatch({ type: "changeInputWidth", value: { target: "NewItem", width: e.target.scrollWidth } });
-        }
-    };
-
-    const onNewItemCreated = async (e: Mp.CreateItemResult) => {
-        dispatch({ type: "updateFiles", value: { files: e.files, reload: false } });
-
-        if (e.success) {
-            await tick();
-            select(e.newItemId);
+        if (result.success) {
+            await folderUpdatePromise.promise;
+            await select(result.newItemId);
+            startEditFileName();
+        } else {
+            folderUpdatePromise = null;
         }
     };
 
     const trashItem = async () => {
         if (!$appState.selection.selectedIds.length) return;
         const files = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
-        suspendWatch();
-        const result = await main.trashItems({ files });
-        resumeWatch();
-        if (result) {
-            load(result);
-        }
+        await main.trashItems({ files });
+    };
+
+    const deleteItem = async () => {
+        if (!$appState.selection.selectedIds.length) return;
+
+        const files = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+        await main.deleteItems({ files });
     };
 
     const writeFullPathToClipboard = async () => {
@@ -525,19 +478,32 @@
     };
 
     const moveItems = async (files: Mp.MediaFile[], dir: string, copy: boolean) => {
-        suspendWatch();
+        folderUpdatePromise = new Deferred();
         const fullPaths = files.map((file) => file.fullPath);
         const result = await main.moveItems({ fullPaths, dir, copy });
-        resumeWatch();
+        if (!result.done) {
+            folderUpdatePromise = null;
+            return;
+        }
+        await folderUpdatePromise.promise;
+        onPasteEnd(result);
+    };
+
+    const pasteItems = async () => {
+        folderUpdatePromise = new Deferred();
+        const result = await main.onPaste();
+        if (!result.done) {
+            folderUpdatePromise = null;
+            return;
+        }
+        await folderUpdatePromise.promise;
         onPasteEnd(result);
     };
 
     const onPasteEnd = async (e: Mp.MoveItemResult) => {
         dispatch({ type: "clearCopyCut" });
-        if (e.done) {
-            clearSelection();
-            dispatch({ type: "updateFiles", value: { files: e.files, reload: true } });
-        }
+        const ids = $listState.files.filter((file) => e.fullPaths.includes(file.fullPath)).map((file) => file.id);
+        await selectMultiple(ids);
     };
 
     const sendRemovingFavorite = () => {
@@ -599,12 +565,12 @@
         await moveItems(files, target.fullPath, false);
     };
 
-    const reload = async () => {
+    const reload = async (includeDrive: boolean) => {
         if ($appState.search.searching) {
             main.onSearchEnd();
             await header.startSearch();
         } else {
-            const result = await main.reload();
+            const result = await main.reload(includeDrive);
             load(result);
         }
     };
@@ -638,6 +604,7 @@
     const endSearch = () => {
         if ($appState.search.searching) {
             dispatch({ type: "endSearch" });
+            CSS.highlights.clear();
             const result = main.onSearchEnd();
             resumeWatch();
             onSearched(result);
@@ -726,6 +693,14 @@
         }
     };
 
+    const undo = async () => {
+        await main.undo();
+    };
+
+    const redo = async () => {
+        await main.redo();
+    };
+
     const load = async (e: Mp.LoadEvent) => {
         if (fileListContainer) {
             fileListContainer.scrollLeft = 0;
@@ -809,10 +784,7 @@
             }
 
             case "Paste": {
-                const result = await main.onPaste();
-                if (result) {
-                    onPasteEnd(result);
-                }
+                await pasteItems();
                 break;
             }
 
@@ -882,7 +854,6 @@
         if ($listState.rename.renaming) return;
         if ($appState.pathEditing) return;
         if (header.hasSearchInputFocus()) return;
-        if ($listState.newItem.visible) return;
 
         if (e.ctrlKey && e.key == "f") {
             e.preventDefault();
@@ -908,7 +879,7 @@
 
         if (e.key == "F5") {
             e.preventDefault();
-            reload();
+            reload(true);
             return;
         }
 
@@ -919,12 +890,12 @@
 
         if (e.ctrlKey && e.key === "z") {
             e.preventDefault();
-            return undoRename();
+            return undo();
         }
 
         if (e.ctrlKey && e.key === "y") {
             e.preventDefault();
-            return redoRename();
+            return redo();
         }
 
         if (e.key === "ArrowUp" || e.key === "ArrowDown") {
@@ -965,17 +936,16 @@
 
         if (e.ctrlKey && e.key == "v") {
             e.preventDefault();
-
-            const result = await main.onPaste();
-            if (result) {
-                onPasteEnd(result);
-            }
-            return;
+            return pasteItems();
         }
 
         if (e.key == "Delete") {
             e.preventDefault();
-            return trashItem();
+            if (e.shiftKey) {
+                return deleteItem();
+            } else {
+                return trashItem();
+            }
         }
 
         if (e.key == "Escape") {
@@ -1011,10 +981,17 @@
         }, 500);
     };
 
-    const onWatchEvent = async () => {
+    const onWatchEvent = async (e: Mp.WatchEvent) => {
         if (ignoreChange) return;
 
-        await reload();
+        const files = await main.onWatchEvent(e);
+        dispatch({ type: "updateFiles", value: { files, reload: false } });
+
+        if (folderUpdatePromise) {
+            await tick();
+            folderUpdatePromise.resolve(true);
+            folderUpdatePromise = null;
+        }
     };
 
     const prepare = async () => {
@@ -1049,7 +1026,7 @@
 <div class="viewport" class:full-screen={$appState.isFullScreen} class:sliding={$appState.slideState.sliding}>
     <Bar />
     <div class="view">
-        <Header {requestLoad} {onSearched} {endSearch} {goBack} {goForward} {select} {reload} {suspendWatch} bind:this={header} />
+        <Header {requestLoad} {onSearched} {endSearch} {goBack} {goForward} {createItem} {reload} {suspendWatch} bind:this={header} />
         <div class="body" ondragover={(e) => e.preventDefault()} ondrop={onItemDrop} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <Left {requestLoad} />
             <div
@@ -1074,20 +1051,7 @@
                         spellCheck="false"
                         onblur={$appState.preventBlur ? undefined : endEditFileName}
                         onkeydown={onRenameInputKeyDown}
-                        bind:value={$listState.rename.inputValue}
-                        use:setFocusAndSelect
-                        autocomplete="one-time-code"
-                    />
-                {/if}
-                {#if $listState.newItem.visible}
-                    <input
-                        type="text"
-                        class="input newitem"
-                        style="top:{$listState.newItem.rect.top}px; left:{$listState.newItem.rect.left}px; width:{$listState.newItem.rect.width}px; height:{$listState.newItem.rect.height}px"
-                        spellCheck="false"
-                        onblur={$appState.preventBlur ? undefined : createItem}
-                        onkeydown={onNewItemInputKeyDown}
-                        bind:value={$listState.newItem.inputValue}
+                        bind:value={$listState.rename.newName}
                         use:setFocusAndSelect
                         autocomplete="one-time-code"
                     />
@@ -1160,7 +1124,7 @@
                                                 <FolderSvg />
                                             {/if}
                                         </div>
-                                        <div class="name" id={item.encName} data-name={item.name}>{item.name}</div>
+                                        <div class="name" id={item.encName}>{item.name}</div>
                                     </div>
                                 </div>
                                 {#if $appState.search.searching}

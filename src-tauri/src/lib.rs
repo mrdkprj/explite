@@ -96,6 +96,16 @@ fn trash(payload: Vec<String>) -> Result<(), String> {
     fs::trash_all(&payload)
 }
 
+#[tauri::command]
+fn delete(payload: Vec<String>) -> Result<(), String> {
+    fs::delete_all(&payload)
+}
+
+#[tauri::command]
+fn undelete(payload: Vec<String>) -> Result<(), String> {
+    fs::undelete(payload)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct CopyInfo {
     from: Vec<String>,
@@ -155,7 +165,7 @@ fn mkdir_all(payload: String) -> Result<(), String> {
 
 #[tauri::command]
 fn create(payload: String) -> Result<(), String> {
-    match std::fs::File::create(payload) {
+    match std::fs::File::create_new(payload) {
         Ok(_) => Ok(()),
         Err(e) => Err(e.to_string()),
     }
@@ -285,6 +295,8 @@ pub fn run() {
             stat,
             get_mime_type,
             trash,
+            delete,
+            undelete,
             copy,
             mv,
             is_uris_available,

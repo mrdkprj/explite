@@ -1,10 +1,10 @@
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
-import { Dirent, IPC } from "./ipc";
+import { Dirent, IPCBase } from "./ipc";
 import { path } from "./path";
 import { MIME_TYPE, SEPARATOR } from "./constants";
 
 const REGULAR_TYPES = [".ts", ".json", ".mjs", ".cjs"];
-const ipc = new IPC("View");
+const ipc = new IPCBase();
 
 class Util {
     async exists(target: string | undefined | null, createIfNotFound = false) {
@@ -63,7 +63,7 @@ class Util {
         const extension = attr.is_directory ? "ファイルフォルダー" : path.extname(fullPath);
 
         return {
-            id: encodeURIComponent(fullPath) + crypto.randomUUID(),
+            id: encodeURIComponent(fullPath),
             fullPath,
             dir: path.dirname(fullPath),
             encName: encodedPath,
@@ -84,28 +84,7 @@ class Util {
         const extension = attr.is_directory ? "ファイルフォルダー" : path.extname(fullPath);
 
         return {
-            id: encodeURIComponent(fullPath) + crypto.randomUUID(),
-            fullPath,
-            dir: path.dirname(fullPath),
-            encName: encodedPath,
-            name: decodeURIComponent(encodeURIComponent(path.basename(fullPath))),
-            mdate: attr.mtime_ms,
-            cdate: attr.birthtime_ms,
-            size: Math.ceil(attr.size / 1000),
-            extension,
-            isFile: attr.is_file,
-            fileType: attr.is_directory ? "None" : this.getFileType(mimeType, extension),
-        };
-    }
-
-    async updateFile(fullPath: string, currentFile: Mp.MediaFile): Promise<Mp.MediaFile> {
-        const attr = await ipc.invoke("stat", fullPath);
-        const mimeType = attr.is_directory ? "" : await ipc.invoke("get_mime_type", fullPath);
-        const encodedPath = path.join(path.dirname(fullPath), encodeURIComponent(path.basename(fullPath)));
-        const extension = attr.is_directory ? "ファイルフォルダー" : path.extname(fullPath);
-
-        return {
-            id: currentFile.id,
+            id: encodeURIComponent(fullPath),
             fullPath,
             dir: path.dirname(fullPath),
             encName: encodedPath,

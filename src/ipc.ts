@@ -101,6 +101,8 @@ type TauriCommandMap = {
     stat: TauriCommand<string, FileAttribute>;
     get_mime_type: TauriCommand<string, string>;
     trash: TauriCommand<string[], undefined>;
+    delete: TauriCommand<string[], undefined>;
+    undelete: TauriCommand<string[], undefined>;
     copy: TauriCommand<CopyInfo, undefined>;
     mv: TauriCommand<CopyInfo, undefined>;
     is_uris_available: TauriCommand<undefined, boolean>;

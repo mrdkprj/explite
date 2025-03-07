@@ -4,7 +4,9 @@ import Deferred from "./deferred";
 import { DEFAULT_SORT_TYPE, HOME } from "./constants";
 import { IPC } from "./ipc";
 import { path } from "./path";
+import { History } from "./history";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+
 const ipc = new IPC("View");
 
 class Main {
@@ -15,6 +17,7 @@ class Main {
     currentDir = HOME;
     watchTarget = HOME;
     abortPromise: Deferred<boolean> | null = null;
+    history = new History();
 
     onMainReady = async (): Promise<Mp.ReadyEvent> => {
         await this.settings.init();
@@ -122,7 +125,6 @@ class Main {
         try {
             const allDirents = await ipc.invoke("readdir", { directory, recursive: false });
 
-            this.currentDir = directory;
             this.files.length = 0;
             allDirents
                 .filter((dirent) => !dirent.attributes.is_system)
@@ -131,7 +133,11 @@ class Main {
 
             const sortType = this.sortFiles(directory, this.files);
 
-            this.startWatch();
+            if (this.currentDir != directory) {
+                this.startWatch();
+            }
+
+            this.currentDir = directory;
 
             return {
                 done: true,
@@ -173,13 +179,13 @@ class Main {
     };
 
     private filterCache = async (dir: string, key: string) => {
-        return await Promise.all(this.searchCache[dir].filter((fullPath) => this.found(path.basename(fullPath), key)).map(async (fullPath) => await util.toFileFromPath(fullPath)));
+        return await Promise.all(this.searchCache[dir].filter((fullPath) => this.isSearchFileFound(path.basename(fullPath), key)).map(async (fullPath) => await util.toFileFromPath(fullPath)));
     };
 
-    private found = (value: string, key: string) => {
-        const withoutExt = value.replace(path.extname(value), "");
+    private isSearchFileFound = (value: string, key: string) => {
+        const withoutExt = value.replace(path.extname(value), "").toLocaleLowerCase();
         const strippedText = withoutExt.replace(/[\!#\$\%&'\(\)\=\~\^\-\|`@\{\[\+;\]\}\,\_\s]/g, " ").split(" ");
-        return strippedText.some((s) => s.toLocaleLowerCase().startsWith(key)) || withoutExt.toLocaleLowerCase() == key;
+        return strippedText.some((s) => s.toLocaleLowerCase().startsWith(key)) || withoutExt == key || withoutExt.startsWith(key);
     };
 
     onSearchEnd = (): Mp.SearchResult => {
@@ -188,30 +194,6 @@ class Main {
         this.unfilteredFiles = [];
 
         return { files: this.files };
-    };
-
-    renameItem = async (e: Mp.RenameRequest): Promise<Mp.RenameResult> => {
-        const fileIndex = this.files.findIndex((file) => file.id == e.data.id);
-        const file = this.files[fileIndex];
-        const filePath = file.fullPath;
-        const newPath = path.join(path.dirname(filePath), e.data.name);
-
-        try {
-            const found = await util.exists(newPath);
-            if (found) {
-                throw new Error(`File name "${e.data.name}" exists`);
-            }
-
-            await ipc.invoke("rename", { new: newPath, old: filePath });
-
-            const newMediaFile = await util.updateFile(newPath, file);
-            this.files[fileIndex] = newMediaFile;
-
-            return { file: newMediaFile };
-        } catch (ex) {
-            this.showErrorMessage(ex);
-            return { file: file, error: true };
-        }
     };
 
     sortFile = (): Mp.SortResult => {
@@ -288,42 +270,130 @@ class Main {
         this.settings.data.headerLabels = e.labels;
     };
 
-    reload = async (): Promise<Mp.LoadEvent> => {
+    reload = async (includeDrive: boolean): Promise<Mp.LoadEvent> => {
         const result = await this.readFiles(this.currentDir);
-        return { files: this.files, directory: this.currentDir, navigation: "Reload", sortType: result.sortType, failed: !result.done };
+        const disks = includeDrive ? await util.getDriveInfo() : undefined;
+        return { files: this.files, disks, directory: this.currentDir, navigation: "Reload", sortType: result.sortType, failed: !result.done };
     };
 
     startDrag = async (files: string[]) => {
         await ipc.invoke("start_drag", files);
     };
 
-    createItem = async (e: Mp.CreateItemRequest): Promise<Mp.CreateItemResult> => {
-        const fullPath = path.join(e.file.dir, e.file.name);
+    removeFavorite = (id: string): Mp.MediaFile[] => {
+        const newFavorites = this.settings.data.favorites.filter((file) => file.id != id);
+        this.settings.data.favorites = newFavorites;
+        return this.settings.data.favorites;
+    };
+
+    writeClipboard = async (e: Mp.WriteClipboardRequest) => {
+        const fullPaths = e.files.map((file) => file.fullPath);
+        await ipc.invoke("write_uris", { fullPaths, operation: e.operation });
+    };
+
+    writeFullpathToClipboard = async (fullPaths: string) => {
+        await ipc.invoke("write_text", fullPaths);
+    };
+
+    addFavorite = (favorite: Mp.MediaFile): Mp.MediaFile[] => {
+        this.settings.data.favorites.push(favorite);
+        return this.settings.data.favorites;
+    };
+
+    openTerminal = async (dir: string) => {
+        await ipc.invoke("open_terminal", dir);
+    };
+
+    launchNew = async () => {
+        await ipc.invoke("launch_new", undefined);
+    };
+
+    private getNewName = async (isFile: boolean) => {
+        const name = isFile ? "新しいファイル" : "新しいフォルダー";
+        const found = await util.exists(path.join(this.currentDir, isFile ? `${name}.txt` : name));
+        if (!found) return name;
+
+        let number = 1;
+        for (const _ of [...Array(100)]) {
+            const uniqueName = `${name}(${number})`;
+            const found = await util.exists(path.join(this.currentDir, isFile ? `${uniqueName}.txt` : uniqueName));
+            if (!found) return uniqueName;
+            number++;
+        }
+        return `${name}(${number})`;
+    };
+
+    createItem = async (isFile: boolean): Promise<Mp.CreateItemResult> => {
+        const itemName = await this.getNewName(isFile);
+        const fullPath = path.join(this.currentDir, isFile ? `${itemName}.txt` : itemName);
 
         try {
-            if (e.file.isFile) {
+            if (isFile) {
                 await ipc.invoke("create", fullPath);
             } else {
                 await ipc.invoke("mkdir", fullPath);
             }
-            const newFile = await util.toFileFromPath(fullPath);
-            this.files.push(newFile);
-            this.sortFiles(this.currentDir, this.files);
-            return { files: this.files, newItemId: newFile.id, success: true };
+
+            this.trackOperation("Create", [], "", [fullPath], isFile);
+
+            const newItemId = encodeURIComponent(fullPath);
+            return { newItemId, success: true };
         } catch (ex: any) {
             this.showErrorMessage(ex);
-            return { files: this.files, newItemId: "", success: false };
+            return { newItemId: "", success: false };
         }
     };
 
-    trashItems = async (e: Mp.TrashItemRequest): Promise<Mp.LoadEvent | null> => {
+    renameItem = async (fullPath: string, newName: string): Promise<Mp.RenameResult> => {
+        const fileIndex = this.files.findIndex((file) => file.fullPath == fullPath);
+
+        const file = this.files[fileIndex];
+        const filePath = file.fullPath;
+        const newPath = path.join(path.dirname(filePath), newName);
+
+        try {
+            const found = await util.exists(newPath);
+            if (found) {
+                throw new Error(`File name "${newName}" exists`);
+            }
+
+            await ipc.invoke("rename", { new: newPath, old: filePath });
+
+            this.trackOperation("Rename", [filePath], newPath, []);
+
+            return {
+                done: true,
+                newId: encodeURIComponent(newPath),
+            };
+        } catch (ex) {
+            this.showErrorMessage(ex);
+            return {
+                done: false,
+                newId: "",
+            };
+        }
+    };
+
+    trashItems = async (e: Mp.TrashItemRequest) => {
         try {
             const fullPaths = e.files.map((file) => file.fullPath);
             await ipc.invoke("trash", fullPaths);
-            return this.reload();
+
+            this.trackOperation("Trash", [], "", fullPaths);
         } catch (ex: any) {
             this.showErrorMessage(ex);
-            return null;
+        }
+    };
+
+    deleteItems = async (e: Mp.TrashItemRequest) => {
+        try {
+            const confimed = await ipc.invoke("message", { dialog_type: "confirm", kind: "info", message: "このファイルを完全に削除しますか？", ok_label: "はい", cancel_label: "いいえ" });
+            if (!confimed) return;
+
+            const fullPaths = e.files.map((file) => file.fullPath);
+            await ipc.invoke("delete", fullPaths);
+        } catch (ex: any) {
+            this.showErrorMessage(ex);
         }
     };
 
@@ -360,16 +430,34 @@ class Main {
         return mapped.filter((item) => item != null);
     };
 
+    onPaste = async (): Promise<Mp.MoveItemResult> => {
+        if (!this.currentDir) return { fullPaths: [], done: false };
+
+        const uriAvailable = await ipc.invoke("is_uris_available", undefined);
+        if (uriAvailable) {
+            const data = await ipc.invoke("read_uris", undefined);
+            if (!data.urls.length) return { fullPaths: [], done: false };
+
+            const copy = data.operation == "None" ? util.getRootDirectory(data.urls[0]) != util.getRootDirectory(this.currentDir) : data.operation == "Copy";
+
+            return this.moveItems({ fullPaths: data.urls, dir: this.currentDir, copy });
+        }
+
+        return { fullPaths: [], done: false };
+    };
+
     moveItems = async (e: Mp.MoveItemsRequest): Promise<Mp.MoveItemResult> => {
         if (path.dirname(e.fullPaths[0]) == e.dir) {
-            return { files: this.files, done: false };
+            return { fullPaths: [], done: false };
         }
 
         const targetFiles = navigator.userAgent.includes("Linux") ? await this.beforeMoveItems(e.dir, e.fullPaths) : e.fullPaths;
 
         if (!targetFiles.length) {
-            return { files: this.files, done: false };
+            return { fullPaths: [], done: false };
         }
+
+        const movedPaths = targetFiles.map((fullPath) => path.join(e.dir, path.basename(fullPath)));
 
         try {
             const from = e.fullPaths;
@@ -379,56 +467,133 @@ class Main {
             } else {
                 await ipc.invoke("mv", { from, to });
             }
+            this.trackOperation(e.copy ? "Copy" : "Move", from, to, []);
+            return {
+                fullPaths: movedPaths,
+                done: true,
+            };
         } catch (ex: any) {
             this.showErrorMessage(ex);
-        } finally {
-            await this.readFiles(this.currentDir);
-            return { files: this.files, done: true };
+            return { fullPaths: [], done: true };
         }
     };
 
-    removeFavorite = (id: string): Mp.MediaFile[] => {
-        const newFavorites = this.settings.data.favorites.filter((file) => file.id != id);
-        this.settings.data.favorites = newFavorites;
-        return this.settings.data.favorites;
-    };
+    onWatchEvent = async (e: Mp.WatchEvent) => {
+        const hasSearchCache = this.currentDir in this.searchCache;
 
-    onPaste = async (): Promise<Mp.MoveItemResult | null> => {
-        if (!this.currentDir) return null;
-
-        const uriAvailable = await ipc.invoke("is_uris_available", undefined);
-        if (uriAvailable) {
-            const data = await ipc.invoke("read_uris", undefined);
-            if (!data.urls.length) return null;
-
-            const copy = data.operation == "None" ? util.getRootDirectory(data.urls[0]) != util.getRootDirectory(this.currentDir) : data.operation == "Copy";
-
-            return this.moveItems({ fullPaths: data.urls, dir: this.currentDir, copy });
+        switch (e.operation) {
+            case "Create": {
+                const newItems = await Promise.all(e.to_paths.map(async (path) => await util.toFileFromPath(path)));
+                this.files.push(...newItems);
+                this.sortFile();
+                if (hasSearchCache) {
+                    this.searchCache[this.currentDir].push(...e.to_paths);
+                }
+                break;
+            }
+            case "Remove": {
+                const newFiles = this.files.filter((file) => !e.to_paths.includes(file.fullPath));
+                this.files.length = 0;
+                newFiles.forEach((file) => this.files.push(file));
+                this.sortFile();
+                if (hasSearchCache) {
+                    this.searchCache[this.currentDir] = this.searchCache[this.currentDir].filter((fullPath) => !e.to_paths.includes(fullPath));
+                }
+                break;
+            }
+            case "Rename": {
+                const newFullPath = e.to_paths[0];
+                const oldFullPath = e.from_paths[0];
+                const fileIndex = this.files.findIndex((file) => file.fullPath == oldFullPath);
+                const newMediaFile = await util.toFileFromPath(newFullPath);
+                this.files[fileIndex] = newMediaFile;
+                this.sortFile();
+                if (hasSearchCache) {
+                    const index = this.searchCache[this.currentDir].findIndex((fullPath) => fullPath == oldFullPath);
+                    this.searchCache[this.currentDir][index] = newFullPath;
+                }
+                break;
+            }
         }
 
-        return null;
+        return this.files;
     };
 
-    writeClipboard = async (e: Mp.WriteClipboardRequest) => {
-        const fullPaths = e.files.map((file) => file.fullPath);
-        await ipc.invoke("write_uris", { fullPaths, operation: e.operation });
+    trackOperation = (operation: Mp.Operation, from: string[], to: string, target: string[], isFile = true) => {
+        const fileOperation: Mp.FileOperation = {
+            operation,
+            from,
+            to,
+            target,
+            isFile,
+        };
+        this.history.push(fileOperation);
     };
 
-    writeFullpathToClipboard = async (fullPaths: string) => {
-        await ipc.invoke("write_text", fullPaths);
+    /* Do nothing to files which will be changed by watcher */
+    undo = async () => {
+        const fileOperation = await this.history.undo();
+
+        if (!fileOperation) return;
+
+        try {
+            switch (fileOperation.operation) {
+                case "Move":
+                    await ipc.invoke("mv", { from: fileOperation.from, to: fileOperation.to });
+                    break;
+
+                case "Delete":
+                    await ipc.invoke("delete", fileOperation.target);
+                    break;
+
+                case "Undelete":
+                    await ipc.invoke("undelete", fileOperation.target);
+                    break;
+
+                case "Rename":
+                    await ipc.invoke("rename", { old: fileOperation.from[0], new: fileOperation.to });
+                    break;
+            }
+        } catch (ex: any) {
+            this.history.rollback();
+            this.showErrorMessage(ex);
+        }
     };
 
-    addFavorite = (favorite: Mp.MediaFile): Mp.MediaFile[] => {
-        this.settings.data.favorites.push(favorite);
-        return this.settings.data.favorites;
-    };
+    redo = async () => {
+        const fileOperation = await this.history.redo();
 
-    openTerminal = async (dir: string) => {
-        await ipc.invoke("open_terminal", dir);
-    };
+        if (!fileOperation) return;
 
-    launchNew = async () => {
-        await ipc.invoke("launch_new", undefined);
+        try {
+            switch (fileOperation.operation) {
+                case "Copy":
+                    await ipc.invoke("copy", { from: fileOperation.from, to: fileOperation.to });
+                    break;
+
+                case "Move":
+                    await ipc.invoke("mv", { from: fileOperation.from, to: fileOperation.to });
+                    break;
+
+                case "Create":
+                    if (fileOperation.isFile) {
+                        await ipc.invoke("create", fileOperation.target[0]);
+                    } else {
+                        await ipc.invoke("mkdir", fileOperation.target[0]);
+                    }
+                    break;
+
+                case "Trash":
+                    await ipc.invoke("trash", fileOperation.target);
+                    break;
+
+                case "Rename":
+                    await ipc.invoke("rename", { old: fileOperation.from[0], new: fileOperation.to });
+            }
+        } catch (ex: any) {
+            this.history.rollback();
+            this.showErrorMessage(ex);
+        }
     };
 }
 

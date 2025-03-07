@@ -45,7 +45,7 @@ declare global {
         "after-rename": Mp.RenameResult;
         moved: Mp.MoveItemResult;
         contextmenu_event: keyof MainContextMenuSubTypeMap | FavContextMenuSubTypeMap;
-        watch_event: string[];
+        watch_event: Mp.WatchEvent;
     };
 
     namespace Mp {
@@ -178,12 +178,7 @@ declare global {
             labels: Mp.HeaderLabels;
         };
 
-        type CreateItemRequest = {
-            file: Mp.MediaFile;
-        };
-
         type CreateItemResult = {
-            files: Mp.MediaFile[];
             newItemId: string;
             success: boolean;
         };
@@ -203,7 +198,7 @@ declare global {
         };
 
         type MoveItemResult = {
-            files: Mp.MediaFile[];
+            fullPaths: string[];
             done: boolean;
         };
 
@@ -232,8 +227,8 @@ declare global {
         };
 
         type RenameResult = {
-            file: MediaFile;
-            error?: boolean;
+            done: boolean;
+            newId: string;
         };
 
         type WriteClipboardRequest = {
@@ -251,6 +246,21 @@ declare global {
             height: number;
             width: number;
             origWidth: number;
+        };
+
+        type WatchEvent = {
+            operation: "Create" | "Remove" | "Rename";
+            to_paths: string[];
+            from_paths: string[];
+        };
+
+        type Operation = "Copy" | "Move" | "Trash" | "Create" | "Undelete" | "Delete" | "Rename";
+        type FileOperation = {
+            operation: Mp.Operation;
+            from: string[];
+            to: string;
+            target: string[];
+            isFile: boolean;
         };
 
         type Event = {

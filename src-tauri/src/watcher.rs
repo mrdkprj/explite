@@ -12,6 +12,7 @@ use notify::{
     recommended_watcher, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
 use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 use tauri::{Emitter, EventTarget, WebviewWindow};
 
@@ -19,6 +20,8 @@ use tauri::{Emitter, EventTarget, WebviewWindow};
 static WATCHER: Lazy<Mutex<Option<INotifyWatcher>>> = Lazy::new(|| Mutex::new(None));
 #[cfg(target_os = "windows")]
 static WATCHER: Lazy<Mutex<Option<ReadDirectoryChangesWatcher>>> = Lazy::new(|| Mutex::new(None));
+static PENDING_FROM: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(Vec::new()));
+static PENDING_TO: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(Vec::new()));
 
 const WATCH_EVENT_NAME: &str = "watch_event";
 
@@ -34,6 +37,13 @@ fn async_watcher() -> notify::Result<(RecommendedWatcher, Receiver<notify::Resul
     })?;
 
     Ok((watcher, rx))
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct WatchEvent {
+    operation: String,
+    to_paths: Vec<String>,
+    from_paths: Vec<String>,
 }
 
 pub async fn watch(window: &WebviewWindow, file_path: String) -> notify::Result<()> {
@@ -56,23 +66,85 @@ pub async fn watch(window: &WebviewWindow, file_path: String) -> notify::Result<
     while let Ok(res) = rx.recv().await {
         match res {
             Ok(event) => {
-                if event.kind != EventKind::Modify(ModifyKind::Name(RenameMode::From)) {
-                    window
-                        .emit_to(
-                            EventTarget::WebviewWindow {
-                                label: window.label().to_string(),
-                            },
-                            WATCH_EVENT_NAME,
-                            event.paths,
-                        )
-                        .unwrap();
+                let event_type = get_event_type(event.kind);
+
+                // To comes after From in case of rename
+                match event_type {
+                    EventType::Create | EventType::Remove | EventType::RenameFrom => {
+                        let paths: Vec<String> = event.paths.iter().map(|path| path.to_string_lossy().to_string()).collect();
+                        if event_type == EventType::RenameFrom {
+                            *PENDING_FROM.try_lock().unwrap() = paths;
+                        } else {
+                            *PENDING_TO.try_lock().unwrap() = paths;
+                        }
+
+                        if let Ok(Ok(next_event)) = rx.try_recv() {
+                            let next_event_type = get_event_type(next_event.kind);
+                            let paths: Vec<String> = next_event.paths.iter().map(|path| path.to_string_lossy().to_string()).collect();
+                            if next_event_type == EventType::RenameTo && !PENDING_FROM.try_lock().unwrap().is_empty() {
+                                *PENDING_TO.try_lock().unwrap() = paths;
+                            }
+                        }
+
+                        window
+                            .emit_to(
+                                EventTarget::WebviewWindow {
+                                    label: window.label().to_string(),
+                                },
+                                WATCH_EVENT_NAME,
+                                WatchEvent {
+                                    operation: if event_type == EventType::Create {
+                                        "Create".to_string()
+                                    } else if event_type == EventType::Remove {
+                                        "Remove".to_string()
+                                    } else {
+                                        "Rename".to_string()
+                                    },
+                                    to_paths: PENDING_TO.try_lock().unwrap().to_vec().clone(),
+                                    from_paths: PENDING_FROM.try_lock().unwrap().to_vec().clone(),
+                                },
+                            )
+                            .unwrap();
+
+                        PENDING_TO.try_lock().unwrap().clear();
+                        PENDING_FROM.try_lock().unwrap().clear();
+                    }
+                    _ => {}
                 }
             }
+
             Err(e) => println!("watch error: {:?}", e),
         }
     }
 
     Ok(())
+}
+
+#[derive(PartialEq, Debug)]
+enum EventType {
+    ModifyAny,
+    Remove,
+    Create,
+    RenameFrom,
+    RenameTo,
+    None,
+}
+
+fn get_event_type(event_kind: EventKind) -> EventType {
+    if event_kind.is_create() {
+        return EventType::Create;
+    }
+
+    if event_kind.is_remove() {
+        return EventType::Remove;
+    }
+
+    match event_kind {
+        EventKind::Modify(ModifyKind::Any) => EventType::ModifyAny,
+        EventKind::Modify(ModifyKind::Name(RenameMode::From)) => EventType::RenameFrom,
+        EventKind::Modify(ModifyKind::Name(RenameMode::To)) => EventType::RenameTo,
+        _ => EventType::None,
+    }
 }
 
 pub fn unwatch(file_path: String) {

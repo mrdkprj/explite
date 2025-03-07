@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { tick } from "svelte";
     import BackSvg from "../svg/BackSvg.svelte";
     import FowardSvg from "../svg/FowardSvg.svelte";
     import NewFileSvg from "../svg/NewFileSvg.svelte";
@@ -17,18 +16,18 @@
         goBack,
         goForward,
         requestLoad,
-        select,
         reload,
         suspendWatch,
+        createItem,
     }: {
         onSearched: (e: Mp.SearchResult) => void;
         endSearch: () => void;
         goBack: () => void;
         goForward: () => void;
         requestLoad: (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => void;
-        select: (id: string) => Promise<void>;
-        reload: () => void;
+        reload: (includeDrive: boolean) => void;
         suspendWatch: () => void;
+        createItem: (isFile: boolean) => void;
     } = $props();
 
     let pathValue = $state("");
@@ -64,8 +63,9 @@
     export const startSearch = async () => {
         dispatch({ type: "clearCopyCut" });
         dispatch({ type: "startSearch" });
+
         suspendWatch();
-        const result = await main.onSearchRequest({ dir: $appState.currentDir.fullPath, key: $appState.search.key.trim(), refresh: false });
+        const result = await main.onSearchRequest({ dir: $appState.currentDir.fullPath, key: $appState.search.key, refresh: false });
         onSearched(result);
     };
 
@@ -112,37 +112,6 @@
         dispatch({ type: "pathEditing", value: false });
     };
 
-    const addItem = async (isFile: boolean) => {
-        dispatch({ type: "showNewItem", value: { isFile } });
-        await tick();
-        await select("tempid");
-
-        const selectedElement = document.getElementById("temp-name-id");
-        if (!selectedElement) {
-            dispatch({ type: "hideNewItem" });
-            return;
-        }
-
-        const fileName = selectedElement.getAttribute("data-name") ?? "";
-        const rect = selectedElement.getBoundingClientRect();
-
-        dispatch({
-            type: "beginEditNewItem",
-            value: {
-                rect: {
-                    top: rect.top - 2,
-                    left: rect.left - 2,
-                    width: rect.width,
-                    height: rect.height,
-                    origWidth: rect.width,
-                },
-                inputValue: fileName,
-            },
-        });
-
-        dispatch({ type: "preventBlur", value: false });
-    };
-
     export const focusSearchInput = () => {
         if (!hasSearchInputFocus()) {
             searchInput.focus();
@@ -168,13 +137,13 @@
         <div class="button {$appState.canRedo ? '' : 'disabled'}" onclick={goForward} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <FowardSvg />
         </div>
-        <div class="button {$appState.currentDir.fullPath != 'Home' ? '' : 'disabled'}" onclick={reload} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div class="button {$appState.currentDir.fullPath != 'Home' ? '' : 'disabled'}" onclick={() => reload(true)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <ReloadSvg />
         </div>
-        <div class="button {$appState.currentDir.fullPath != 'Home' ? '' : 'disabled'}" onclick={() => addItem(true)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div class="button {$appState.currentDir.fullPath != 'Home' ? '' : 'disabled'}" onclick={() => createItem(true)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <NewFileSvg />
         </div>
-        <div class="button {$appState.currentDir.fullPath != 'Home' ? '' : 'disabled'}" onclick={() => addItem(false)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div class="button {$appState.currentDir.fullPath != 'Home' ? '' : 'disabled'}" onclick={() => createItem(false)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <NewFolderSvg />
         </div>
     </div>
@@ -203,9 +172,11 @@
     </div>
     <div class="search-area">
         <input
+            class="search-input"
+            class:without-clear={!$appState.search.searching}
+            spellcheck="false"
             type="text"
             id="search"
-            spellcheck="false"
             bind:this={searchInput}
             oninput={onSearchInput}
             bind:value={$appState.search.key}
@@ -215,8 +186,10 @@
             autocomplete="one-time-code"
         />
         {#if $appState.search.searching}
-            <div class="clear" onclick={endSearch} onkeydown={handleKeyEvent} role="button" tabindex="-1">
-                <ClearSvg />
+            <div class="clear-area">
+                <div class="clear" onclick={endSearch} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+                    <ClearSvg />
+                </div>
             </div>
         {/if}
     </div>

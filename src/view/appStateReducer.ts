@@ -119,8 +119,7 @@ type AppAction =
     | { type: "history"; value: { canUndo: boolean; canRedo: boolean } }
     | { type: "sort"; value: Mp.SortType }
     | { type: "updateFiles"; value: { files: Mp.MediaFile[]; reload: boolean } }
-    | { type: "startRename"; value: { rect: Mp.PartialRect; inputValue: string } }
-    | { type: "rename"; value: { name: string; id: string } }
+    | { type: "startRename"; value: { rect: Mp.PartialRect; oldName: string; fullPath: string } }
     | { type: "endRename" }
     | { type: "preventBlur"; value: boolean }
     | { type: "selectedId"; value: string }
@@ -129,16 +128,12 @@ type AppAction =
     | { type: "clearSelection"; value?: boolean }
     | { type: "appendSelectedIds"; value: string[] }
     | { type: "updateSelection"; value: Mp.ItemSelection }
-    | { type: "udpateName"; value: string }
-    | { type: "changeInputWidth"; value: { target: "Rename" | "NewItem"; width: number } }
+    | { type: "changeInputWidth"; value: number }
     | { type: "changeFavorites"; value: Mp.MediaFile[] }
     | { type: "leftWidth"; value: number }
     | { type: "startSlide"; value: { target: "Area" | Mp.SortKey; startX: number } }
     | { type: "slide"; value: number }
     | { type: "endSlide" }
-    | { type: "showNewItem"; value: { isFile: boolean } }
-    | { type: "beginEditNewItem"; value: { rect: Mp.PartialRect; inputValue: string } }
-    | { type: "hideNewItem" }
     | { type: "copyCut"; value: { operation: "Cut" | "Copy"; ids: string[]; files: Mp.MediaFile[] } }
     | { type: "clearCopyCut" }
     | { type: "dragEnter"; value: string }
@@ -225,7 +220,7 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return { ...state, disks: action.value };
 
         case "startSearch":
-            return { ...state, search: { ...state.search, searching: true } };
+            return { ...state, search: { ...state.search, searching: true, key: state.search.key.trim() } };
 
         case "endSearch":
             return { ...state, search: { ...state.search, searching: false, key: "" } };
@@ -275,16 +270,8 @@ const updater = (state: AppState, action: AppAction): AppState => {
             dispatchList({ type: "startRename", value: action.value });
             return state;
 
-        case "udpateName":
-            dispatchList({ type: "udpateName", value: action.value });
-            return state;
-
         case "changeInputWidth":
             dispatchList({ type: "changeInputWidth", value: action.value });
-            return state;
-
-        case "rename":
-            dispatchList({ type: "rename", value: action.value });
             return state;
 
         case "endRename":
@@ -326,18 +313,6 @@ const updater = (state: AppState, action: AppAction): AppState => {
         case "endSlide": {
             return { ...state, slideState: { ...state.slideState, sliding: false, target: "Area" } };
         }
-
-        case "showNewItem":
-            dispatchList({ type: "showNewItem", value: action.value });
-            return state;
-
-        case "beginEditNewItem":
-            dispatchList({ type: "beginEditNewItem", value: action.value });
-            return state;
-
-        case "hideNewItem":
-            dispatchList({ type: "hideNewItem" });
-            return state;
 
         case "copyCut": {
             return { ...state, copyCutTargets: { op: action.value.operation, ids: action.value.ids, files: action.value.files } };
