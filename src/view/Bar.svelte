@@ -31,7 +31,7 @@
         </div>
         <div style="margin-left: 10px;">{$listState.files.length ? `${$appState.selection.selectedIds.length} / ${$listState.files.length}` : ""}</div>
     </div>
-    <div class="title" data-tauri-drag-region>{$appState.currentDir.paths.length ? $appState.currentDir.paths[$appState.currentDir.paths.length - 1] : ""}</div>
+    <div class="title" data-tauri-drag-region>{$listState.currentDir.paths.length ? $listState.currentDir.paths[$listState.currentDir.paths.length - 1] : ""}</div>
     <div class="window-area">
         <div class="minimize" onclick={minimize} onkeydown={handleKeyEvent} role="button" tabindex="-1">&minus;</div>
         <div class="maximize" onclick={toggleMaximize} onkeydown={handleKeyEvent} role="button" tabindex="-1">

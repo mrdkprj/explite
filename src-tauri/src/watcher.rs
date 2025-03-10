@@ -78,11 +78,15 @@ pub async fn watch(window: &WebviewWindow, file_path: String) -> notify::Result<
                             *PENDING_TO.try_lock().unwrap() = paths;
                         }
 
-                        if let Ok(Ok(next_event)) = rx.try_recv() {
-                            let next_event_type = get_event_type(next_event.kind);
-                            let paths: Vec<String> = next_event.paths.iter().map(|path| path.to_string_lossy().to_string()).collect();
-                            if next_event_type == EventType::RenameTo && !PENDING_FROM.try_lock().unwrap().is_empty() {
-                                *PENDING_TO.try_lock().unwrap() = paths;
+                        if event_type == EventType::RenameFrom {
+                            // RenameTo may come so late. So wait for 50 msecs
+                            std::thread::sleep(std::time::Duration::from_millis(50));
+                            if let Ok(Ok(next_event)) = rx.try_recv() {
+                                let next_event_type = get_event_type(next_event.kind);
+                                let paths: Vec<String> = next_event.paths.iter().map(|path| path.to_string_lossy().to_string()).collect();
+                                if next_event_type == EventType::RenameTo {
+                                    *PENDING_TO.try_lock().unwrap() = paths;
+                                }
                             }
                         }
 

@@ -1,4 +1,5 @@
 import { writable } from "svelte/store";
+import { SEPARATOR } from "../constants";
 
 type RenameState = {
     renaming: boolean;
@@ -9,11 +10,19 @@ type RenameState = {
 };
 
 type AppState = {
+    currentDir: {
+        fullPath: string;
+        paths: string[];
+    };
     files: Mp.MediaFile[];
     rename: RenameState;
 };
 
 export const initialAppState: AppState = {
+    currentDir: {
+        fullPath: "",
+        paths: [],
+    },
     files: [],
     rename: {
         renaming: false,
@@ -31,7 +40,6 @@ export const initialAppState: AppState = {
 };
 
 type AppAction =
-    | { type: "init"; value: Mp.MediaFile[] }
     | { type: "reset" }
     | { type: "updateFiles"; value: Mp.MediaFile[] }
     | { type: "startRename"; value: { rect: Mp.PartialRect; oldName: string; fullPath: string } }
@@ -41,12 +49,6 @@ type AppAction =
 
 const updater = (state: AppState, action: AppAction): AppState => {
     switch (action.type) {
-        case "init":
-            return {
-                ...state,
-                files: action.value,
-            };
-
         case "reset":
             return {
                 ...state,
@@ -57,6 +59,10 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return {
                 ...state,
                 files: action.value.files,
+                currentDir: {
+                    fullPath: action.value.directory,
+                    paths: action.value.directory == "Home" ? [] : action.value.directory.split(SEPARATOR).filter((i) => i),
+                },
             };
 
         case "updateFiles":

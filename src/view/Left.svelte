@@ -2,6 +2,7 @@
     import DriveSvg from "../svg/DriveSvg.svelte";
     import FolderSvg from "../svg/FolderSvg.svelte";
     import { appState, dispatch } from "./appStateReducer";
+    import { listState } from "./listStateReducer";
     import { handleKeyEvent, HOME } from "../constants";
     import main from "../main";
 
@@ -35,7 +36,7 @@
                 data-id={favorite.id}
                 data-full-path={favorite.fullPath}
                 class="fav"
-                class:current={favorite.fullPath == $appState.currentDir.fullPath}
+                class:current={favorite.fullPath == $listState.currentDir.fullPath}
                 onclick={onDriveClick}
                 onkeydown={handleKeyEvent}
                 oncontextmenu={onFavoriteContextMenu}
@@ -57,7 +58,7 @@
             <div>PC</div>
         </div>
         {#each $appState.disks as disk}
-            <div data-full-path={disk.path} class="disk" class:current={disk.path == $appState.currentDir.fullPath} onclick={onDriveClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+            <div data-full-path={disk.path} class="disk" class:current={disk.path == $listState.currentDir.fullPath} onclick={onDriveClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
                 <div>
                     <DriveSvg />
                 </div>

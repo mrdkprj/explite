@@ -1,6 +1,6 @@
 import { writable } from "svelte/store";
 import { dispatchList } from "./listStateReducer";
-import { DEFAULT_LABLES, SEPARATOR } from "../constants";
+import { DEFAULT_LABLES } from "../constants";
 
 type SlideState = {
     target: "Area" | Mp.SortKey;
@@ -31,10 +31,6 @@ type AppState = {
     isMaximized: boolean;
     isFullScreen: boolean;
     pathEditing: boolean;
-    currentDir: {
-        fullPath: string;
-        paths: string[];
-    };
     headerLabels: Mp.HeaderLabels;
     canUndo: boolean;
     canRedo: boolean;
@@ -62,10 +58,6 @@ export const initialAppState: AppState = {
     isMaximized: false,
     isFullScreen: false,
     pathEditing: false,
-    currentDir: {
-        fullPath: "",
-        paths: [],
-    },
     headerLabels: DEFAULT_LABLES,
     canUndo: false,
     canRedo: false,
@@ -108,7 +100,6 @@ export const initialAppState: AppState = {
 };
 
 type AppAction =
-    | { type: "init"; value: { disks: Mp.DriveInfo[]; files: Mp.MediaFile[]; directory: string } }
     | { type: "reset" }
     | { type: "isMaximized"; value: boolean }
     | { type: "isFullScreen"; value: boolean }
@@ -145,22 +136,10 @@ type AppAction =
     | { type: "clearIncremental" }
     | { type: "hoverFavoriteId"; value: string }
     | { type: "disks"; value: Mp.DriveInfo[] }
-    | { type: "load"; value: Mp.LoadEvent };
+    | { type: "load"; value: { event: Mp.LoadEvent; changed: boolean } };
 
 const updater = (state: AppState, action: AppAction): AppState => {
     switch (action.type) {
-        case "init":
-            dispatchList({ type: "init", value: action.value.files });
-            return {
-                ...state,
-                pathEditing: false,
-                disks: action.value.disks,
-                currentDir: {
-                    fullPath: action.value.directory,
-                    paths: action.value.directory == "Home" ? [] : action.value.directory.split(SEPARATOR).filter((i) => i),
-                },
-            };
-
         case "reset":
             dispatchList({ type: "reset" });
             return {
@@ -179,17 +158,14 @@ const updater = (state: AppState, action: AppAction): AppState => {
         }
 
         case "load": {
-            dispatchList({ type: "load", value: action.value });
-            const changed = state.currentDir.fullPath != action.value.directory && action.value.navigation != "Direct";
-            if (changed) {
+            dispatchList({ type: "load", value: action.value.event });
+            if (action.value.changed) {
                 return {
                     ...state,
                     pathEditing: false,
+                    disks: action.value.event.disks ?? state.disks,
                     search: { ...state.search, searching: false, key: "" },
-                    currentDir: {
-                        fullPath: action.value.directory,
-                        paths: action.value.directory == "Home" ? [] : action.value.directory.split(SEPARATOR).filter((i) => i),
-                    },
+
                     selection: state.prevSelection ?? { selectedId: "", selectedIds: [] },
                     prevSelection: state.selection,
                 };
@@ -197,11 +173,9 @@ const updater = (state: AppState, action: AppAction): AppState => {
                 return {
                     ...state,
                     pathEditing: false,
+                    disks: action.value.event.disks ?? state.disks,
                     search: { ...state.search, searching: false, key: "" },
-                    currentDir: {
-                        fullPath: action.value.directory,
-                        paths: action.value.directory == "Home" ? [] : action.value.directory.split(SEPARATOR).filter((i) => i),
-                    },
+
                     selection: { selectedId: "", selectedIds: [] },
                     prevSelection: state.selection,
                 };

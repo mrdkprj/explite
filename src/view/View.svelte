@@ -41,7 +41,7 @@
     const onListContextMenu = (e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        if ($appState.currentDir.fullPath != "Home") {
+        if ($listState.currentDir.fullPath != "Home") {
             const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
             const fullPath = !file || !file.isFile ? "" : file.fullPath;
             main.openListContextMenu({ x: e.screenX, y: e.screenY }, fullPath);
@@ -93,7 +93,7 @@
     };
 
     const requestLoad = async (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => {
-        if (fullPath != $appState.currentDir.fullPath) {
+        if (fullPath != $listState.currentDir.fullPath) {
             const result = await main.onSelect({ fullPath, isFile, navigation });
             if (result) {
                 load(result);
@@ -679,6 +679,7 @@
 
         e.preventDefault();
         const paths = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id)).map((file) => file.fullPath);
+        if (!paths.length) return;
         await main.startDrag(paths);
     };
 
@@ -706,9 +707,9 @@
             fileListContainer.scrollLeft = 0;
         }
 
-        if (e.disks) {
-            dispatch({ type: "init", value: { files: e.files, disks: e.disks, directory: e.directory } });
-        }
+        // if (e.disks) {
+        //     dispatch({ type: "init", value: { files: e.files, disks: e.disks, directory: e.directory } });
+        // }
 
         if (e.failed) {
             if (e.navigation == "Back") {
@@ -728,24 +729,25 @@
         }
 
         if (e.navigation == "Back") {
-            forward.push($appState.currentDir.fullPath);
+            forward.push($listState.currentDir.fullPath);
         }
 
         if (e.navigation == "Forward") {
-            back.push($appState.currentDir.fullPath);
+            back.push($listState.currentDir.fullPath);
         }
 
         if (e.navigation == "Direct" && !e.disks) {
             dispatch({ type: "endSearch" });
             forward.pop();
-            back.push($appState.currentDir.fullPath);
+            back.push($listState.currentDir.fullPath);
         }
 
         dispatch({ type: "history", value: { canUndo: back.length > 0, canRedo: forward.length > 0 } });
         dispatch({ type: "sort", value: e.sortType });
-        dispatch({ type: "load", value: e });
+        const changed = $listState.currentDir.fullPath != e.directory && e.navigation != "Direct";
+        dispatch({ type: "load", value: { event: e, changed } });
 
-        const title = $appState.currentDir.paths.length ? $appState.currentDir.paths[$appState.currentDir.paths.length - 1] : HOME;
+        const title = $listState.currentDir.paths.length ? $listState.currentDir.paths[$listState.currentDir.paths.length - 1] : HOME;
         await WebviewWindow.getCurrent().setTitle(title);
     };
 
@@ -831,7 +833,7 @@
                 break;
 
             case "Terminal":
-                await main.openTerminal($appState.currentDir.fullPath);
+                await main.openTerminal($listState.currentDir.fullPath);
                 break;
 
             default: {
@@ -1057,7 +1059,7 @@
                     />
                 {/if}
 
-                {#if $appState.currentDir.fullPath == HOME}
+                {#if $listState.currentDir.fullPath == HOME}
                     <Home {requestLoad} />
                 {:else}
                     <VirtualList
