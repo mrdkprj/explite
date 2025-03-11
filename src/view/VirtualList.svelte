@@ -3,7 +3,6 @@
     import type { Snippet } from "svelte";
     import Deferred from "../deferred";
 
-    // props
     let {
         items,
         item,
@@ -36,7 +35,6 @@
     let average_height: number;
     let scrollPromise: Deferred<boolean> | null;
 
-    // local state
     let viewport_height = $state(0);
     let mounted = $state(false);
     let top = $state(0);
@@ -97,8 +95,6 @@
     async function handle_scroll() {
         const { scrollTop } = viewport;
 
-        const old_start = start;
-
         for (let v = 0; v < rows.length; v += 1) {
             height_map[start + v] = itemHeight || rows[v].offsetHeight;
         }
@@ -139,24 +135,6 @@
 
         while (i < items.length) height_map[i++] = average_height;
         bottom = remaining * average_height;
-
-        // prevent jumping if we scrolled up into unknown territory
-        if (start < old_start) {
-            await tick();
-
-            let expected_height = 0;
-            let actual_height = 0;
-
-            for (let i = start; i < old_start; i += 1) {
-                if (rows[i - start]) {
-                    expected_height += height_map[i];
-                    actual_height += itemHeight || rows[i - start].offsetHeight;
-                }
-            }
-
-            const d = actual_height - expected_height;
-            viewport.scrollTo(0, scrollTop + d);
-        }
 
         if (scrollPromise) {
             scrollPromise.resolve(true);

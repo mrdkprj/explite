@@ -41,7 +41,7 @@
     const onListContextMenu = (e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        if ($listState.currentDir.fullPath != "Home") {
+        if ($listState.currentDir.fullPath != HOME) {
             const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
             const fullPath = !file || !file.isFile ? "" : file.fullPath;
             main.openListContextMenu({ x: e.screenX, y: e.screenY }, fullPath);
@@ -332,7 +332,7 @@
 
     const selectUpto = (e: KeyboardEvent) => {
         if (!$listState.files.length) return;
-        if (e.key == HOME) {
+        if (e.key == "Home") {
             select($listState.files[0].id);
         } else {
             select($listState.files[$listState.files.length - 1].id);
@@ -704,12 +704,9 @@
 
     const load = async (e: Mp.LoadEvent) => {
         if (fileListContainer) {
+            fileListContainer.scrollTop = 0;
             fileListContainer.scrollLeft = 0;
         }
-
-        // if (e.disks) {
-        //     dispatch({ type: "init", value: { files: e.files, disks: e.disks, directory: e.directory } });
-        // }
 
         if (e.failed) {
             if (e.navigation == "Back") {
