@@ -24,6 +24,12 @@ class Main {
         await ipc.invoke("prepare_menu", undefined);
         const disks = await util.getDriveInfo();
 
+        const args = await ipc.invoke("get_args", undefined);
+
+        if (args.length) {
+            await this.readFiles(args[0]);
+        }
+
         return {
             settings: this.settings.data,
             data: { files: this.files, disks, directory: this.currentDir, navigation: "Direct", sortType: DEFAULT_SORT_TYPE, failed: false },

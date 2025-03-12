@@ -120,6 +120,7 @@ type TauriCommandMap = {
     message: TauriCommand<DialogOptions, boolean>;
     open_terminal: TauriCommand<string, undefined>;
     launch_new: TauriCommand<undefined, undefined>;
+    get_args: TauriCommand<undefined, string[]>;
 };
 
 export class IPCBase {

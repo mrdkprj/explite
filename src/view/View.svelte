@@ -43,8 +43,8 @@
         e.stopPropagation();
         if ($listState.currentDir.fullPath != HOME) {
             const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
-            const fullPath = !file || !file.isFile ? "" : file.fullPath;
-            main.openListContextMenu({ x: e.screenX, y: e.screenY }, fullPath);
+            if (!file) return;
+            main.openListContextMenu({ x: e.screenX, y: e.screenY }, file.fullPath);
         }
     };
 
@@ -762,7 +762,7 @@
 
             case "SelectApp": {
                 const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
-                if (!file || !file.isFile) return;
+                if (!file) return;
                 await main.showAppSelector(file.fullPath);
                 break;
             }
@@ -835,7 +835,7 @@
 
             default: {
                 const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
-                if (!file || !file.isFile) return;
+                if (!file) return;
                 await main.openFileWith(file.fullPath, e as string);
             }
         }
@@ -953,16 +953,18 @@
             return;
         }
 
-        if (e.key.length == 1 && $listState.files.length) {
-            if (searchInterval) {
-                window.clearTimeout(searchInterval);
-            }
-            incrementalSearch(e.key);
-            searchInterval = window.setTimeout(() => {
-                dispatch({ type: "clearIncremental" });
-            }, 300);
+        if (!e.altKey && !e.ctrlKey && !e.shiftKey) {
+            if (e.key.length == 1 && $listState.files.length) {
+                if (searchInterval) {
+                    window.clearTimeout(searchInterval);
+                }
+                incrementalSearch(e.key);
+                searchInterval = window.setTimeout(() => {
+                    dispatch({ type: "clearIncremental" });
+                }, 300);
 
-            return;
+                return;
+            }
         }
 
         if (e.ctrlKey || e.shiftKey || e.altKey || e.key.length > 1) {

@@ -168,13 +168,10 @@
     border-radius: 5px;
     font-family: var(--font);
     border: 2px solid transparent;
-    /* margin-left: 5px; */
     display: flex;
     align-items: center;
     background-color: #fff;
     cursor: default;
-    /* justify-content: end;
-    overflow: hidden; */
 }
 
 .path svg {

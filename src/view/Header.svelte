@@ -48,6 +48,8 @@
     let dialogPosition = $state({ left: 0, top: 0 });
     let showHiddenPaths = $state(false);
     let paths: Paths = $derived.by(() => {
+        const padding = 25;
+        const separator = 16;
         const _canvas = canvas || (canvas = document.createElement("canvas"));
         const context = _canvas.getContext("2d");
         if (!context) {
@@ -65,7 +67,7 @@
         const paths = $listState.currentDir.paths.slice();
         paths.reverse().forEach((path) => {
             const metrics = context.measureText(path);
-            width += metrics.width + 25;
+            width += metrics.width + padding + separator;
             if (width > pathWidth) {
                 _overflownPaths.push(path);
             } else {

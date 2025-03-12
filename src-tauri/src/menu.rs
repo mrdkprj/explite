@@ -1,9 +1,9 @@
-use async_std::sync::Mutex;
+use async_std::{path::Path, sync::Mutex};
 use nonstd::AppInfo;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tauri::{Emitter, EventTarget, WebviewWindow};
+use tauri::{AppHandle, Emitter, EventTarget, Manager, WebviewWindow};
 use wcpopup::{
     config::{ColorScheme, Config, MenuSize, Theme, ThemeColor, DEFAULT_DARK_COLOR_SCHEME},
     Menu, MenuBuilder, MenuIcon, MenuItem, MenuItemType,
@@ -24,7 +24,7 @@ pub async fn popup_menu(window: &WebviewWindow, menu_name: &str, position: Posit
     let map = MENU_MAP.lock().await;
     let menu = map.get(menu_name).unwrap();
     if menu_name == LIST {
-        update_open_with(menu, full_path.unwrap());
+        update_open_with(window.app_handle(), menu, full_path.unwrap()).await;
     }
     let result = menu.popup_at_async(position.x, position.y).await;
 
@@ -41,15 +41,8 @@ pub async fn popup_menu(window: &WebviewWindow, menu_name: &str, position: Posit
     };
 }
 
-fn update_open_with(menu: &Menu, file_path: String) {
-    let mut submenu_item = menu.get_menu_item_by_id("OpenWith").unwrap();
-
-    if file_path.is_empty() {
-        submenu_item.set_disabled(true);
-        return;
-    }
-
-    submenu_item.set_disabled(false);
+async fn update_open_with(app: &AppHandle, menu: &Menu, file_path: String) {
+    let submenu_item = menu.get_menu_item_by_id("OpenWith").unwrap();
 
     let mut submenu = submenu_item.submenu.unwrap();
     let mut items = submenu.items();
@@ -57,10 +50,23 @@ fn update_open_with(menu: &Menu, file_path: String) {
     if items.len() > 1 {
         items.remove(items.len() - 1);
 
-        for item in items {
-            submenu.remove(&item);
+        for item in &items {
+            submenu.remove(item);
         }
     }
+
+    let mut select_app_item = menu.get_menu_item_by_id("SelectApp").unwrap();
+
+    let is_dir = Path::new(&file_path).is_dir().await;
+    if is_dir {
+        select_app_item.set_visible(false);
+        let app_dir = tauri::process::current_binary(&app.env()).unwrap();
+        let this_app = app_dir.to_str().unwrap();
+        submenu.insert(MenuItem::builder(MenuItemType::Text).id(this_app).label("Open New Window").build(), 0);
+        return;
+    }
+
+    select_app_item.set_visible(true);
 
     let apps = nonstd::shell::get_open_with(file_path);
 

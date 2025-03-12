@@ -1,7 +1,7 @@
 use dialog::DialogOptions;
 use nonstd::*;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 use tauri::{AppHandle, Manager, WebviewWindow};
 mod dialog;
 mod menu;
@@ -275,10 +275,28 @@ fn launch_new(app: AppHandle) -> Result<(), String> {
     nonstd::shell::open_path(path)
 }
 
+#[tauri::command]
+fn get_args(app: AppHandle) -> Vec<String> {
+    if let Some(urls) = app.try_state::<Vec<String>>() {
+        return urls.inner().clone();
+    }
+    Vec::new()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[allow(deprecated)]
 pub fn run() {
     tauri::Builder::default()
+        .setup(|app| {
+            let mut urls = Vec::new();
+            for arg in env::args().skip(1) {
+                urls.push(arg);
+            }
+
+            app.manage(urls);
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             prepare_menu,
             open_list_context_menu,
@@ -313,7 +331,8 @@ pub fn run() {
             unwatch,
             open_terminal,
             message,
-            launch_new
+            launch_new,
+            get_args
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
