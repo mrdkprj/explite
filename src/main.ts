@@ -1,6 +1,5 @@
 import Settings from "./settings";
 import util from "./util";
-import Deferred from "./deferred";
 import { DEFAULT_SORT_TYPE, HOME } from "./constants";
 import { IPC } from "./ipc";
 import { path } from "./path";
@@ -16,7 +15,6 @@ class Main {
     unfilteredFiles: Mp.MediaFile[] = [];
     currentDir = HOME;
     watchTarget = HOME;
-    abortPromise: Deferred<boolean> | null = null;
     history = new History();
 
     onMainReady = async (): Promise<Mp.ReadyEvent> => {

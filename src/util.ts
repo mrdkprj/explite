@@ -59,14 +59,13 @@ class Util {
     toFile(dirent: Dirent): Mp.MediaFile {
         const fullPath = dirent.full_path;
         const attr = dirent.attributes;
-        const encodedPath = path.join(path.dirname(fullPath), encodeURIComponent(path.basename(fullPath)));
         const extension = attr.is_directory ? "ファイルフォルダー" : path.extname(fullPath);
 
         return {
             id: encodeURIComponent(fullPath),
             fullPath,
             dir: path.dirname(fullPath),
-            encName: encodedPath,
+            uuid: crypto.randomUUID(),
             name: decodeURIComponent(encodeURIComponent(path.basename(fullPath))),
             mdate: attr.mtime_ms,
             cdate: attr.birthtime_ms,
@@ -80,14 +79,13 @@ class Util {
     async toFileFromPath(fullPath: string): Promise<Mp.MediaFile> {
         const attr = await ipc.invoke("stat", fullPath);
         const mimeType = attr.is_directory ? "" : await ipc.invoke("get_mime_type", fullPath);
-        const encodedPath = path.join(path.dirname(fullPath), encodeURIComponent(path.basename(fullPath)));
         const extension = attr.is_directory ? "ファイルフォルダー" : path.extname(fullPath);
 
         return {
             id: encodeURIComponent(fullPath),
             fullPath,
             dir: path.dirname(fullPath),
-            encName: encodedPath,
+            uuid: crypto.randomUUID(),
             name: decodeURIComponent(encodeURIComponent(path.basename(fullPath))),
             mdate: attr.mtime_ms,
             cdate: attr.birthtime_ms,

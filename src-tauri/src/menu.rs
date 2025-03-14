@@ -1,8 +1,8 @@
-use async_std::{path::Path, sync::Mutex};
+use async_std::sync::Mutex;
 use nonstd::AppInfo;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 use tauri::{AppHandle, Emitter, EventTarget, Manager, WebviewWindow};
 use wcpopup::{
     config::{ColorScheme, Config, MenuSize, Theme, ThemeColor, DEFAULT_DARK_COLOR_SCHEME},
@@ -24,7 +24,7 @@ pub async fn popup_menu(window: &WebviewWindow, menu_name: &str, position: Posit
     let map = MENU_MAP.lock().await;
     let menu = map.get(menu_name).unwrap();
     if menu_name == LIST {
-        update_open_with(window.app_handle(), menu, full_path.unwrap()).await;
+        update_open_with(window.app_handle(), menu, full_path.unwrap());
     }
     let result = menu.popup_at_async(position.x, position.y).await;
 
@@ -41,7 +41,7 @@ pub async fn popup_menu(window: &WebviewWindow, menu_name: &str, position: Posit
     };
 }
 
-async fn update_open_with(app: &AppHandle, menu: &Menu, file_path: String) {
+fn update_open_with(app: &AppHandle, menu: &Menu, file_path: String) {
     let submenu_item = menu.get_menu_item_by_id("OpenWith").unwrap();
 
     let mut submenu = submenu_item.submenu.unwrap();
@@ -57,8 +57,7 @@ async fn update_open_with(app: &AppHandle, menu: &Menu, file_path: String) {
 
     let mut select_app_item = menu.get_menu_item_by_id("SelectApp").unwrap();
 
-    let is_dir = Path::new(&file_path).is_dir().await;
-    if is_dir {
+    if Path::new(&file_path).is_dir() {
         select_app_item.set_visible(false);
         let app_dir = tauri::process::current_binary(&app.env()).unwrap();
         let this_app = app_dir.to_str().unwrap();

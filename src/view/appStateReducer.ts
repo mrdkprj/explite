@@ -10,6 +10,7 @@ type SlideState = {
 };
 
 type Clip = {
+    startId: string;
     clipping: boolean;
     moved: boolean;
     clipAreaStyle: string;
@@ -83,6 +84,7 @@ export const initialAppState: AppState = {
     },
     dragTargetId: "",
     clip: {
+        startId: "",
         clipAreaStyle: "",
         clipping: false,
         clipPosition: {
@@ -115,8 +117,8 @@ type AppAction =
     | { type: "preventBlur"; value: boolean }
     | { type: "selectedId"; value: string }
     | { type: "setSelectedIds"; value: string[] }
-    | { type: "replaceSelectedIds"; value: string[] }
-    | { type: "clearSelection"; value?: boolean }
+    | { type: "removeSelectedIds"; value: string[] }
+    | { type: "clearSelection" }
     | { type: "appendSelectedIds"; value: string[] }
     | { type: "updateSelection"; value: Mp.ItemSelection }
     | { type: "changeInputWidth"; value: number }
@@ -129,7 +131,7 @@ type AppAction =
     | { type: "clearCopyCut" }
     | { type: "dragEnter"; value: string }
     | { type: "dragLeave" }
-    | { type: "startClip"; value: { position: ClipPosition } }
+    | { type: "startClip"; value: { position: ClipPosition; startId: string } }
     | { type: "moveClip"; value: { x: number; y: number } }
     | { type: "endClip" }
     | { type: "incremental"; value: string }
@@ -224,18 +226,14 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return { ...state, selection: { ...state.selection, selectedIds: action.value } };
 
         case "clearSelection":
-            if (action.value) {
-                const selectedIds = state.selection.selectedIds.length ? [state.selection.selectedIds[0]] : [];
-                return { ...state, selection: { ...state.selection, selectedId: "", selectedIds } };
-            } else {
-                return { ...state, selection: { ...state.selection, selectedId: "", selectedIds: [] } };
-            }
+            return { ...state, selection: { ...state.selection, selectedId: "", selectedIds: [] } };
 
         case "appendSelectedIds":
             return { ...state, selection: { ...state.selection, selectedIds: [...state.selection.selectedIds, ...action.value] } };
 
-        case "replaceSelectedIds":
-            return { ...state, selection: { ...state.selection, selectedIds: action.value } };
+        case "removeSelectedIds":
+            const ids = state.selection.selectedIds.filter((id) => !action.value.includes(id));
+            return { ...state, selection: { ...state.selection, selectedIds: ids } };
 
         case "updateSelection":
             return { ...state, selection: { ...state.selection, selectedId: action.value.selectedId, selectedIds: action.value.selectedIds } };
@@ -305,10 +303,13 @@ const updater = (state: AppState, action: AppAction): AppState => {
         }
 
         case "startClip": {
+            // const selectedIds = action.value.startId ? [action.value.startId] : [];
             return {
                 ...state,
+                selection: { ...state.selection, selectedId: action.value.startId },
                 clip: {
                     ...state.clip,
+                    startId: action.value.startId,
                     clipping: true,
                     moved: false,
                     clipPosition: { startY: action.value.position.startY, startX: action.value.position.startX },
@@ -328,7 +329,6 @@ const updater = (state: AppState, action: AppAction): AppState => {
             if (!state.clip.moved && moved) {
                 return {
                     ...state,
-                    selection: { ...state.selection, selectedId: "", selectedIds: [] },
                     clip: {
                         ...state.clip,
                         moved: true,
@@ -347,7 +347,7 @@ const updater = (state: AppState, action: AppAction): AppState => {
         }
 
         case "endClip": {
-            return { ...state, clip: { ...state.clip, clipping: false, moved: false } };
+            return { ...state, clip: { ...state.clip, clipping: false, moved: false, startId: "" } };
         }
 
         case "hoverFavoriteId": {

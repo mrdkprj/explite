@@ -24,14 +24,14 @@
     };
 </script>
 
-<div class="title-bar" data-tauri-drag-region style="user-select: none;">
-    <div class="icon-area" data-tauri-drag-region>
+<div class="title-bar">
+    <div class="icon-area">
         <div class="button" onclick={launchNew} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <Launch />
         </div>
         <div style="margin-left: 10px;">{$listState.files.length ? `${$appState.selection.selectedIds.length} / ${$listState.files.length}` : ""}</div>
     </div>
-    <div class="title" data-tauri-drag-region>{$listState.currentDir.paths.length ? $listState.currentDir.paths[$listState.currentDir.paths.length - 1] : ""}</div>
+    <div class="title">{$listState.currentDir.paths.length ? $listState.currentDir.paths[$listState.currentDir.paths.length - 1] : ""}</div>
     <div class="window-area">
         <div class="minimize" onclick={minimize} onkeydown={handleKeyEvent} role="button" tabindex="-1">&minus;</div>
         <div class="maximize" onclick={toggleMaximize} onkeydown={handleKeyEvent} role="button" tabindex="-1">

@@ -4,6 +4,7 @@
     import Deferred from "../deferred";
 
     let {
+        id = "",
         items,
         item,
         header,
@@ -16,6 +17,7 @@
         viewport = $bindable<HTMLDivElement>(),
         onRefresh = undefined,
     }: {
+        id?: string;
         items: T[];
         item: Snippet<[T]>;
         header: Snippet;
@@ -174,7 +176,7 @@
     });
 </script>
 
-<svelte-virtual-list-viewport bind:this={viewport} bind:offsetHeight={viewport_height} onscroll={handle_scroll} style="height: {height};">
+<svelte-virtual-list-viewport {id} bind:this={viewport} bind:offsetHeight={viewport_height} onscroll={handle_scroll} style="height: {height};">
     <svelte-virtual-list-contents bind:this={contents} style="padding-top: {top}px; padding-bottom: {bottom}px;">
         {#if header.length}
             {@render header()}

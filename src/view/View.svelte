@@ -146,12 +146,17 @@
         dispatch({ type: "startSlide", value: { target: key, startX: e.clientX } });
     };
 
+    const onMouseDown = (e: MouseEvent) => {
+        startClip(e);
+    };
+
     const onMouseMove = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
         if ($appState.slideState.sliding) {
             const dist = e.clientX - $appState.slideState.startX;
             dispatch({ type: "slide", value: dist });
+            return;
         }
 
         if (!fileListContainer) return;
@@ -168,10 +173,123 @@
             dispatch({ type: "endSlide" });
             main.onWidthChange({ leftWidth: $appState.leftWidth, labels: $appState.headerLabels });
         }
+
+        endClip();
+
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+        if (e.target.id == "list") {
+            clearSelection();
+        }
     };
 
-    const onItemMouseDown = (e: MouseEvent) => {
+    const startDarg = async (e: DragEvent) => {
+        e.preventDefault();
+
         if (!e.target || !(e.target instanceof HTMLElement)) return;
+        if (!$appState.selection.selectedIds.length) return;
+        if ($appState.clip.clipping) return;
+
+        const id = e.target.getAttribute("data-file-id") ?? "";
+        if (!$appState.selection.selectedIds.includes(id)) return;
+
+        const paths = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id)).map((file) => file.fullPath);
+        if (!paths.length) return;
+        await main.startDrag(paths);
+    };
+
+    const onDragEnter = (e: DragEvent) => {
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+
+        const id = e.target.getAttribute("data-file-id") ?? "";
+        if (id) {
+            dispatch({ type: "dragEnter", value: id });
+        } else {
+            dispatch({ type: "dragLeave" });
+        }
+    };
+
+    const onItemDrop = async (e: DragEvent) => {
+        e.preventDefault();
+        dispatch({ type: "dragLeave" });
+
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+
+        const id = e.target.getAttribute("data-file-id");
+        if (!id) return;
+
+        const destinationFile = $listState.files.find((file) => file.id == id);
+        if (!destinationFile) return;
+
+        if (destinationFile.isFile) return;
+
+        if ($appState.selection.selectedIds.includes(destinationFile.id)) return;
+
+        const files = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+
+        if (!files.length) return;
+
+        await moveItems(files, destinationFile.fullPath, false);
+    };
+
+    const startClip = (e: MouseEvent) => {
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+        if (!fileListContainer) return;
+
+        const id = e.target.getAttribute("data-file-id") ?? "";
+
+        if ($appState.selection.selectedIds.includes(id)) return;
+
+        if (e.button != 2) {
+            dispatch({
+                type: "startClip",
+                value: { position: { startX: e.clientX - fileListContainer.parentElement!.offsetLeft, startY: e.clientY - fileListContainer.parentElement!.offsetTop }, startId: id },
+            });
+        }
+    };
+
+    const clipMouseEnter = (e: MouseEvent) => {
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+        if (!$appState.clip.clipping) return;
+
+        const id = e.target.getAttribute("data-file-id");
+
+        if (id && !$appState.selection.selectedIds.includes(id)) {
+            dispatch({ type: "appendSelectedIds", value: [id] });
+        }
+    };
+
+    const clipMouseLeave = (e: MouseEvent) => {
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+        if (!e.relatedTarget || !(e.relatedTarget instanceof HTMLElement)) return;
+        if (!$appState.clip.clipping) return;
+
+        if (e.relatedTarget.classList.contains("nofocus")) return;
+
+        const id = e.target.getAttribute("data-file-id");
+        const enterId = e.relatedTarget.getAttribute("data-file-id");
+
+        if (id == enterId) return;
+
+        if (id && !enterId && !$appState.clip.startId) {
+            dispatch({ type: "removeSelectedIds", value: [id] });
+            return;
+        }
+
+        if (enterId && $appState.selection.selectedIds.includes(enterId)) {
+            const ids = $appState.selection.selectedIds.filter((sid) => sid != id);
+            dispatch({ type: "setSelectedIds", value: ids });
+        }
+    };
+
+    const endClip = () => {
+        if ($appState.clip.clipping) {
+            dispatch({ type: "endClip" });
+        }
+    };
+
+    const onItemClick = (e: MouseEvent) => {
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+
         if (e.button != 2 && e.target.classList.contains("nofocus")) {
             const key = (e.target.getAttribute("data-sort-key") as Mp.SortKey) ?? "name";
 
@@ -189,39 +307,14 @@
         toggleSelect(e, true);
     };
 
-    const onItemMouseUp = (e: MouseEvent) => {
-        toggleSelect(e, false);
-    };
-
-    const toggleSelect = (e: MouseEvent, mousedown: boolean) => {
+    const toggleSelect = (e: MouseEvent, _mousedown: boolean) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
-        if (!fileListContainer) return;
-
-        if (!mousedown && $appState.clip.clipping) {
-            dispatch({ type: "endClip" });
-            return;
-        }
 
         const id = e.target.getAttribute("data-file-id");
 
         if (!id) {
-            dispatch({ type: "clearSelection", value: true });
-            if (mousedown && e.button != 2) {
-                dispatch({
-                    type: "startClip",
-                    value: { position: { startX: e.clientX - fileListContainer.parentElement!.offsetLeft, startY: e.clientY - fileListContainer.parentElement!.offsetTop } },
-                });
-            }
             return;
         }
-
-        /* Toggle selection of already selected items only on mosueup */
-        if (mousedown && $appState.selection.selectedIds.includes(id)) {
-            return;
-        }
-
-        /* Prevent right mouseup to toggle selection*/
-        if (e.button == 2 && $appState.selection.selectedIds.includes(id)) return;
 
         if (e.ctrlKey) {
             selectByCtrl(id);
@@ -358,7 +451,7 @@
 
         if (!file) return;
 
-        const selectedElement = document.getElementById(file.encName);
+        const selectedElement = document.getElementById(file.uuid);
 
         if (!selectedElement) return;
 
@@ -514,57 +607,6 @@
         }
     };
 
-    const clipMouseEnter = (e: MouseEvent) => {
-        if (!$appState.clip.clipping) return;
-
-        if (!e.target || !(e.target instanceof HTMLElement)) return;
-
-        const id = e.target.getAttribute("data-file-id");
-        if (id && !$appState.selection.selectedIds.includes(id)) {
-            dispatch({ type: "appendSelectedIds", value: [id] });
-        }
-    };
-
-    const clipMouseLeave = (e: MouseEvent) => {
-        if (!$appState.clip.clipping) return;
-
-        if (!e.target || !(e.target instanceof HTMLElement)) return;
-        if (!e.relatedTarget || !(e.relatedTarget instanceof HTMLElement)) return;
-
-        if (e.relatedTarget.classList.contains("nofocus")) return;
-
-        const id = e.target.getAttribute("data-file-id");
-        const enterId = e.relatedTarget.getAttribute("data-file-id");
-        if (id && !enterId) {
-            clearSelection();
-            return;
-        }
-
-        if (enterId && $appState.selection.selectedIds.includes(enterId)) {
-            const ids = $appState.selection.selectedIds.filter((sid) => sid != id);
-            dispatch({ type: "replaceSelectedIds", value: ids });
-        }
-    };
-
-    const onItemDrop = async (e: DragEvent) => {
-        e.preventDefault();
-        dispatch({ type: "dragLeave" });
-
-        if (!e.target || !(e.target instanceof HTMLElement)) return;
-
-        const id = e.target.getAttribute("data-file-id");
-        if (!id) return;
-
-        const target = $listState.files.find((file) => file.id == id);
-        if (!target) return;
-
-        if (target.isFile) return;
-
-        const files = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
-
-        await moveItems(files, target.fullPath, false);
-    };
-
     const reload = async (includeDrive: boolean) => {
         if ($appState.search.searching) {
             main.onSearchEnd();
@@ -672,26 +714,6 @@
 
     const onFavoriteChanged = (e: Mp.MediaFile[]) => {
         dispatch({ type: "changeFavorites", value: e });
-    };
-
-    const startDarg = async (e: DragEvent) => {
-        if (!$appState.selection.selectedIds.length) return;
-
-        e.preventDefault();
-        const paths = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id)).map((file) => file.fullPath);
-        if (!paths.length) return;
-        await main.startDrag(paths);
-    };
-
-    const onDragEnter = (e: DragEvent) => {
-        if (!e.target || !(e.target instanceof HTMLElement)) return;
-        const id = e.target.getAttribute("data-file-id") ?? "";
-        const file = $listState.files.find((file) => file.id === id);
-        if (file) {
-            dispatch({ type: "dragEnter", value: id });
-        } else {
-            dispatch({ type: "dragLeave" });
-        }
     };
 
     const undo = async () => {
@@ -1022,7 +1044,7 @@
 </script>
 
 <svelte:window oncontextmenu={(e) => e.preventDefault()} />
-<svelte:document {onkeydown} onmousemove={onMouseMove} onmouseup={onMouseUp} ondragover={(e) => e.preventDefault()} />
+<svelte:document {onkeydown} onmousemove={onMouseMove} onmousedown={onMouseDown} onmouseup={onMouseUp} ondragover={(e) => e.preventDefault()} />
 
 <div class="viewport" class:full-screen={$appState.isFullScreen} class:sliding={$appState.slideState.sliding}>
     <Bar />
@@ -1062,6 +1084,7 @@
                     <Home {requestLoad} />
                 {:else}
                     <VirtualList
+                        id="list"
                         items={$listState.files}
                         bind:this={virtualList}
                         bind:viewport={fileListContainer}
@@ -1088,9 +1111,11 @@
                         {/snippet}
                         {#snippet item(item)}
                             <div
+                                id={item.id}
                                 class="row"
                                 draggable="true"
-                                class:highlight={$appState.selection.selectedIds.includes(item.id)}
+                                class:selected={$appState.selection.selectedIds.includes(item.id)}
+                                class:being-selected={$appState.selection.selectedId == item.id}
                                 class:cut={$appState.copyCutTargets.ids.includes(item.id) && $appState.copyCutTargets.op == "Cut"}
                                 class:drag-highlight={!item.isFile && $appState.dragTargetId == item.id}
                                 class:searched={$appState.search.searching}
@@ -1099,16 +1124,16 @@
                                 onmouseout={clipMouseLeave}
                                 onfocus={handleKeyEvent}
                                 onblur={handleKeyEvent}
-                                onmousedown={onItemMouseDown}
-                                onmouseup={onItemMouseUp}
+                                onclick={onItemClick}
                                 ondblclick={onSelect}
+                                onkeydown={handleKeyEvent}
                                 data-file-id={item.id}
                                 role="button"
                                 tabindex="-1"
                             >
-                                <div class="col-detail" data-file-id={item.id} id={item.id} style="width: {$appState.headerLabels.name.width}px;">
+                                <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.name.width}px;">
                                     <div class="entry-name" title={$appState.search.searching ? item.fullPath : item.name} data-file-id={item.id}>
-                                        <div class="icon">
+                                        <div class="icon" data-file-id={item.id}>
                                             {#if item.isFile}
                                                 {#if item.fileType == "Audio"}
                                                     <AudioSvg />
@@ -1125,7 +1150,7 @@
                                                 <FolderSvg />
                                             {/if}
                                         </div>
-                                        <div class="name" id={item.encName}>{item.name}</div>
+                                        <div class="name" id={item.uuid} data-file-id={item.id}>{item.name}</div>
                                     </div>
                                 </div>
                                 {#if $appState.search.searching}

@@ -102,7 +102,7 @@ declare global {
             id: string;
             fullPath: string;
             dir: string;
-            encName: string;
+            uuid: string;
             name: string;
             mdate: number;
             cdate: number;

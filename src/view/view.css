@@ -4,6 +4,7 @@
     height: 25px;
     line-height: 25px;
     font-size: 14px;
+    -webkit-app-region: drag;
 }
 
 .icon-area{
@@ -17,6 +18,7 @@
     left: 5px;
     top: 0;
     height: 35px;
+    -webkit-app-region: drag;
 }
 
 .ico{
@@ -62,7 +64,6 @@
     width: 7px;
     height: 7px;
     border: 1px solid var(--menu-color);
-    background-color: #d6d4e9;
     pointer-events: none;
 }
 
@@ -97,7 +98,7 @@
     height: 100%;
 }
 
-.viewport div:not(.highlight):focus-visible{
+.viewport div:not(.selected):focus-visible{
     outline: none;
 }
 
@@ -115,8 +116,8 @@
     display: flex;
     justify-content: flex-start;
     align-items: center;
-    box-shadow: 0px 1px 5px 1px #ccc;
-    background-color: #eceef3;
+    box-shadow: 0px 1px 5px 1px var(--menu-shadow);
+    background-color: var(--menu-bgcolor);
     z-index: 980;
     position: relative;
 }
@@ -138,7 +139,7 @@
 
 .button.disabled {
     pointer-events: none;
-    color: #9f8e8e;
+    color: var(--button-disabled);
 }
 
 .path-area{
@@ -170,7 +171,7 @@
     border: 2px solid transparent;
     display: flex;
     align-items: center;
-    background-color: #fff;
+    background-color: var(--path-bgcolor);
     cursor: default;
 }
 
@@ -189,18 +190,23 @@
     font-size: 14px;
 }
 
+.path-data:hover{
+    background-color: var(--path-hover-color);
+    border-radius: 4px;
+}
+
 .hidden-paths {
     position: absolute;
     z-index: 1000;
-    background: #fff;
-    outline: 1px solid #ccc;
+    background: var(--path-bgcolor);
+    outline: 1px solid var(--path-border-color);
     border-radius: 5px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: start;
     padding: 0 5px 5px 5px;
-    box-shadow: 3px 4px 5px #ccc;
+    box-shadow: 3px 4px 5px var(--path-border-color);
 }
 
 .hidden-path-data {
@@ -221,7 +227,7 @@
 
 .path-dots:hover,
 .hidden-path-data:hover {
-    background-color: #e1e4ed;
+    background-color: var(--path-hover-color);
     border-radius: 4px;
 }
 
@@ -250,13 +256,13 @@
     border: 2px solid transparent;
     text-indent: 5px;
     font-size: 14px;
-    background-color: #fff;
+    background-color: var(--input-bgcolor);
     border-bottom: 2px solid transparent;
 }
 
 .header .path-input:focus{
-    outline: 1px solid #ccc;
-    border-bottom: 2px solid blue;
+    outline: 1px solid var(--input-focus-outline);
+    border-bottom: 2px solid var(--input-bottom-border);
 }
 
 .header .search-input:focus{
@@ -273,15 +279,15 @@
 }
 
 .search-area:has(> input:focus) {
-    outline: 1px solid #ccc;
-    border-bottom: 2px solid blue;
+    outline: 1px solid var(--input-focus-outline);
+    border-bottom: 2px solid var(--input-bottom-border);
     border-radius: 5px;
 }
 
 .clear-area {
     width: 45px;
     height: 100%;
-    background-color: #fff;
+    background-color: var(--input-bgcolor);
     border-top-right-radius: 5px;
     border-bottom-right-radius: 5px;
     display: flex;
@@ -294,11 +300,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #fff;
+    background-color: var(--input-bgcolor);
 }
 
 .clear:hover {
-    background-color: #f5f5f5;
+    background-color: var(--input-hover-color);
 }
 
 .without-clear{
@@ -334,7 +340,7 @@
 
 .col-list-header{
     min-width: 50px;
-    background-color: #fff;
+    background-color: var(--main-bgcolor);
     width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -344,7 +350,7 @@
     position: sticky;
     width: 100%;
     top: 0;
-    background-color: #fff;
+    background-color: var(--main-bgcolor);
     z-index: 950;
     display: flex;
     width: fit-content;
@@ -381,7 +387,7 @@
     width: 10px;
     z-index: 900;
     height: 100%;
-    background-color: #fff;
+    background-color: var(--main-bgcolor);
 }
 
 .divider:hover{
@@ -391,7 +397,7 @@
 .line {
     width: 1px;
     height: 100%;
-    background: #e1e1ef;
+    background: var(--divier-bgcolor);
 }
 
 .list-header-label{
@@ -407,35 +413,30 @@
 
 .clip-area {
     position: absolute;
-    background-color: #e6e6ff;
+    background-color: var(--clip-bgcolor);
     opacity: 0.5;
     width: 0px;
     height: 0px;
     transform-origin: top left;
     z-index: 910;
-    outline: 1px solid #000;
+    outline: 1px solid var(--clip-border-color);
     pointer-events: none;
 }
 
 .btns .button:hover{
-    background-color: #e1e4ed;
+    background-color: var(--button-hover-color);
 }
 
 .icon-area .button:hover{
-    background-color:#c1c1d1;
+    background-color:var(--menu-hover-color);
 }
 
-.path-data:hover{
-    background-color: #e1e4ed;
-    border-radius: 4px;
-}
-
-.row:not(.highlight):hover,
+.row:not(.selected):hover,
 .disk:not(.current):hover,
 .fav:not(.current):hover,
 .col-list-header:hover,
 .drag-highlight{
-    background-color: rgb(230 230 255 / 50%);
+    background-color: var(--main-hover-color)
 }
 
 .col-list-header:hover .divider{
@@ -443,7 +444,7 @@
 }
 
 .col-list-header:hover .divider .line{
-    background: #aaaacb;
+    background: var(--divider-hover-color);
 }
 
 .row{
@@ -511,21 +512,25 @@
 }
 
 .entry-name .name::highlight(searched) {
-    background-color: #f2f209;
+    background-color: var(--search-highlight);
 }
 
-.highlight{
-    background-color: #e6e6ff;
-    outline: 1px solid #000;
+.selected{
+    background-color: var(--selection-bgcolor);
+    outline: 1px solid var(--selection-border-color);
+}
+
+.being-selected{
+    outline: 1px solid var(--selection-border-color);
 }
 
 .current {
-    background-color: #e3dede;
+    background-color: var(--current-dir-bg-color);
 }
 
 .left-content{
     width: calc(100% - 5px);
-    border-bottom: 1px solid #ccc;
+    border-bottom: 1px solid var(--main-border-color);
     padding: 20px 0px;
 }
 
@@ -596,5 +601,5 @@
 }
 
 .cut{
-    color: #92a0c9;
+    color: var(--cut-color);
 }

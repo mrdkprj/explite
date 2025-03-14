@@ -5,101 +5,101 @@
 
 @media (prefers-color-scheme: dark) {
     :root{
-        --main-bgcolor:#272626;
-        --media-bgcolor:#000;
+        --main-bgcolor: #fff;
+        --main-color: #0e0e0e;
+        --main-hover-color:rgb(230 230 255 / 50%);
+        --main-border-color:#ccc;
 
-        --menu-bgcolor:#202020;
-        --menu-color:#c3bebe;
-        --menu-border-color:#3c393999;
-        --menu-hover-color:#5f5b5b;
+        --bar-bg-color:#d6d4e9;
+        --bar-border-color: #c7bfbf99;
 
-        --primary-highlight-color:#d57f1a;
-        --secondary-highlight-color:#e1dede;
+        --menu-bgcolor: #eceef3;
+        --menu-color: #0e0e0e;
+        --menu-hover-color: #d1c1c1;
+        --menu-shadow:#ccc;
 
-        --primary-forecolor:#fff;
-        --secondary-forecolor:#000;
+        --close-hover-bgcolor: #da0707c4;
+        --close-hover-color: #fff;
 
-        --playlist-item-color:#959292;
-        --playlist-item-border-color:#c3bebe;
-        --playlist-item-drag-bgcolor:#423f3f;
+        --path-bgcolor:#fff;
+        --path-hover-color:#e1e4ed;
+        --path-border-color:#ccc;
 
-        --radio-border-color:#423f3f;
+        --divier-bgcolor:#e1e1ef;
+        --divider-hover-color:#aaaacb;
 
-        --button-border-color:#959292;
-        --button-bgcolor:#272626;
-        --button-color:#fff;
-        --button-disabled:#5c5656;
+        --input-bgcolor: #fff;
+        --input-color: #000;
+        --input-focus-outline: #ccc;
+        --input-bottom-border:blue;
+        --input-hover-color:#f5f5f5;
 
-        --input-bgcolor:#423f3f;
-        --input-color:#fff;
-        --input-focus-outline:#6161c1;
+        --button-border-color: #504949;
+        --button-bgcolor: #fff;
+        --button-color: #000;
+        --button-disabled: #9f8e8e;
+        --button-hover-color:#e1e4ed;
 
-        --close-hover-bgcolor:#da0707c4;
-        --close-hover-color:#fff;
+        --clip-bgcolor:#e6e6ff;
+        --clip-border-color:#000;
 
-        --fullscreen-menu-bgcolor:#14131338;
-        --fullscreen-primary-color:#e1dede;
-        --fullscreen-slider-bgcolor:#ffffff80;
+        --search-highlight:#f2f209;
+        --selection-bgcolor:#e6e6ff;
+        --selection-border-color:#000;
 
-        --slider-bgcolor:rgb(255, 255, 255, 0.3);
-        --slider-track-bgcolor:#ffffffcc;
-        --slider-track-value-color:#817b7b;
-        --slider-thumb-bgcolor:#fff;
-        --slider-thumb-border-color:#000;
+        --current-dir-bg-color:#e3dede;
 
-        --scrollbar-track:#272626;
-        --scrollbar-thumb:#7979791a;
-        --scrollbar-thumb-hover:#79797966;
+        --cut-color:#92a0c9;
     }
 }
 
 @media (prefers-color-scheme: light) {
     :root{
         --main-bgcolor: #fff;
-        --media-bgcolor: #fff;
+        --main-color: #0e0e0e;
+        --main-hover-color:rgb(230 230 255 / 50%);
+        --main-border-color:#ccc;
 
-        --menu-bgcolor: #f5f5f5;
+        --bar-bg-color:#d6d4e9;
+        --bar-border-color: #c7bfbf99;
+
+        --menu-bgcolor: #eceef3;
         --menu-color: #0e0e0e;
-        --menu-border-color: #c7bfbf99;
         --menu-hover-color: #d1c1c1;
-
-        --primary-highlight-color: #d57f1a;
-        --secondary-highlight-color: #242222;
-
-        --primary-forecolor: #000;
-        --secondary-forecolor:#fff;
-
-        --playlist-item-color: #959292;
-        --playlist-item-border-color: #938989;
-        --playlist-item-drag-bgcolor: #423f3f;
-
-        --radio-border-color: #423f3f;
-
-        --button-border-color: #504949;
-        --button-bgcolor: #fff;
-        --button-color: #000;
-        --button-disabled: #5c5656;
-
-        --input-bgcolor: #fff;
-        --input-color: #000;
-        --input-focus-outline: #6161c1;
+        --menu-shadow:#ccc;
 
         --close-hover-bgcolor: #da0707c4;
         --close-hover-color: #fff;
 
-        --fullscreen-menu-bgcolor: #14131338;
-        --fullscreen-primary-color: #e1dede;
-        --fullscreen-slider-bgcolor: #363333cc;
+        --path-bgcolor:#fff;
+        --path-hover-color:#e1e4ed;
+        --path-border-color:#ccc;
 
-        --slider-bgcolor: #221e1e26;
-        --slider-track-bgcolor: #363333cc;
-        --slider-track-value-color: #817b7b;
-        --slider-thumb-bgcolor: #fff;
-        --slider-thumb-border-color: #000;
+        --divier-bgcolor:#e1e1ef;
+        --divider-hover-color:#aaaacb;
 
-        --scrollbar-track: #fff;
-        --scrollbar-thumb: #7979791a;
-        --scrollbar-thumb-hover: #79797966;
+        --input-bgcolor: #fff;
+        --input-color: #000;
+        --input-focus-outline: #ccc;
+        --input-bottom-border:blue;
+        --input-hover-color:#f5f5f5;
+
+        --button-border-color: #504949;
+        --button-bgcolor: #fff;
+        --button-color: #000;
+        --button-disabled: #9f8e8e;
+        --button-hover-color:#e1e4ed;
+
+        --clip-bgcolor:#e6e6ff;
+        --clip-border-color:#000;
+
+        --search-highlight:#f2f209;
+        --selection-bgcolor:#e6e6ff;
+        --selection-border-color:#000;
+
+        --current-dir-bg-color:#e3dede;
+
+        --cut-color:#92a0c9;
     }
 }
 
@@ -121,10 +121,6 @@ body{
     cursor: default;
     display: flex;
     flex-direction: column;
-    outline-width: 1px;
-    outline-style: solid;
-    outline-color: var(--menu-border-color);
-    outline-offset: -1px;
 }
 
 .title-bar{
@@ -134,9 +130,9 @@ body{
     height: 35px;
     min-height: 35px;
     width: 100%;
-    color: var(--menu-color);
-    background-color: #d6d4e9;
-    border-bottom: 1px solid var(--menu-border-color);
+    color: var(--main-color);
+    background-color: var(--bar-bg-color);
+    border-bottom: 1px solid var(--bar-border-color);
     -webkit-app-region: drag;
     user-select: none;
 }
