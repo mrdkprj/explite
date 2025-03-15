@@ -303,7 +303,6 @@ const updater = (state: AppState, action: AppAction): AppState => {
         }
 
         case "startClip": {
-            // const selectedIds = action.value.startId ? [action.value.startId] : [];
             return {
                 ...state,
                 selection: { ...state.selection, selectedId: action.value.startId },

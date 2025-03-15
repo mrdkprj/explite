@@ -109,7 +109,7 @@ class Main {
     readFiles = async (directory: string) => {
         if (directory == HOME) {
             this.abortWatch();
-            this.files.length = 0;
+            this.files = [];
             this.currentDir = directory;
             this.watchTarget = directory;
             return {
@@ -129,11 +129,7 @@ class Main {
         try {
             const allDirents = await ipc.invoke("readdir", { directory, recursive: false });
 
-            this.files.length = 0;
-            allDirents
-                .filter((dirent) => !dirent.attributes.is_system)
-                .map((dirent) => util.toFile(dirent))
-                .forEach((file) => this.files.push(file));
+            this.files = allDirents.filter((dirent) => !dirent.attributes.is_system).map((dirent) => util.toFile(dirent));
 
             const sortType = this.sortFiles(directory, this.files);
 
@@ -168,22 +164,20 @@ class Main {
 
         const key = e.key.toLocaleLowerCase();
         if (e.dir in this.searchCache) {
-            const filetedFiles = await this.filterCache(e.dir, key);
-            return { files: filetedFiles };
+            this.files = await this.filterCache(e.dir, key);
+            return { files: this.files };
         }
 
         const allDirents = await ipc.invoke("readdir", { directory: e.dir, recursive: true });
         this.searchCache[e.dir] = allDirents.filter((direcnt) => !direcnt.attributes.is_system).map((dirent) => path.join(dirent.parent_path, dirent.name));
 
-        this.files.length = 0;
-        const filetedFiles = await this.filterCache(e.dir, key);
-        filetedFiles.forEach((file) => this.files.push(file));
-
-        return { files: filetedFiles };
+        this.files = await this.filterCache(e.dir, key);
+        return { files: this.files };
     };
 
     private filterCache = async (dir: string, key: string) => {
-        return await Promise.all(this.searchCache[dir].filter((fullPath) => this.isSearchFileFound(path.basename(fullPath), key)).map(async (fullPath) => await util.toFileFromPath(fullPath)));
+        const fildtered = this.searchCache[dir].filter((fullPath) => this.isSearchFileFound(path.basename(fullPath), key));
+        return await Promise.all(fildtered.map(async (fullPath) => await util.toFileFromPath(fullPath)));
     };
 
     private isSearchFileFound = (value: string, key: string) => {
@@ -193,16 +187,13 @@ class Main {
     };
 
     onSearchEnd = (): Mp.SearchResult => {
-        this.files.length = 0;
-        this.unfilteredFiles.forEach((file) => this.files.push(file));
-        this.unfilteredFiles = [];
+        if (this.unfilteredFiles.length) {
+            this.sortFiles(this.currentDir, this.unfilteredFiles);
+            this.files = [...this.unfilteredFiles];
+            this.unfilteredFiles = [];
+        }
 
         return { files: this.files };
-    };
-
-    sortFile = (): Mp.SortResult => {
-        const sortType = this.sortFiles(this.currentDir, this.files);
-        return { files: this.files, type: sortType };
     };
 
     sortFiles = (directory: string, files: Mp.MediaFile[], sortType?: Mp.SortType): Mp.SortType => {
@@ -487,19 +478,26 @@ class Main {
 
         switch (e.operation) {
             case "Create": {
-                const newItems = await Promise.all(e.to_paths.map(async (path) => await util.toFileFromPath(path)));
+                const newPaths = await Promise.all(e.to_paths.map((a) => a).filter(async (path) => await util.exists(path)));
+                if (!newPaths.length) {
+                    return;
+                }
+                const newItems = await Promise.all(newPaths.map(async (path) => await util.toFileFromPath(path)));
                 this.files.push(...newItems);
-                this.sortFile();
+
+                if (this.unfilteredFiles.length) {
+                    this.unfilteredFiles.push(...newItems);
+                }
                 if (hasSearchCache) {
                     this.searchCache[this.currentDir].push(...e.to_paths);
                 }
                 break;
             }
             case "Remove": {
-                const newFiles = this.files.filter((file) => !e.to_paths.includes(file.fullPath));
-                this.files.length = 0;
-                newFiles.forEach((file) => this.files.push(file));
-                this.sortFile();
+                this.files = this.files.filter((file) => !e.to_paths.includes(file.fullPath));
+                if (this.unfilteredFiles.length) {
+                    this.unfilteredFiles = this.unfilteredFiles.filter((file) => !e.to_paths.includes(file.fullPath));
+                }
                 if (hasSearchCache) {
                     this.searchCache[this.currentDir] = this.searchCache[this.currentDir].filter((fullPath) => !e.to_paths.includes(fullPath));
                 }
@@ -511,7 +509,11 @@ class Main {
                 const fileIndex = this.files.findIndex((file) => file.fullPath == oldFullPath);
                 const newMediaFile = await util.toFileFromPath(newFullPath);
                 this.files[fileIndex] = newMediaFile;
-                this.sortFile();
+
+                if (this.unfilteredFiles.length) {
+                    const fileIndex = this.unfilteredFiles.findIndex((file) => file.fullPath == oldFullPath);
+                    this.unfilteredFiles[fileIndex] = newMediaFile;
+                }
                 if (hasSearchCache) {
                     const index = this.searchCache[this.currentDir].findIndex((fullPath) => fullPath == oldFullPath);
                     this.searchCache[this.currentDir][index] = newFullPath;
@@ -520,6 +522,7 @@ class Main {
             }
         }
 
+        this.sortFiles(this.currentDir, this.files);
         return this.files;
     };
 

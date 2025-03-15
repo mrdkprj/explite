@@ -55,7 +55,7 @@
 
 .minimize:hover,
 .maximize:hover{
-    background-color: #c1c1d1;
+    background-color: var(--menu-hover-color);;
 }
 
 .minbtn,
@@ -258,6 +258,7 @@
     font-size: 14px;
     background-color: var(--input-bgcolor);
     border-bottom: 2px solid transparent;
+    color: var(--input-color);
 }
 
 .header .path-input:focus{

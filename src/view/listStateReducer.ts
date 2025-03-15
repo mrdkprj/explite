@@ -1,5 +1,5 @@
 import { writable } from "svelte/store";
-import { SEPARATOR } from "../constants";
+import { HOME, SEPARATOR } from "../constants";
 
 type RenameState = {
     renaming: boolean;
@@ -61,7 +61,7 @@ const updater = (state: AppState, action: AppAction): AppState => {
                 files: action.value.files,
                 currentDir: {
                     fullPath: action.value.directory,
-                    paths: action.value.directory == "Home" ? [] : action.value.directory.split(SEPARATOR).filter((i) => i),
+                    paths: action.value.directory == HOME ? [] : action.value.directory.split(SEPARATOR).filter((i) => i),
                 },
             };
 

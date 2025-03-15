@@ -24,11 +24,11 @@
 
     let fileListContainer = $state<HTMLDivElement>();
     let virtualList = $state<VirtualList<Mp.MediaFile>>();
-    let header: Header;
     let searchInterval = 0;
     let visibleStartIndex = $state(0);
     let visibleEndIndex = $state(0);
-    let ignoreChange = false;
+
+    let header: Header;
     let folderUpdatePromise: Deferred<boolean> | null;
 
     const ipc = new IPC("View");
@@ -42,6 +42,7 @@
         e.preventDefault();
         e.stopPropagation();
         if ($listState.currentDir.fullPath != HOME) {
+            onItemClick(e);
             const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
             if (!file) return;
             main.openListContextMenu({ x: e.screenX, y: e.screenY }, file.fullPath);
@@ -74,18 +75,18 @@
         }
     };
 
-    const goBack = () => {
+    const goBack = async () => {
         if ($appState.search.searching) {
-            return endSearch();
+            return await endSearch(false);
         }
         const fullPath = back.pop();
         if (!fullPath) return;
         requestLoad(fullPath, false, "Back");
     };
 
-    const goForward = () => {
+    const goForward = async () => {
         if ($appState.search.searching) {
-            return endSearch();
+            return await endSearch(false);
         }
         const fullPath = forward.pop();
         if (!fullPath) return;
@@ -98,8 +99,6 @@
             if (result) {
                 load(result);
             }
-        } else {
-            endSearch();
         }
     };
 
@@ -609,8 +608,7 @@
 
     const reload = async (includeDrive: boolean) => {
         if ($appState.search.searching) {
-            main.onSearchEnd();
-            await header.startSearch();
+            await endSearch(true);
         } else {
             const result = await main.reload(includeDrive);
             load(result);
@@ -643,12 +641,32 @@
         }
     };
 
-    const endSearch = () => {
-        if ($appState.search.searching) {
-            dispatch({ type: "endSearch" });
-            CSS.highlights.clear();
+    const startSearch = async () => {
+        dispatch({ type: "clearCopyCut" });
+        dispatch({ type: "startSearch" });
+
+        const result = await main.onSearchRequest({ dir: $listState.currentDir.fullPath, key: $appState.search.key, refresh: false });
+        onSearched(result);
+    };
+
+    const onSearched = (e: Mp.SearchResult) => {
+        dispatch({ type: "updateFiles", value: { files: e.files, reload: false } });
+    };
+
+    const clearSearchHighlight = () => {
+        CSS.highlights.clear();
+    };
+
+    const endSearch = async (refresh: boolean) => {
+        dispatch({ type: "endSearch" });
+        clearSearchHighlight();
+
+        if (refresh) {
+            main.onSearchEnd();
+            const result = await main.onSearchRequest({ dir: $listState.currentDir.fullPath, key: $appState.search.key, refresh: false });
+            onSearched(result);
+        } else {
             const result = main.onSearchEnd();
-            resumeWatch();
             onSearched(result);
         }
     };
@@ -677,7 +695,10 @@
     };
 
     const searchHighlight = (nodes: HTMLElement[]) => {
-        if (!$appState.search.key) return;
+        if (!$appState.search.key || !$listState.files.length) {
+            clearSearchHighlight();
+            return;
+        }
 
         const searchTextHighlight = new Highlight();
 
@@ -706,10 +727,6 @@
             await tick();
             select($appState.selection.selectedIds[0]);
         }
-    };
-
-    const onSearched = (e: Mp.SearchResult) => {
-        dispatch({ type: "updateFiles", value: { files: e.files, reload: false } });
     };
 
     const onFavoriteChanged = (e: Mp.MediaFile[]) => {
@@ -926,13 +943,13 @@
 
         if (e.altKey && e.key == "ArrowLeft") {
             e.preventDefault();
-            goBack();
+            await goBack();
             return;
         }
 
         if (e.altKey && e.key == "ArrowRight") {
             e.preventDefault();
-            goForward();
+            await goForward();
             return;
         }
 
@@ -994,21 +1011,11 @@
         }
     };
 
-    const suspendWatch = () => {
-        ignoreChange = true;
-    };
-
-    const resumeWatch = () => {
-        window.setTimeout(() => {
-            ignoreChange = false;
-        }, 500);
-    };
-
     const onWatchEvent = async (e: Mp.WatchEvent) => {
-        if (ignoreChange) return;
-
         const files = await main.onWatchEvent(e);
-        dispatch({ type: "updateFiles", value: { files, reload: false } });
+        if (files) {
+            dispatch({ type: "updateFiles", value: { files, reload: false } });
+        }
 
         if (folderUpdatePromise) {
             await tick();
@@ -1034,6 +1041,7 @@
     onMount(() => {
         prepare();
         ipc.receiveTauri("tauri://resize", onWindowSizeChanged);
+        ipc.receiveTauri("tauri://theme-changed", (e) => console.log(e));
         ipc.receive("contextmenu_event", handleContextMenuEvent);
         ipc.receive("watch_event", onWatchEvent);
 
@@ -1049,7 +1057,7 @@
 <div class="viewport" class:full-screen={$appState.isFullScreen} class:sliding={$appState.slideState.sliding}>
     <Bar />
     <div class="view">
-        <Header {requestLoad} {onSearched} {endSearch} {goBack} {goForward} {createItem} {reload} {suspendWatch} bind:this={header} />
+        <Header {requestLoad} {startSearch} {endSearch} {goBack} {goForward} {createItem} {reload} bind:this={header} />
         <div class="body" ondragover={(e) => e.preventDefault()} ondrop={onItemDrop} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <Left {requestLoad} />
             <div

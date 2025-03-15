@@ -10,7 +10,6 @@
     import Display from "../svg/Display.svelte";
     import { appState, dispatch } from "./appStateReducer";
     import { listState } from "./listStateReducer";
-    import main from "../main";
     import { handleKeyEvent, HOME, SEPARATOR } from "../constants";
 
     type Paths = {
@@ -19,22 +18,20 @@
     };
 
     let {
-        onSearched,
+        startSearch,
         endSearch,
         goBack,
         goForward,
         requestLoad,
         reload,
-        suspendWatch,
         createItem,
     }: {
-        onSearched: (e: Mp.SearchResult) => void;
-        endSearch: () => void;
-        goBack: () => void;
-        goForward: () => void;
+        startSearch: () => void;
+        endSearch: (refresh: boolean) => Promise<void>;
+        goBack: () => Promise<void>;
+        goForward: () => Promise<void>;
         requestLoad: (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => void;
         reload: (includeDrive: boolean) => void;
-        suspendWatch: () => void;
         createItem: (isFile: boolean) => void;
     } = $props();
 
@@ -81,7 +78,7 @@
         };
     });
 
-    const onSearchInputKeyDown = (e: KeyboardEvent) => {
+    const onSearchInputKeyDown = async (e: KeyboardEvent) => {
         if (e.key == "Enter") {
             e.preventDefault();
             e.stopPropagation();
@@ -90,7 +87,7 @@
 
         if (e.key == "Escape") {
             searchInput.blur();
-            endSearch();
+            await endSearch(false);
         }
     };
 
@@ -102,18 +99,9 @@
             if ($appState.search.key) {
                 startSearch();
             } else {
-                endSearch();
+                endSearch(false);
             }
         }, 300);
-    };
-
-    export const startSearch = async () => {
-        dispatch({ type: "clearCopyCut" });
-        dispatch({ type: "startSearch" });
-
-        suspendWatch();
-        const result = await main.onSearchRequest({ dir: $listState.currentDir.fullPath, key: $appState.search.key, refresh: false });
-        onSearched(result);
     };
 
     const setPathInputFocus = (node: HTMLInputElement) => {
@@ -209,13 +197,25 @@
         <div class="button {$appState.canRedo ? '' : 'disabled'}" onclick={goForward} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <FowardSvg />
         </div>
-        <div class="button {$listState.currentDir.fullPath != 'Home' ? '' : 'disabled'}" onclick={() => reload(true)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div class="button {$listState.currentDir.fullPath == 'Home' ? 'disabled' : ''}" onclick={() => reload(true)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <ReloadSvg />
         </div>
-        <div class="button {$listState.currentDir.fullPath != 'Home' ? '' : 'disabled'}" onclick={() => createItem(true)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div
+            class="button {$listState.currentDir.fullPath == 'Home' || $appState.search.searching ? 'disabled' : ''}"
+            onclick={() => createItem(true)}
+            onkeydown={handleKeyEvent}
+            role="button"
+            tabindex="-1"
+        >
             <NewFileSvg />
         </div>
-        <div class="button {$listState.currentDir.fullPath != 'Home' ? '' : 'disabled'}" onclick={() => createItem(false)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div
+            class="button {$listState.currentDir.fullPath == 'Home' || $appState.search.searching ? 'disabled' : ''}"
+            onclick={() => createItem(false)}
+            onkeydown={handleKeyEvent}
+            role="button"
+            tabindex="-1"
+        >
             <NewFolderSvg />
         </div>
     </div>
@@ -274,12 +274,12 @@
             bind:value={$appState.search.key}
             onfocus={focusSearchInput}
             onkeydown={onSearchInputKeyDown}
-            disabled={$listState.currentDir.fullPath == "Home"}
+            disabled={$listState.currentDir.fullPath == HOME}
             autocomplete="one-time-code"
         />
         {#if $appState.search.searching}
             <div class="clear-area">
-                <div class="clear" onclick={endSearch} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+                <div class="clear" onclick={() => endSearch(false)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
                     <ClearSvg />
                 </div>
             </div>

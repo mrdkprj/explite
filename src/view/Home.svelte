@@ -54,7 +54,7 @@
         min-width: 280px;
     }
     .ldisk:hover {
-        background-color: rgb(230 230 255 / 80%);
+        background-color: var(--selection-bgcolor);
     }
     .icon {
         margin: 0 10px;
