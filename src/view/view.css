@@ -475,6 +475,10 @@
     z-index: 850;
 }
 
+.draggable {
+    width: fit-content;
+}
+
 .searched .col-detail{
     font-size: 14px;
 }

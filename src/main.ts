@@ -476,6 +476,7 @@ class Main {
     onWatchEvent = async (e: Mp.WatchEvent) => {
         const hasSearchCache = this.currentDir in this.searchCache;
 
+        /* In searching, only rename is applied to files */
         switch (e.operation) {
             case "Create": {
                 const newPaths = await Promise.all(e.to_paths.map((a) => a).filter(async (path) => await util.exists(path)));
@@ -483,7 +484,10 @@ class Main {
                     return;
                 }
                 const newItems = await Promise.all(newPaths.map(async (path) => await util.toFileFromPath(path)));
-                this.files.push(...newItems);
+
+                if (!this.unfilteredFiles.length) {
+                    this.files.push(...newItems);
+                }
 
                 if (this.unfilteredFiles.length) {
                     this.unfilteredFiles.push(...newItems);
@@ -494,7 +498,10 @@ class Main {
                 break;
             }
             case "Remove": {
-                this.files = this.files.filter((file) => !e.to_paths.includes(file.fullPath));
+                if (!this.unfilteredFiles.length) {
+                    this.files = this.files.filter((file) => !e.to_paths.includes(file.fullPath));
+                }
+
                 if (this.unfilteredFiles.length) {
                     this.unfilteredFiles = this.unfilteredFiles.filter((file) => !e.to_paths.includes(file.fullPath));
                 }

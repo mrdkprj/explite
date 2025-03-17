@@ -149,6 +149,16 @@
         startClip(e);
     };
 
+    /* Column item is selected on mousedown. Row is selected on click */
+    const colDetailMouseDown = async (e: MouseEvent) => {
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+        e.stopPropagation();
+        const id = e.target.getAttribute("data-file-id");
+        if (!id) return;
+
+        await select(id);
+    };
+
     const onMouseMove = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
@@ -166,6 +176,8 @@
     };
 
     const onMouseUp = (e: MouseEvent) => {
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+
         if ($appState.slideState.sliding) {
             const dist = e.clientX - $appState.slideState.startX;
             dispatch({ type: "slide", value: dist });
@@ -173,12 +185,11 @@
             main.onWidthChange({ leftWidth: $appState.leftWidth, labels: $appState.headerLabels });
         }
 
-        endClip();
-
-        if (!e.target || !(e.target instanceof HTMLElement)) return;
-        if (e.target.id == "list") {
+        if (!$appState.clip.moved && e.target.id == "list") {
             clearSelection();
         }
+
+        endClip();
     };
 
     const startDarg = async (e: DragEvent) => {
@@ -239,6 +250,7 @@
         if ($appState.selection.selectedIds.includes(id)) return;
 
         if (e.button != 2) {
+            clearSelection();
             dispatch({
                 type: "startClip",
                 value: { position: { startX: e.clientX - fileListContainer.parentElement!.offsetLeft, startY: e.clientY - fileListContainer.parentElement!.offsetTop }, startId: id },
@@ -268,6 +280,10 @@
         const enterId = e.relatedTarget.getAttribute("data-file-id");
 
         if (id == enterId) return;
+
+        if ($appState.selection.selectedId == id) {
+            dispatch({ type: "setSelectedIds", value: [id] });
+        }
 
         if (id && !enterId && !$appState.clip.startId) {
             dispatch({ type: "removeSelectedIds", value: [id] });
@@ -1140,7 +1156,14 @@
                                 tabindex="-1"
                             >
                                 <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.name.width}px;">
-                                    <div class="entry-name" title={$appState.search.searching ? item.fullPath : item.name} data-file-id={item.id}>
+                                    <div
+                                        class="entry-name draggable"
+                                        title={$appState.search.searching ? item.fullPath : item.name}
+                                        data-file-id={item.id}
+                                        onmousedown={colDetailMouseDown}
+                                        role="button"
+                                        tabindex="-1"
+                                    >
                                         <div class="icon" data-file-id={item.id}>
                                             {#if item.isFile}
                                                 {#if item.fileType == "Audio"}
@@ -1162,19 +1185,29 @@
                                     </div>
                                 </div>
                                 {#if $appState.search.searching}
-                                    <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.directory.width + HEADER_DIVIDER_WIDTh}px;">{item.dir}</div>
+                                    <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.directory.width + HEADER_DIVIDER_WIDTh}px;">
+                                        <div data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.dir}</div>
+                                    </div>
                                 {/if}
-                                <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.extension.width + HEADER_DIVIDER_WIDTh}px;">{item.extension}</div>
+                                <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.extension.width + HEADER_DIVIDER_WIDTh}px;">
+                                    <div data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.extension}</div>
+                                </div>
                                 <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.mdate.width + HEADER_DIVIDER_WIDTh}px;">
-                                    {new Date(item.mdate).toLocaleString("ja-JP", DATE_OPTION)}
+                                    <div data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
+                                        {new Date(item.mdate).toLocaleString("ja-JP", DATE_OPTION)}
+                                    </div>
                                 </div>
                                 <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.cdate.width + HEADER_DIVIDER_WIDTh}px;">
-                                    {new Date(item.cdate).toLocaleString("jp-JP", DATE_OPTION)}
+                                    <div data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
+                                        {new Date(item.cdate).toLocaleString("jp-JP", DATE_OPTION)}
+                                    </div>
                                 </div>
                                 <div class="col-detail size" data-file-id={item.id} style="width: {$appState.headerLabels.size.width + HEADER_DIVIDER_WIDTh}px;">
-                                    {item.size > 0 || (item.size == 0 && item.isFile)
-                                        ? `${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingMode: "ceil" }).format(item.size)} KB`
-                                        : ""}
+                                    <div data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
+                                        {item.size > 0 || (item.size == 0 && item.isFile)
+                                            ? `${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingMode: "ceil" }).format(item.size)} KB`
+                                            : ""}
+                                    </div>
                                 </div>
                             </div>
                         {/snippet}
