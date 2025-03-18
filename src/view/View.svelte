@@ -155,6 +155,7 @@
         e.stopPropagation();
         const id = e.target.getAttribute("data-file-id");
         if (!id) return;
+        if ($appState.selection.selectedIds.includes(id)) return;
 
         await select(id);
     };
@@ -192,12 +193,12 @@
         endClip();
     };
 
-    const startDarg = async (e: DragEvent) => {
+    const startDrag = async (e: DragEvent) => {
         e.preventDefault();
 
         if (!e.target || !(e.target instanceof HTMLElement)) return;
         if (!$appState.selection.selectedIds.length) return;
-        if ($appState.clip.clipping) return;
+        if ($appState.clip.moved) return;
 
         const id = e.target.getAttribute("data-file-id") ?? "";
         if (!$appState.selection.selectedIds.includes(id)) return;
@@ -1082,7 +1083,7 @@
                 oncontextmenu={onListContextMenu}
                 onkeydown={handleKeyEvent}
                 onscroll={endEditFileName}
-                ondragstart={startDarg}
+                ondragstart={startDrag}
                 role="button"
                 tabindex="-1"
             >
@@ -1186,24 +1187,24 @@
                                 </div>
                                 {#if $appState.search.searching}
                                     <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.directory.width + HEADER_DIVIDER_WIDTh}px;">
-                                        <div data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.dir}</div>
+                                        <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.dir}</div>
                                     </div>
                                 {/if}
                                 <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.extension.width + HEADER_DIVIDER_WIDTh}px;">
-                                    <div data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.extension}</div>
+                                    <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.extension}</div>
                                 </div>
                                 <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.mdate.width + HEADER_DIVIDER_WIDTh}px;">
-                                    <div data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
+                                    <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
                                         {new Date(item.mdate).toLocaleString("ja-JP", DATE_OPTION)}
                                     </div>
                                 </div>
                                 <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.cdate.width + HEADER_DIVIDER_WIDTh}px;">
-                                    <div data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
+                                    <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
                                         {new Date(item.cdate).toLocaleString("jp-JP", DATE_OPTION)}
                                     </div>
                                 </div>
                                 <div class="col-detail size" data-file-id={item.id} style="width: {$appState.headerLabels.size.width + HEADER_DIVIDER_WIDTh}px;">
-                                    <div data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
+                                    <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
                                         {item.size > 0 || (item.size == 0 && item.isFile)
                                             ? `${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingMode: "ceil" }).format(item.size)} KB`
                                             : ""}
