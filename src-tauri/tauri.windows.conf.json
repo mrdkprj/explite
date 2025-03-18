@@ -18,8 +18,7 @@
         "transparent":false,
         "dragDropEnabled":false,
         "shadow":true,
-        "url":"src/view/index.html",
-        "additionalBrowserArgs":"--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --enable-features=msWebView2BrowserHitTransparent"
+        "url":"src/view/index.html"
       }
     ]
   },
