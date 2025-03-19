@@ -42,6 +42,8 @@
     const onListContextMenu = (e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        if ($listState.rename.renaming) return;
+
         if ($listState.currentDir.fullPath != HOME) {
             onItemClick(e);
             const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
@@ -183,6 +185,7 @@
     const shouldHandleMouseEvent = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return false;
         if (!fileListContainer) return false;
+        if ($listState.rename.renaming) return false;
 
         if (e.offsetX > e.target.clientWidth || e.offsetY > e.target.clientHeight) {
             return false;
