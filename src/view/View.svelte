@@ -30,6 +30,7 @@
 
     let header: Header;
     let folderUpdatePromise: Deferred<boolean> | null;
+    let handleMouseEvent = false;
 
     const ipc = new IPC("View");
     const HEADER_DIVIDER_WIDTh = 10;
@@ -146,6 +147,9 @@
     };
 
     const onMouseDown = (e: MouseEvent) => {
+        handleMouseEvent = shouldHandleMouseEvent(e);
+        if (!handleMouseEvent) return;
+
         startClip(e);
     };
 
@@ -176,8 +180,26 @@
         }
     };
 
+    const shouldHandleMouseEvent = (e: MouseEvent) => {
+        if (!e.target || !(e.target instanceof HTMLElement)) return false;
+        if (!fileListContainer) return false;
+
+        if (e.offsetX > e.target.clientWidth || e.offsetY > e.target.clientHeight) {
+            return false;
+        }
+
+        const containerRect = fileListContainer.getBoundingClientRect();
+        if (containerRect.x > e.clientX || containerRect.y > e.clientX) {
+            return false;
+        }
+
+        return true;
+    };
+
     const onMouseUp = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
+
+        if (!handleMouseEvent) return;
 
         if ($appState.slideState.sliding) {
             const dist = e.clientX - $appState.slideState.startX;
@@ -1087,7 +1109,7 @@
                 role="button"
                 tabindex="-1"
             >
-                {#if $appState.clip.clipping}
+                {#if $appState.clip.moved}
                     <div class="clip-area" style={$appState.clip.clipAreaStyle}></div>
                 {/if}
 

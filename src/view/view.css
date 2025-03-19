@@ -65,6 +65,7 @@
     height: 7px;
     border: 1px solid var(--menu-color);
     pointer-events: none;
+    background-color: var(--bar-bg-color);
 }
 
 .minbtn::after{
