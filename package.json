@@ -11,7 +11,8 @@
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "tauri": "tauri",
     "start": "vite build && tauri dev",
-    "release": "tauri build"
+    "release": "tauri build",
+    "clean": "cd src-tauri && cargo clean"
   },
   "license": "MIT",
   "dependencies": {

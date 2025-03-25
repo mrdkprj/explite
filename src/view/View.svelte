@@ -45,7 +45,7 @@
         if ($listState.rename.renaming) return;
 
         if ($listState.currentDir.fullPath != HOME) {
-            onItemClick(e);
+            onRowClick(e);
             const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
             if (!file) return;
             main.openListContextMenu({ x: e.screenX, y: e.screenY }, file.fullPath);
@@ -138,7 +138,7 @@
         }
 
         if (rect.bottom > containerRect.bottom) {
-            element.scrollIntoView(false);
+            fileListContainer.scrollBy(0, rect.height);
         }
     };
 
@@ -152,6 +152,8 @@
         handleMouseEvent = shouldHandleMouseEvent(e);
         if (!handleMouseEvent) return;
 
+        if (e.ctrlKey || e.shiftKey) return;
+
         startClip(e);
     };
 
@@ -163,7 +165,7 @@
         if (!id) return;
         if ($appState.selection.selectedIds.includes(id)) return;
 
-        await select(id);
+        await toggleSelect(e);
     };
 
     const onMouseMove = (e: MouseEvent) => {
@@ -328,7 +330,7 @@
         }
     };
 
-    const onItemClick = (e: MouseEvent) => {
+    const onRowClick = async (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
         if (e.button != 2 && e.target.classList.contains("nofocus")) {
@@ -345,10 +347,10 @@
             return;
         }
 
-        toggleSelect(e, true);
+        await toggleSelect(e);
     };
 
-    const toggleSelect = (e: MouseEvent, _mousedown: boolean) => {
+    const toggleSelect = async (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
         const id = e.target.getAttribute("data-file-id");
@@ -358,7 +360,7 @@
         }
 
         if (e.ctrlKey) {
-            selectByCtrl(id);
+            await selectByCtrl(id);
             return;
         }
 
@@ -367,7 +369,7 @@
             return;
         }
 
-        selectByClick(id);
+        await selectByClick(id);
     };
 
     const select = async (id: string) => {
@@ -387,8 +389,8 @@
         await scrollToElement(lastItem);
     };
 
-    const selectByClick = (id: string) => {
-        select(id);
+    const selectByClick = async (id: string) => {
+        await select(id);
     };
 
     const selectByShift = (id: string) => {
@@ -414,9 +416,9 @@
         dispatch({ type: "setSelectedIds", value: ids });
     };
 
-    const selectByCtrl = (id: string) => {
+    const selectByCtrl = async (id: string) => {
         if (!$appState.selection.selectedId) {
-            selectByClick(id);
+            await selectByClick(id);
             return;
         }
 
@@ -431,9 +433,9 @@
         dispatch({ type: "appendSelectedIds", value: ids });
     };
 
-    const moveSelectionByShit = (key: string) => {
+    const moveSelectionByShit = async (key: string) => {
         if (!$appState.selection.selectedIds.length) {
-            select($listState.files[0].id);
+            await select($listState.files[0].id);
         }
 
         const downward = $appState.selection.selectedId == $appState.selection.selectedIds[0];
@@ -447,11 +449,11 @@
         return selectByShift(nextId);
     };
 
-    const moveSelection = (e: KeyboardEvent) => {
+    const moveSelection = async (e: KeyboardEvent) => {
         if (!$listState.files.length) return;
 
         if (e.shiftKey) {
-            return moveSelectionByShit(e.key);
+            return await moveSelectionByShit(e.key);
         }
 
         const currentId = $appState.selection.selectedId ? $appState.selection.selectedId : $listState.files[0].id;
@@ -461,19 +463,19 @@
         if (!nextId) return;
 
         clearSelection();
-        select(nextId);
+        await select(nextId);
     };
 
-    const selectUpto = (e: KeyboardEvent) => {
+    const selectUpto = async (e: KeyboardEvent) => {
         if (!$listState.files.length) return;
         if (e.key == "Home") {
-            select($listState.files[0].id);
+            await select($listState.files[0].id);
         } else {
-            select($listState.files[$listState.files.length - 1].id);
+            await select($listState.files[$listState.files.length - 1].id);
         }
     };
 
-    const moveSelectionUpto = (e: KeyboardEvent) => {
+    const moveSelectionUpto = async (e: KeyboardEvent) => {
         if (!$listState.files.length) return;
 
         e.preventDefault();
@@ -483,7 +485,7 @@
         if (!targetId) return;
 
         selectByShift(targetId);
-        scrollToElement(targetId);
+        await scrollToElement(targetId);
     };
 
     /* rename */
@@ -980,7 +982,7 @@
 
         if (e.key === "ArrowUp" || e.key === "ArrowDown") {
             e.preventDefault();
-            return moveSelection(e);
+            return await moveSelection(e);
         }
 
         if (e.altKey && e.key == "ArrowLeft") {
@@ -998,9 +1000,9 @@
         if (e.key === "Home" || e.key === "End") {
             e.preventDefault();
             if (e.shiftKey) {
-                return moveSelectionUpto(e);
+                return await moveSelectionUpto(e);
             } else {
-                return selectUpto(e);
+                return await selectUpto(e);
             }
         }
 
@@ -1174,7 +1176,7 @@
                                 onmouseout={clipMouseLeave}
                                 onfocus={handleKeyEvent}
                                 onblur={handleKeyEvent}
-                                onclick={onItemClick}
+                                onclick={onRowClick}
                                 ondblclick={onSelect}
                                 onkeydown={handleKeyEvent}
                                 data-file-id={item.id}
