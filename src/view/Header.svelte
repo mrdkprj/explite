@@ -191,10 +191,10 @@
 
 <div class="header">
     <div class="btns">
-        <div class="button {$appState.canUndo ? '' : 'disabled'}" onclick={goBack} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div class="button {$appState.canGoBack ? '' : 'disabled'}" onclick={goBack} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <BackSvg />
         </div>
-        <div class="button {$appState.canRedo ? '' : 'disabled'}" onclick={goForward} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div class="button {$appState.canGoForward ? '' : 'disabled'}" onclick={goForward} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <FowardSvg />
         </div>
         <div class="button {$listState.currentDir.fullPath == 'Home' ? 'disabled' : ''}" onclick={() => reload(true)} onkeydown={handleKeyEvent} role="button" tabindex="-1">

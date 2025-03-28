@@ -33,8 +33,8 @@ type AppState = {
     isFullScreen: boolean;
     pathEditing: boolean;
     headerLabels: Mp.HeaderLabels;
-    canUndo: boolean;
-    canRedo: boolean;
+    canGoBack: boolean;
+    canGoForward: boolean;
     prevSelection: Mp.ItemSelection | null;
     sort: Mp.SortType;
     preventBlur: boolean;
@@ -60,8 +60,8 @@ export const initialAppState: AppState = {
     isFullScreen: false,
     pathEditing: false,
     headerLabels: DEFAULT_LABLES,
-    canUndo: false,
-    canRedo: false,
+    canGoBack: false,
+    canGoForward: false,
     prevSelection: null,
     sort: {
         asc: true,
@@ -109,7 +109,7 @@ type AppAction =
     | { type: "startSearch" }
     | { type: "endSearch" }
     | { type: "headerLabels"; value: Mp.HeaderLabels }
-    | { type: "history"; value: { canUndo: boolean; canRedo: boolean } }
+    | { type: "history"; value: { canGoBack: boolean; canGoForward: boolean } }
     | { type: "sort"; value: Mp.SortType }
     | { type: "updateFiles"; value: { files: Mp.MediaFile[]; reload: boolean } }
     | { type: "startRename"; value: { rect: Mp.PartialRect; oldName: string; fullPath: string } }
@@ -168,8 +168,8 @@ const updater = (state: AppState, action: AppAction): AppState => {
                     disks: action.value.event.disks ?? state.disks,
                     search: { ...state.search, searching: false, key: "" },
 
-                    selection: state.prevSelection ?? { selectedId: "", selectedIds: [] },
-                    prevSelection: state.selection,
+                    // selection: state.prevSelection ?? { selectedId: "", selectedIds: [] },
+                    // prevSelection: state.selection,
                 };
             } else {
                 return {
@@ -178,8 +178,8 @@ const updater = (state: AppState, action: AppAction): AppState => {
                     disks: action.value.event.disks ?? state.disks,
                     search: { ...state.search, searching: false, key: "" },
 
-                    selection: { selectedId: "", selectedIds: [] },
-                    prevSelection: state.selection,
+                    // selection: { selectedId: "", selectedIds: [] },
+                    // prevSelection: state.selection,
                 };
             }
         }
@@ -214,7 +214,7 @@ const updater = (state: AppState, action: AppAction): AppState => {
         }
 
         case "history":
-            return { ...state, canUndo: action.value.canUndo, canRedo: action.value.canRedo };
+            return { ...state, canGoBack: action.value.canGoBack, canGoForward: action.value.canGoForward };
 
         case "sort":
             return { ...state, sort: action.value };

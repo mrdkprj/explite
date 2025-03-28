@@ -36,8 +36,8 @@
     const HEADER_DIVIDER_WIDTh = 10;
 
     const DATE_OPTION: Intl.DateTimeFormatOptions = { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "numeric", second: "numeric" };
-    const back: string[] = [];
-    const forward: string[] = [];
+    const BACKWARD: Mp.NavigationHistory[] = [];
+    const FORWARD: Mp.NavigationHistory[] = [];
 
     const onListContextMenu = (e: MouseEvent) => {
         e.preventDefault();
@@ -55,54 +55,6 @@
     const onWindowSizeChanged = async () => {
         const isMaximized = await WebviewWindow.getCurrent().isMaximized();
         dispatch({ type: "isMaximized", value: isMaximized });
-    };
-
-    const onSelect = (e: MouseEvent) => {
-        if (!e.target || !(e.target instanceof HTMLElement)) return;
-
-        if (e.target.classList.contains("nofocus")) return;
-
-        const id = e.target.getAttribute("data-file-id");
-
-        if (!id) {
-            dispatch({ type: "reset" });
-            return;
-        }
-
-        const file = $listState.files.find((file) => file.id == id);
-
-        if (file) {
-            requestLoad(file.fullPath, file.isFile, "Direct");
-        } else {
-            dispatch({ type: "reset" });
-        }
-    };
-
-    const goBack = async () => {
-        if ($appState.search.searching) {
-            return await endSearch(false);
-        }
-        const fullPath = back.pop();
-        if (!fullPath) return;
-        requestLoad(fullPath, false, "Back");
-    };
-
-    const goForward = async () => {
-        if ($appState.search.searching) {
-            return await endSearch(false);
-        }
-        const fullPath = forward.pop();
-        if (!fullPath) return;
-        requestLoad(fullPath, false, "Forward");
-    };
-
-    const requestLoad = async (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => {
-        if (fullPath != $listState.currentDir.fullPath) {
-            const result = await main.onSelect({ fullPath, isFile, navigation });
-            if (result) {
-                load(result);
-            }
-        }
     };
 
     /* list */
@@ -188,6 +140,8 @@
         if (!e.target || !(e.target instanceof HTMLElement)) return false;
         if (!fileListContainer) return false;
         if ($listState.rename.renaming) return false;
+
+        if (e.target.hasAttribute("data-path") || e.target.classList.contains("button")) return false;
 
         if (e.offsetX > e.target.clientWidth || e.offsetY > e.target.clientHeight) {
             return false;
@@ -785,50 +739,116 @@
         await main.redo();
     };
 
-    const load = async (e: Mp.LoadEvent) => {
-        if (fileListContainer) {
-            fileListContainer.scrollTop = 0;
-            fileListContainer.scrollLeft = 0;
-        }
+    const onSelect = (e: MouseEvent) => {
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
 
-        if (e.failed) {
-            if (e.navigation == "Back") {
-                back.push(e.directory);
-            }
+        if (e.target.classList.contains("nofocus")) return;
 
-            if (e.navigation == "Forward") {
-                forward.push(e.directory);
-            }
+        const id = e.target.getAttribute("data-file-id");
 
+        if (!id) {
+            dispatch({ type: "reset" });
             return;
         }
+
+        const file = $listState.files.find((file) => file.id == id);
+
+        if (file) {
+            requestLoad(file.fullPath, file.isFile, "Direct");
+        } else {
+            dispatch({ type: "reset" });
+        }
+    };
+
+    const goBack = async () => {
+        if (!$appState.canGoBack) return;
+
+        if ($appState.search.searching) {
+            return await endSearch(false);
+        }
+
+        const navigationHistory = BACKWARD[BACKWARD.length - 1];
+        requestLoad(navigationHistory.fullPath, false, "Back");
+    };
+
+    const goForward = async () => {
+        if (!$appState.canGoForward) return;
+
+        if ($appState.search.searching) {
+            return await endSearch(false);
+        }
+
+        const navigationHistory = FORWARD[FORWARD.length - 1];
+        requestLoad(navigationHistory.fullPath, false, "Forward");
+    };
+
+    const requestLoad = async (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => {
+        if (fullPath != $listState.currentDir.fullPath) {
+            const result = await main.onSelect({ fullPath, isFile, navigation });
+            if (result) {
+                load(result);
+            }
+        }
+    };
+
+    const restoreSelection = (navigationHistory: Mp.NavigationHistory | undefined) => {
+        if (!navigationHistory) return;
+
+        if (navigationHistory.selection.selectedIds.length == 1) {
+            dispatch({ type: "updateSelection", value: navigationHistory.selection });
+        }
+    };
+
+    const navigate = (navigation: Mp.Navigation, directory: string, hasDiskInfo: boolean) => {
+        if (navigation == "Back") {
+            FORWARD.push({ fullPath: $listState.currentDir.fullPath, selection: $appState.selection });
+            const navigationHistory = BACKWARD.pop();
+            restoreSelection(navigationHistory);
+        }
+
+        if (navigation == "Forward") {
+            BACKWARD.push({ fullPath: $listState.currentDir.fullPath, selection: $appState.selection });
+            const navigationHistory = FORWARD.pop();
+            restoreSelection(navigationHistory);
+        }
+
+        if (navigation == "Direct" && !hasDiskInfo) {
+            dispatch({ type: "endSearch" });
+            FORWARD.pop();
+            BACKWARD.push({ fullPath: $listState.currentDir.fullPath, selection: $appState.selection });
+
+            const navigationHistory = BACKWARD.find((navhistory) => navhistory.fullPath == directory);
+            restoreSelection(navigationHistory);
+        }
+    };
+
+    const load = async (e: Mp.LoadEvent) => {
+        if (e.failed) return;
 
         if (e.navigation == "Reload") {
             dispatch({ type: "updateFiles", value: { files: e.files, reload: true } });
             return;
         }
 
-        if (e.navigation == "Back") {
-            forward.push($listState.currentDir.fullPath);
-        }
+        navigate(e.navigation, e.directory, !!e.disks);
 
-        if (e.navigation == "Forward") {
-            back.push($listState.currentDir.fullPath);
-        }
-
-        if (e.navigation == "Direct" && !e.disks) {
-            dispatch({ type: "endSearch" });
-            forward.pop();
-            back.push($listState.currentDir.fullPath);
-        }
-
-        dispatch({ type: "history", value: { canUndo: back.length > 0, canRedo: forward.length > 0 } });
+        dispatch({ type: "history", value: { canGoBack: BACKWARD.length > 0, canGoForward: FORWARD.length > 0 } });
         dispatch({ type: "sort", value: e.sortType });
         const changed = $listState.currentDir.fullPath != e.directory && e.navigation != "Direct";
         dispatch({ type: "load", value: { event: e, changed } });
 
         const title = $listState.currentDir.paths.length ? $listState.currentDir.paths[$listState.currentDir.paths.length - 1] : HOME;
         await WebviewWindow.getCurrent().setTitle(title);
+
+        await tick();
+        if (fileListContainer) {
+            fileListContainer.scrollTop = 0;
+            fileListContainer.scrollLeft = 0;
+        }
+
+        if ($appState.selection.selectedIds.length) {
+            await select($appState.selection.selectedIds[0]);
+        }
     };
 
     const handleContextMenuEvent = async (e: keyof Mp.MainContextMenuSubTypeMap | keyof Mp.FavContextMenuSubTypeMap) => {
@@ -1233,7 +1253,7 @@
                                 <div class="col-detail size" data-file-id={item.id} style="width: {$appState.headerLabels.size.width + HEADER_DIVIDER_WIDTh}px;">
                                     <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
                                         {item.size > 0 || (item.size == 0 && item.isFile)
-                                            ? `${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingMode: "ceil" }).format(item.size)} KB`
+                                            ? `${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingPriority: "morePrecision" }).format(item.size)} KB`
                                             : ""}
                                     </div>
                                 </div>

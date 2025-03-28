@@ -248,6 +248,11 @@ declare global {
             origWidth: number;
         };
 
+        type NavigationHistory = {
+            fullPath: string;
+            selection: Mp.ItemSelection;
+        };
+
         type WatchEvent = {
             operation: "Create" | "Remove" | "Rename";
             to_paths: string[];
