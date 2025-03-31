@@ -202,6 +202,12 @@ declare global {
             done: boolean;
         };
 
+        type PasteData = {
+            fullPaths: string[];
+            dir: string;
+            copy: boolean;
+        };
+
         type ItemSelection = {
             selectedId: string;
             selectedIds: string[];

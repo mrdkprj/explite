@@ -425,20 +425,20 @@ class Main {
         return mapped.filter((item) => item != null);
     };
 
-    onPaste = async (): Promise<Mp.MoveItemResult> => {
-        if (!this.currentDir) return { fullPaths: [], done: false };
+    onPaste = async (): Promise<Mp.PasteData> => {
+        if (!this.currentDir) return { fullPaths: [], dir: this.currentDir, copy: true };
 
         const uriAvailable = await ipc.invoke("is_uris_available", undefined);
         if (uriAvailable) {
             const data = await ipc.invoke("read_uris", undefined);
-            if (!data.urls.length) return { fullPaths: [], done: false };
+            if (!data.urls.length) return { fullPaths: [], dir: this.currentDir, copy: true };
 
             const copy = data.operation == "None" ? util.getRootDirectory(data.urls[0]) != util.getRootDirectory(this.currentDir) : data.operation == "Copy";
 
-            return this.moveItems({ fullPaths: data.urls, dir: this.currentDir, copy });
+            return { fullPaths: data.urls, dir: this.currentDir, copy };
         }
 
-        return { fullPaths: [], done: false };
+        return { fullPaths: [], dir: this.currentDir, copy: true };
     };
 
     moveItems = async (e: Mp.MoveItemsRequest): Promise<Mp.MoveItemResult> => {

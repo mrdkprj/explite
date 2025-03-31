@@ -29,7 +29,7 @@
     let visibleEndIndex = $state(0);
 
     let header: Header;
-    let folderUpdatePromise: Deferred<boolean> | null;
+    let folderUpdatePromise: Deferred<number> | null;
     let handleMouseEvent = false;
 
     const ipc = new IPC("View");
@@ -220,7 +220,9 @@
 
         if (!files.length) return;
 
-        await moveItems(files, destinationFile.fullPath, false);
+        const fullPaths = files.map((file) => file.fullPath);
+
+        await moveItems(fullPaths, destinationFile.fullPath, false);
     };
 
     const startClip = (e: MouseEvent) => {
@@ -567,9 +569,8 @@
         await main.writeClipboard({ files, operation: copy ? "Copy" : "Move" });
     };
 
-    const moveItems = async (files: Mp.MediaFile[], dir: string, copy: boolean) => {
-        folderUpdatePromise = new Deferred();
-        const fullPaths = files.map((file) => file.fullPath);
+    const moveItems = async (fullPaths: string[], dir: string, copy: boolean) => {
+        folderUpdatePromise = new Deferred(fullPaths.length);
         const result = await main.moveItems({ fullPaths, dir, copy });
         if (!result.done) {
             folderUpdatePromise = null;
@@ -580,14 +581,10 @@
     };
 
     const pasteItems = async () => {
-        folderUpdatePromise = new Deferred();
         const result = await main.onPaste();
-        if (!result.done) {
-            folderUpdatePromise = null;
-            return;
+        if (result.fullPaths.length) {
+            await moveItems(result.fullPaths, result.dir, result.copy);
         }
-        await folderUpdatePromise.promise;
-        onPasteEnd(result);
     };
 
     const onPasteEnd = async (e: Mp.MoveItemResult) => {
@@ -1081,10 +1078,25 @@
             dispatch({ type: "updateFiles", value: { files, reload: false } });
         }
 
-        if (folderUpdatePromise) {
+        await resolvePromise();
+    };
+
+    const resolvePromise = async () => {
+        if (!folderUpdatePromise) return;
+
+        if (!folderUpdatePromise.value) {
             await tick();
-            folderUpdatePromise.resolve(true);
+            folderUpdatePromise.resolve(0);
             folderUpdatePromise = null;
+            return;
+        }
+
+        if (folderUpdatePromise.value == 0) {
+            await tick();
+            folderUpdatePromise.resolve(0);
+            folderUpdatePromise = null;
+        } else {
+            folderUpdatePromise.value = folderUpdatePromise.value--;
         }
     };
 
