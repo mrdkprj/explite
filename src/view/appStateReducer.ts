@@ -35,7 +35,6 @@ type AppState = {
     headerLabels: Mp.HeaderLabels;
     canGoBack: boolean;
     canGoForward: boolean;
-    prevSelection: Mp.ItemSelection | null;
     sort: Mp.SortType;
     preventBlur: boolean;
     selection: Mp.ItemSelection;
@@ -62,7 +61,6 @@ export const initialAppState: AppState = {
     headerLabels: DEFAULT_LABLES,
     canGoBack: false,
     canGoForward: false,
-    prevSelection: null,
     sort: {
         asc: true,
         key: "name",
@@ -111,7 +109,7 @@ type AppAction =
     | { type: "headerLabels"; value: Mp.HeaderLabels }
     | { type: "history"; value: { canGoBack: boolean; canGoForward: boolean } }
     | { type: "sort"; value: Mp.SortType }
-    | { type: "updateFiles"; value: { files: Mp.MediaFile[]; reload: boolean } }
+    | { type: "updateFiles"; value: { files: Mp.MediaFile[] } }
     | { type: "startRename"; value: { rect: Mp.PartialRect; oldName: string; fullPath: string } }
     | { type: "endRename" }
     | { type: "preventBlur"; value: boolean }
@@ -138,7 +136,7 @@ type AppAction =
     | { type: "clearIncremental" }
     | { type: "hoverFavoriteId"; value: string }
     | { type: "disks"; value: Mp.DriveInfo[] }
-    | { type: "load"; value: { event: Mp.LoadEvent; changed: boolean } };
+    | { type: "load"; value: { event: Mp.LoadEvent } };
 
 const updater = (state: AppState, action: AppAction): AppState => {
     switch (action.type) {
@@ -161,36 +159,32 @@ const updater = (state: AppState, action: AppAction): AppState => {
 
         case "load": {
             dispatchList({ type: "load", value: action.value.event });
-            if (action.value.changed) {
+
+            if (action.value.event.navigation == "Reload") {
                 return {
                     ...state,
                     pathEditing: false,
                     disks: action.value.event.disks ?? state.disks,
                     search: { ...state.search, searching: false, key: "" },
-
-                    // selection: state.prevSelection ?? { selectedId: "", selectedIds: [] },
-                    // prevSelection: state.selection,
-                };
-            } else {
-                return {
-                    ...state,
-                    pathEditing: false,
-                    disks: action.value.event.disks ?? state.disks,
-                    search: { ...state.search, searching: false, key: "" },
-
-                    // selection: { selectedId: "", selectedIds: [] },
-                    // prevSelection: state.selection,
+                    copyCutTargets: { op: "Copy", ids: [], files: [] },
+                    selection: {
+                        selectedId: "",
+                        selectedIds: [],
+                    },
                 };
             }
+
+            return {
+                ...state,
+                pathEditing: false,
+                disks: action.value.event.disks ?? state.disks,
+                search: { ...state.search, searching: false, key: "" },
+            };
         }
 
         case "updateFiles":
             dispatchList({ type: "updateFiles", value: action.value.files });
-            if (action.value.reload) {
-                return { ...state, copyCutTargets: { op: "Copy", ids: [], files: [] } };
-            } else {
-                return state;
-            }
+            return state;
 
         case "disks":
             return { ...state, disks: action.value };

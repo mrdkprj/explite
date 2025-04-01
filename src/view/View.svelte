@@ -645,7 +645,7 @@
     };
 
     const onSearched = (e: Mp.SearchResult) => {
-        dispatch({ type: "updateFiles", value: { files: e.files, reload: false } });
+        dispatch({ type: "updateFiles", value: { files: e.files } });
     };
 
     const clearSearchHighlight = () => {
@@ -716,7 +716,7 @@
     };
 
     const onSorted = async (e: Mp.SortResult) => {
-        dispatch({ type: "updateFiles", value: { files: e.files, reload: false } });
+        dispatch({ type: "updateFiles", value: { files: e.files } });
 
         if ($appState.selection.selectedIds.length) {
             await tick();
@@ -796,46 +796,53 @@
         }
     };
 
-    const navigate = (navigation: Mp.Navigation, directory: string, hasDiskInfo: boolean) => {
-        if (navigation == "Back") {
+    const setTitle = async () => {
+        const title = $listState.currentDir.paths.length ? $listState.currentDir.paths[$listState.currentDir.paths.length - 1] : HOME;
+        await WebviewWindow.getCurrent().setTitle(title);
+    };
+
+    const navigate = (e: Mp.LoadEvent) => {
+        if (e.navigation == "Reload") {
+            dispatch({ type: "load", value: { event: e } });
+            return false;
+        }
+
+        if (e.navigation == "Back") {
             FORWARD.push({ fullPath: $listState.currentDir.fullPath, selection: $appState.selection });
             const navigationHistory = BACKWARD.pop();
             restoreSelection(navigationHistory);
         }
 
-        if (navigation == "Forward") {
+        if (e.navigation == "Forward") {
             BACKWARD.push({ fullPath: $listState.currentDir.fullPath, selection: $appState.selection });
             const navigationHistory = FORWARD.pop();
             restoreSelection(navigationHistory);
         }
 
-        if (navigation == "Direct" && !hasDiskInfo) {
+        if (e.navigation == "Direct" || e.navigation == "PathSelect") {
             dispatch({ type: "endSearch" });
             FORWARD.pop();
             BACKWARD.push({ fullPath: $listState.currentDir.fullPath, selection: $appState.selection });
 
-            const navigationHistory = BACKWARD.find((navhistory) => navhistory.fullPath == directory);
-            restoreSelection(navigationHistory);
+            if (e.navigation == "PathSelect") {
+                const navigationHistory = BACKWARD.find((navhistory) => navhistory.fullPath == e.directory);
+                restoreSelection(navigationHistory);
+            }
         }
+
+        return true;
     };
 
     const load = async (e: Mp.LoadEvent) => {
         if (e.failed) return;
 
-        if (e.navigation == "Reload") {
-            dispatch({ type: "updateFiles", value: { files: e.files, reload: true } });
-            return;
-        }
-
-        navigate(e.navigation, e.directory, !!e.disks);
+        if (!navigate(e)) return;
 
         dispatch({ type: "history", value: { canGoBack: BACKWARD.length > 0, canGoForward: FORWARD.length > 0 } });
         dispatch({ type: "sort", value: e.sortType });
-        const changed = $listState.currentDir.fullPath != e.directory && e.navigation != "Direct";
-        dispatch({ type: "load", value: { event: e, changed } });
+        dispatch({ type: "load", value: { event: e } });
 
-        const title = $listState.currentDir.paths.length ? $listState.currentDir.paths[$listState.currentDir.paths.length - 1] : HOME;
-        await WebviewWindow.getCurrent().setTitle(title);
+        await setTitle();
 
         await tick();
         if (fileListContainer) {
@@ -846,6 +853,12 @@
         if ($appState.selection.selectedIds.length) {
             await select($appState.selection.selectedIds[0]);
         }
+    };
+
+    const init = async (e: Mp.LoadEvent) => {
+        dispatch({ type: "sort", value: e.sortType });
+        dispatch({ type: "load", value: { event: e } });
+        await setTitle();
     };
 
     const handleContextMenuEvent = async (e: keyof Mp.MainContextMenuSubTypeMap | keyof Mp.FavContextMenuSubTypeMap) => {
@@ -1075,7 +1088,7 @@
     const onWatchEvent = async (e: Mp.WatchEvent) => {
         const files = await main.onWatchEvent(e);
         if (files) {
-            dispatch({ type: "updateFiles", value: { files, reload: false } });
+            dispatch({ type: "updateFiles", value: { files } });
         }
 
         await resolvePromise();
@@ -1106,7 +1119,7 @@
         dispatch({ type: "leftWidth", value: e.settings.leftAreaWidth });
         dispatch({ type: "sort", value: DEFAULT_SORT_TYPE });
         dispatch({ type: "changeFavorites", value: e.settings.favorites });
-        load(e.data);
+        await init(e.data);
         await tick();
         const window = WebviewWindow.getCurrent();
         await window.setSize(util.toPhysicalSize(e.settings.bounds));

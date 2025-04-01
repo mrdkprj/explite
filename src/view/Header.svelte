@@ -130,7 +130,7 @@
         const tempPath = fullPath.substring(0, fullPath.indexOf(path) + path.length);
         const targetPath = tempPath.endsWith(":") ? `${tempPath}${SEPARATOR}` : tempPath;
 
-        requestLoad(targetPath, false, "Direct");
+        requestLoad(targetPath, false, "PathSelect");
     };
 
     const onPathInputLeave = () => {
