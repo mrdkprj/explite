@@ -31,6 +31,8 @@
     let header: Header;
     let folderUpdatePromise: Deferred<number> | null;
     let handleMouseEvent = false;
+    // Prevent drop from other apps
+    let dragging = false;
 
     const ipc = new IPC("View");
     const HEADER_DIVIDER_WIDTh = 10;
@@ -186,6 +188,9 @@
 
         const paths = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id)).map((file) => file.fullPath);
         if (!paths.length) return;
+
+        await ipc.invoke("register_drop_target", undefined);
+        dragging = true;
         await main.startDrag(paths);
     };
 
@@ -203,6 +208,10 @@
     const onItemDrop = async (e: DragEvent) => {
         e.preventDefault();
         dispatch({ type: "dragLeave" });
+
+        if (!dragging) return;
+
+        dragging = false;
 
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 

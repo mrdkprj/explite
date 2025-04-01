@@ -283,6 +283,11 @@ fn get_args(app: AppHandle) -> Vec<String> {
     Vec::new()
 }
 
+#[tauri::command]
+fn register_drop_target(window: WebviewWindow) -> Result<(), String> {
+    nonstd::drag_drop::register(window.hwnd().unwrap())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[allow(deprecated)]
 pub fn run() {
@@ -332,7 +337,8 @@ pub fn run() {
             open_terminal,
             message,
             launch_new,
-            get_args
+            get_args,
+            register_drop_target,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

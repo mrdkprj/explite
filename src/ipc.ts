@@ -121,6 +121,7 @@ type TauriCommandMap = {
     open_terminal: TauriCommand<string, undefined>;
     launch_new: TauriCommand<undefined, undefined>;
     get_args: TauriCommand<undefined, string[]>;
+    register_drop_target: TauriCommand<undefined, undefined>;
 };
 
 export class IPCBase {

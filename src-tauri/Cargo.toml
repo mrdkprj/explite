@@ -21,7 +21,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2.2.5", features = [ "tray-icon", "devtools", "protocol-asset"] }
 serde = { version = "1", features = ["derive"] }
 wcpopup = { version = "0.6.2", features = ["webview"] }
-nonstd = { git = "https://github.com/mrdkprj/nonstd.git", rev="0708f45ea3f029dccc97179575c36d5154d0acc3" }
+nonstd = { git = "https://github.com/mrdkprj/nonstd.git", rev="adfcea119bdbd0a02d2576d53ac53a1ccac95b86" }
 once_cell = "1.19.0"
 async-std = "1.13.0"
 notify = "8.0.0"
