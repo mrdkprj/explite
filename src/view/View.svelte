@@ -579,7 +579,7 @@
     };
 
     const moveItems = async (fullPaths: string[], dir: string, copy: boolean) => {
-        folderUpdatePromise = new Deferred(fullPaths.length);
+        folderUpdatePromise = new Deferred(fullPaths.length - 1);
         const result = await main.moveItems({ fullPaths, dir, copy });
         if (!result.done) {
             folderUpdatePromise = null;
