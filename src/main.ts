@@ -61,7 +61,7 @@ class Main {
     };
 
     openFileWith = async (fullPath: string, appPath: string) => {
-        await ipc.invoke("open_path_with", { full_path: fullPath, app_path: appPath });
+        await ipc.invoke("open_path_with", { full_path: `"${fullPath}"`, app_path: appPath });
     };
 
     showAppSelector = async (fullPath: string) => {
