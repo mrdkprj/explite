@@ -113,12 +113,26 @@ struct CopyInfo {
 }
 #[tauri::command]
 fn copy(payload: CopyInfo) -> Result<(), String> {
-    fs::copy_all(&payload.from, payload.to)
+    #[cfg(target_os = "windows")]
+    {
+        fs::copy_all(&payload.from, payload.to)
+    }
+    #[cfg(target_os = "linux")]
+    {
+        fs::copy_all(&payload.from, payload.to, None)
+    }
 }
 
 #[tauri::command]
 fn mv(payload: CopyInfo) -> Result<(), String> {
-    fs::mv_all(&payload.from, payload.to)
+    #[cfg(target_os = "windows")]
+    {
+        fs::mv_all(&payload.from, payload.to)
+    }
+    #[cfg(target_os = "linux")]
+    {
+        fs::mv_all(&payload.from, payload.to, None)
+    }
 }
 
 #[tauri::command]
@@ -283,9 +297,17 @@ fn get_args(app: AppHandle) -> Vec<String> {
     Vec::new()
 }
 
+#[allow(unused_variables)]
 #[tauri::command]
 fn register_drop_target(window: WebviewWindow) -> Result<(), String> {
-    nonstd::drag_drop::register(window.hwnd().unwrap())
+    #[cfg(target_os = "windows")]
+    {
+        nonstd::drag_drop::register(window.hwnd().unwrap())
+    }
+    #[cfg(target_os = "linux")]
+    {
+        Ok(())
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
