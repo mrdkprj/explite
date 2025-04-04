@@ -110,7 +110,7 @@ type AppAction =
     | { type: "history"; value: { canGoBack: boolean; canGoForward: boolean } }
     | { type: "sort"; value: Mp.SortType }
     | { type: "updateFiles"; value: { files: Mp.MediaFile[] } }
-    | { type: "startRename"; value: { rect: Mp.PartialRect; oldName: string; fullPath: string } }
+    | { type: "startRename"; value: { rect: Mp.PartialRect; oldName: string; fullPath: string; uuid: string } }
     | { type: "endRename" }
     | { type: "preventBlur"; value: boolean }
     | { type: "selectedId"; value: string }

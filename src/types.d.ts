@@ -251,7 +251,6 @@ declare global {
             left: number;
             height: number;
             width: number;
-            origWidth: number;
         };
 
         type NavigationHistory = {

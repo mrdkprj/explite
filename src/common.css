@@ -38,7 +38,7 @@
         --selection-bgcolor: #3b3b51;
         --selection-border-color: #ccc;
         --current-dir-bg-color: #44444f;
-        --cut-color: #92a0c9;
+        --cut-color: #747d97;
     }
 }
 
@@ -88,7 +88,7 @@
 
         --current-dir-bg-color:#e3dede;
 
-        --cut-color:#92a0c9;
+        --cut-color:#747d97;
     }
 }
 

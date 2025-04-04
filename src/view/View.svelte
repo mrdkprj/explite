@@ -29,6 +29,7 @@
     let visibleEndIndex = $state(0);
 
     let header: Header;
+    let canvas: HTMLCanvasElement;
     let folderUpdatePromise: Deferred<number> | null;
     let handleMouseEvent = false;
     // Prevent drop from other apps
@@ -473,10 +474,10 @@
                     left: rect.left - 2,
                     width: rect.width,
                     height: rect.height,
-                    origWidth: rect.width,
                 },
                 oldName: path.basename(file.fullPath),
                 fullPath: file.fullPath,
+                uuid: file.uuid,
             },
         });
 
@@ -521,20 +522,30 @@
     const onRenameInputKeyDown = (e: KeyboardEvent) => {
         if (!e.target || !(e.target instanceof HTMLInputElement)) return;
 
-        if ($listState.rename.renaming) {
-            if (e.key === "Enter") {
-                e.stopPropagation();
-                e.preventDefault();
-                endEditFileName();
-                return;
-            }
-
-            if (e.key == "z" && e.ctrlKey) {
-                dispatch({ type: "changeInputWidth", value: $listState.rename.rect.origWidth });
-            } else if (e.key && e.key.length == 1 && !e.ctrlKey && !e.shiftKey && !e.altKey) {
-                dispatch({ type: "changeInputWidth", value: e.target.scrollWidth });
-            }
+        if (e.key === "Enter") {
+            e.stopPropagation();
+            e.preventDefault();
+            endEditFileName();
+            return;
         }
+    };
+
+    const onRenameInput = (e: Event) => {
+        if (!e.target || !(e.target instanceof HTMLInputElement)) return;
+
+        const _canvas = canvas || (canvas = document.createElement("canvas"));
+        const context = _canvas.getContext("2d");
+        if (!context) {
+            return {
+                visiblePaths: $listState.currentDir.paths,
+                overflownPaths: [],
+            };
+        }
+        context.font = 'normal 12px "Segoe UI';
+        let width = 5;
+        const metrics = context.measureText($listState.rename.newName);
+        width += metrics.width;
+        dispatch({ type: "changeInputWidth", value: Math.ceil(width) });
     };
 
     const createItem = async (isFile: boolean) => {
@@ -646,10 +657,10 @@
     };
 
     const startSearch = async () => {
+        const result = await main.onSearchRequest({ dir: $listState.currentDir.fullPath, key: $appState.search.key, refresh: false });
         dispatch({ type: "clearCopyCut" });
         dispatch({ type: "startSearch" });
 
-        const result = await main.onSearchRequest({ dir: $listState.currentDir.fullPath, key: $appState.search.key, refresh: false });
         onSearched(result);
     };
 
@@ -1180,6 +1191,7 @@
                         spellCheck="false"
                         onblur={$appState.preventBlur ? undefined : endEditFileName}
                         onkeydown={onRenameInputKeyDown}
+                        oninput={onRenameInput}
                         bind:value={$listState.rename.newName}
                         use:setFocusAndSelect
                         autocomplete="one-time-code"
@@ -1237,9 +1249,10 @@
                                 role="button"
                                 tabindex="-1"
                             >
-                                <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.name.width}px;">
+                                <div class="col-detail" data-file-id={item.id}>
                                     <div
                                         class="entry-name draggable"
+                                        style="width: {$appState.headerLabels.name.width}px;"
                                         title={$appState.search.searching ? item.fullPath : item.name}
                                         data-file-id={item.id}
                                         onmousedown={colDetailMouseDown}
@@ -1263,7 +1276,7 @@
                                                 <FolderSvg />
                                             {/if}
                                         </div>
-                                        <div class="name" id={item.uuid} data-file-id={item.id}>{item.name}</div>
+                                        <div class="name" id={item.uuid} data-file-id={item.id} class:rename-hidden={$listState.rename.targetUUID == item.uuid}>{item.name}</div>
                                     </div>
                                 </div>
                                 {#if $appState.search.searching}

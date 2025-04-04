@@ -521,6 +521,10 @@
     background-color: var(--search-highlight);
 }
 
+.rename-hidden {
+    visibility: hidden;
+}
+
 .selected{
     background-color: var(--selection-bgcolor);
     outline: 1px solid var(--selection-border-color);

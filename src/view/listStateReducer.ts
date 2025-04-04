@@ -7,6 +7,7 @@ type RenameState = {
     oldName: string;
     fullPath: string;
     rect: Mp.PartialRect;
+    targetUUID: string;
 };
 
 type AppState = {
@@ -34,15 +35,15 @@ export const initialAppState: AppState = {
             left: 0,
             width: 0,
             height: 0,
-            origWidth: 0,
         },
+        targetUUID: "",
     },
 };
 
 type AppAction =
     | { type: "reset" }
     | { type: "updateFiles"; value: Mp.MediaFile[] }
-    | { type: "startRename"; value: { rect: Mp.PartialRect; oldName: string; fullPath: string } }
+    | { type: "startRename"; value: { rect: Mp.PartialRect; oldName: string; fullPath: string; uuid: string } }
     | { type: "changeInputWidth"; value: number }
     | { type: "endRename" }
     | { type: "load"; value: Mp.LoadEvent };
@@ -69,13 +70,24 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return { ...state, files: action.value };
 
         case "startRename":
-            return { ...state, rename: { ...state.rename, renaming: true, rect: action.value.rect, oldName: action.value.oldName, newName: action.value.oldName, fullPath: action.value.fullPath } };
+            return {
+                ...state,
+                rename: {
+                    ...state.rename,
+                    renaming: true,
+                    rect: action.value.rect,
+                    oldName: action.value.oldName,
+                    newName: action.value.oldName,
+                    fullPath: action.value.fullPath,
+                    targetUUID: action.value.uuid,
+                },
+            };
 
         case "changeInputWidth":
             return { ...state, rename: { ...state.rename, rect: { ...state.rename.rect, width: action.value } } };
 
         case "endRename":
-            return { ...state, rename: { ...state.rename, renaming: false } };
+            return { ...state, rename: { ...state.rename, renaming: false, targetUUID: "" } };
 
         default:
             return state;

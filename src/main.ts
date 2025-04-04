@@ -425,6 +425,21 @@ class Main {
         return mapped.filter((item) => item != null);
     };
 
+    // private getPasteNames = async (isFile: boolean) => {
+    //     const name = isFile ? "新しいファイル" : "新しいフォルダー";
+    //     const found = await util.exists(path.join(this.currentDir, isFile ? `${name}.txt` : name));
+    //     if (!found) return name;
+
+    //     let number = 1;
+    //     for (const _ of [...Array(100)]) {
+    //         const uniqueName = `${name}(${number})`;
+    //         const found = await util.exists(path.join(this.currentDir, isFile ? `${uniqueName}.txt` : uniqueName));
+    //         if (!found) return uniqueName;
+    //         number++;
+    //     }
+    //     return `${name}(${number})`;
+    // };
+
     onPaste = async (): Promise<Mp.PasteData> => {
         if (!this.currentDir) return { fullPaths: [], dir: this.currentDir, copy: true };
 
@@ -442,9 +457,9 @@ class Main {
     };
 
     moveItems = async (e: Mp.MoveItemsRequest): Promise<Mp.MoveItemResult> => {
-        if (path.dirname(e.fullPaths[0]) == e.dir) {
-            return { fullPaths: [], done: false };
-        }
+        // if (path.dirname(e.fullPaths[0]) == e.dir) {
+        //     return { fullPaths: [], done: false };
+        // }
 
         const targetFiles = navigator.userAgent.includes("Linux") ? await this.beforeMoveItems(e.dir, e.fullPaths) : e.fullPaths;
 
