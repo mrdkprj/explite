@@ -34,7 +34,7 @@ class Main {
         };
     };
 
-    showErrorMessage = async (ex: any | string) => {
+    private showErrorMessage = async (ex: any | string) => {
         if (typeof ex == "string") {
             await ipc.invoke("message", { dialog_type: "message", message: ex, kind: "error" });
         } else {
@@ -152,12 +152,12 @@ class Main {
         }
     };
 
-    onSortRequest = (e: Mp.SortRequest): Mp.SortResult => {
+    sort = (e: Mp.SortRequest): Mp.SortResult => {
         this.sortFiles(this.currentDir, e.files, { asc: e.type.asc, key: e.type.key });
         return { files: this.files, type: e.type };
     };
 
-    onSearchRequest = async (e: Mp.SearchRequest): Promise<Mp.SearchResult> => {
+    search = async (e: Mp.SearchRequest): Promise<Mp.SearchResult> => {
         if (!this.unfilteredFiles.length) {
             this.unfilteredFiles = [...this.files];
         }
@@ -392,7 +392,7 @@ class Main {
         }
     };
 
-    beforeMoveItems = async (directory: string, fullPaths: string[]) => {
+    private beforeMoveItems = async (directory: string, fullPaths: string[]) => {
         let cancelAll = false;
 
         const mapped = await Promise.all(
@@ -425,22 +425,7 @@ class Main {
         return mapped.filter((item) => item != null);
     };
 
-    // private getPasteNames = async (isFile: boolean) => {
-    //     const name = isFile ? "新しいファイル" : "新しいフォルダー";
-    //     const found = await util.exists(path.join(this.currentDir, isFile ? `${name}.txt` : name));
-    //     if (!found) return name;
-
-    //     let number = 1;
-    //     for (const _ of [...Array(100)]) {
-    //         const uniqueName = `${name}(${number})`;
-    //         const found = await util.exists(path.join(this.currentDir, isFile ? `${uniqueName}.txt` : uniqueName));
-    //         if (!found) return uniqueName;
-    //         number++;
-    //     }
-    //     return `${name}(${number})`;
-    // };
-
-    onPaste = async (): Promise<Mp.PasteData> => {
+    getUrlsFromClipboard = async (): Promise<Mp.PasteData> => {
         if (!this.currentDir) return { fullPaths: [], dir: this.currentDir, copy: true };
 
         const uriAvailable = await ipc.invoke("is_uris_available", undefined);
@@ -457,10 +442,6 @@ class Main {
     };
 
     moveItems = async (e: Mp.MoveItemsRequest): Promise<Mp.MoveItemResult> => {
-        // if (path.dirname(e.fullPaths[0]) == e.dir) {
-        //     return { fullPaths: [], done: false };
-        // }
-
         const targetFiles = navigator.userAgent.includes("Linux") ? await this.beforeMoveItems(e.dir, e.fullPaths) : e.fullPaths;
 
         if (!targetFiles.length) {
@@ -548,7 +529,7 @@ class Main {
         return this.files;
     };
 
-    trackOperation = (operation: Mp.Operation, from: string[], to: string, target: string[], isFile = true) => {
+    private trackOperation = (operation: Mp.Operation, from: string[], to: string, target: string[], isFile = true) => {
         const fileOperation: Mp.FileOperation = {
             operation,
             from,

@@ -308,7 +308,7 @@
                 asc,
             };
             dispatch({ type: "sort", value: type });
-            const result = main.onSortRequest({ files: $listState.files, type });
+            const result = main.sort({ files: $listState.files, type });
             onSorted(result);
             return;
         }
@@ -601,7 +601,7 @@
     };
 
     const pasteItems = async () => {
-        const result = await main.onPaste();
+        const result = await main.getUrlsFromClipboard();
         if (result.fullPaths.length) {
             await moveItems(result.fullPaths, result.dir, result.copy);
         }
@@ -657,7 +657,7 @@
     };
 
     const startSearch = async () => {
-        const result = await main.onSearchRequest({ dir: $listState.currentDir.fullPath, key: $appState.search.key, refresh: false });
+        const result = await main.search({ dir: $listState.currentDir.fullPath, key: $appState.search.key, refresh: false });
         dispatch({ type: "clearCopyCut" });
         dispatch({ type: "startSearch" });
 
@@ -678,7 +678,7 @@
 
         if (refresh) {
             main.onSearchEnd();
-            const result = await main.onSearchRequest({ dir: $listState.currentDir.fullPath, key: $appState.search.key, refresh: false });
+            const result = await main.search({ dir: $listState.currentDir.fullPath, key: $appState.search.key, refresh: false });
             onSearched(result);
         } else {
             const result = main.onSearchEnd();
