@@ -151,7 +151,7 @@
         }
 
         const containerRect = fileListContainer.getBoundingClientRect();
-        if (containerRect.x > e.clientX || containerRect.y > e.clientX) {
+        if (containerRect.x > e.clientX || containerRect.y > e.clientY) {
             return false;
         }
 
