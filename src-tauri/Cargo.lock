@@ -2195,7 +2195,7 @@ checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
 [[package]]
 name = "nonstd"
 version = "0.1.0"
-source = "git+https://github.com/mrdkprj/nonstd.git?rev=402e83f820581ef7903a8e9e8317867dec32c3d3#402e83f820581ef7903a8e9e8317867dec32c3d3"
+source = "git+https://github.com/mrdkprj/nonstd.git?rev=aea6b9ee89975eaaef0fe4dcce523af58391c2a3#aea6b9ee89975eaaef0fe4dcce523af58391c2a3"
 dependencies = [
  "async-std",
  "gtk",
@@ -2203,6 +2203,7 @@ dependencies = [
  "once_cell",
  "rfd",
  "serde",
+ "serde_json",
  "shared_child",
  "windows 0.58.0",
  "windows-core 0.58.0",
@@ -3369,9 +3370,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.135"
+version = "1.0.140"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b0d7ba2887406110130a978386c4e1befb98c674b4fba677954e4db976630d9"
+checksum = "20068b6e96dc6c9bd23e01df8827e6c7e1f2fddd43c21810382803c136b99373"
 dependencies = [
  "itoa 1.0.14",
  "memchr",

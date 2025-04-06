@@ -1,7 +1,7 @@
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
 import { Dirent, IPCBase } from "./ipc";
 import { path } from "./path";
-import { MIME_TYPE, SEPARATOR } from "./constants";
+import { MIME_TYPE, OS, SEPARATOR } from "./constants";
 
 const REGULAR_TYPES = [".ts", ".json", ".mjs", ".cjs"];
 const ipc = new IPCBase();
@@ -132,7 +132,7 @@ class Util {
         const drives: Mp.DriveInfo[] = volumes
             .map((volume) => {
                 return {
-                    label: volume.mount_point.replaceAll(SEPARATOR, ""),
+                    label: navigator.userAgent.includes(OS.windows) ? volume.mount_point.replaceAll(SEPARATOR, "") : volume.mount_point,
                     path: volume.mount_point,
                     name: volume.volume_label,
                     available: volume.available_units,

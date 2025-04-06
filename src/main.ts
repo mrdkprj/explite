@@ -1,6 +1,6 @@
 import Settings from "./settings";
 import util from "./util";
-import { DEFAULT_SORT_TYPE, HOME } from "./constants";
+import { DEFAULT_SORT_TYPE, HOME, OS } from "./constants";
 import { IPC } from "./ipc";
 import { path } from "./path";
 import { History } from "./history";
@@ -442,7 +442,7 @@ class Main {
     };
 
     moveItems = async (e: Mp.MoveItemsRequest): Promise<Mp.MoveItemResult> => {
-        const targetFiles = navigator.userAgent.includes("Linux") ? await this.beforeMoveItems(e.dir, e.fullPaths) : e.fullPaths;
+        const targetFiles = navigator.userAgent.includes(OS.linux) ? await this.beforeMoveItems(e.dir, e.fullPaths) : e.fullPaths;
 
         if (!targetFiles.length) {
             return { fullPaths: [], done: false };

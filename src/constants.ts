@@ -4,7 +4,12 @@ export const handleKeyEvent = () => {
 
 export const HOME = "PC";
 
-export const SEPARATOR = navigator.userAgent.includes("Windows") ? "\\" : "/";
+export const OS = {
+    windows: "Windows",
+    linux: "Linux",
+};
+
+export const SEPARATOR = navigator.userAgent.includes(OS.windows) ? "\\" : "/";
 
 export const DEFAULT_SORT_TYPE: Mp.SortType = {
     asc: true,
