@@ -481,7 +481,10 @@
 }
 
 .draggable {
-    width: fit-content;
+    max-width: fit-content;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .searched .col-detail{
@@ -498,6 +501,7 @@
     justify-content: start;
     position: relative;
     z-index: 700;
+    max-width: fit-content;
 }
 
 .entry-name svg {
@@ -519,6 +523,7 @@
     z-index: 700;
     text-overflow: ellipsis;
     overflow: hidden;
+    white-space: nowrap;
 }
 
 .entry-name .name::highlight(searched) {

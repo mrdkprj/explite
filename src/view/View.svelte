@@ -1249,10 +1249,9 @@
                                 role="button"
                                 tabindex="-1"
                             >
-                                <div class="col-detail" data-file-id={item.id}>
+                                <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.name.width}px;">
                                     <div
                                         class="entry-name draggable"
-                                        style="width: {$appState.headerLabels.name.width}px;"
                                         title={$appState.search.searching ? item.fullPath : item.name}
                                         data-file-id={item.id}
                                         onmousedown={colDetailMouseDown}
@@ -1276,7 +1275,9 @@
                                                 <FolderSvg />
                                             {/if}
                                         </div>
-                                        <div class="name" id={item.uuid} data-file-id={item.id} class:rename-hidden={$listState.rename.targetUUID == item.uuid}>{item.name}</div>
+                                        <div class="name" id={item.uuid} data-file-id={item.id} class:rename-hidden={$listState.rename.targetUUID == item.uuid}>
+                                            {item.name}
+                                        </div>
                                     </div>
                                 </div>
                                 {#if $appState.search.searching}
