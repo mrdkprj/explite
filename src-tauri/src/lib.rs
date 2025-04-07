@@ -205,8 +205,7 @@ fn write_text_file(payload: WriteFileInfo) -> Result<(), String> {
 #[tauri::command]
 fn prepare_menu(window: WebviewWindow) {
     let window_handle = get_window_handel(&window);
-    menu::create_list_menu(window_handle);
-    menu::create_fav_menu(window_handle);
+    menu::create(window_handle);
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

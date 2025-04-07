@@ -12,6 +12,7 @@ use wcpopup::{
 static MENU_MAP: Lazy<Mutex<HashMap<String, Menu>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 pub const LIST: &str = "list";
 pub const FAV: &str = "fav";
+pub const NO_ITEM: &str = "noitem";
 const MENU_EVENT_NAME: &str = "contextmenu_event";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -22,10 +23,18 @@ pub struct Position {
 
 pub async fn popup_menu(window: &WebviewWindow, menu_name: &str, position: Position, full_path: Option<String>) {
     let map = MENU_MAP.lock().await;
-    let menu = map.get(menu_name).unwrap();
-    if menu_name == LIST {
-        update_open_with(window.app_handle(), menu, full_path.unwrap());
+    let full_path = full_path.unwrap_or_default();
+    let target_menu_name = if menu_name == LIST && full_path.is_empty() {
+        NO_ITEM
+    } else {
+        menu_name
+    };
+    let menu = map.get(target_menu_name).unwrap();
+
+    if target_menu_name == LIST {
+        update_open_with(window.app_handle(), menu, full_path);
     }
+
     let result = menu.popup_at_async(position.x, position.y).await;
 
     if let Some(item) = result {
@@ -112,7 +121,13 @@ fn get_menu_config(theme: Theme) -> Config {
     }
 }
 
-pub fn create_list_menu(window_handle: isize) {
+pub fn create(window_handle: isize) {
+    create_list_menu(window_handle);
+    create_fav_menu(window_handle);
+    create_noitem_menu(window_handle);
+}
+
+fn create_list_menu(window_handle: isize) {
     let config = get_menu_config(Theme::System);
     let mut builder = MenuBuilder::new_from_config(window_handle, config);
     builder.text("Open", "Open", false);
@@ -134,11 +149,32 @@ pub fn create_list_menu(window_handle: isize) {
 
     let menu = builder.build().unwrap();
 
-    let mut map = MENU_MAP.try_lock().unwrap();
-    (*map).insert(LIST.to_string(), menu);
+    {
+        let mut map = MENU_MAP.try_lock().unwrap();
+        (*map).insert(LIST.to_string(), menu);
+    }
+
+    create_noitem_menu(window_handle);
 }
 
-pub fn create_fav_menu(window_handle: isize) {
+fn create_noitem_menu(window_handle: isize) {
+    let config = get_menu_config(Theme::System);
+    let mut builder = MenuBuilder::new_from_config(window_handle, config);
+    builder.text("CopyFullpath", "Copy Fullpath", false);
+    builder.text("Property", "Property", false);
+    builder.separator();
+    builder.text("Terminal", "Open Terminal", false);
+    builder.text("Settings", "Settings", false);
+
+    let menu = builder.build().unwrap();
+
+    {
+        let mut map = MENU_MAP.try_lock().unwrap();
+        (*map).insert(NO_ITEM.to_string(), menu);
+    }
+}
+
+fn create_fav_menu(window_handle: isize) {
     let config = get_menu_config(Theme::System);
     let mut builder = MenuBuilder::new_from_config(window_handle, config);
     builder.text("RemoveFromFavorite", "Remove From Favorite", false);
@@ -148,6 +184,8 @@ pub fn create_fav_menu(window_handle: isize) {
 
     let menu = builder.build().unwrap();
 
-    let mut map = MENU_MAP.try_lock().unwrap();
-    (*map).insert(FAV.to_string(), menu);
+    {
+        let mut map = MENU_MAP.try_lock().unwrap();
+        (*map).insert(FAV.to_string(), menu);
+    }
 }

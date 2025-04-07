@@ -62,10 +62,10 @@
 
         // Prevent listState update
         const paths = $listState.currentDir.paths.slice();
-        paths.reverse().forEach((path) => {
+        paths.reverse().forEach((path, index) => {
             const metrics = context.measureText(path);
             width += metrics.width + padding + separator;
-            if (width > pathWidth) {
+            if (width > pathWidth && index > 0) {
                 _overflownPaths.push(path);
             } else {
                 _visiblePaths.push(path);
@@ -77,6 +77,9 @@
             overflownPaths: _overflownPaths.reverse(),
         };
     });
+
+    // Border + 2 icons + 2 dividers + paddings + righ margin + click margin
+    const MIN_COMPONENT_WIDTH = 1 + 36 + 16 + 36 + 16 + 20 + 5 + 100;
 
     const onSearchInputKeyDown = async (e: KeyboardEvent) => {
         if (e.key == "Enter") {
@@ -235,7 +238,7 @@
         {:else}
             <div class="path-holder">
                 <div class="path">
-                    <div style="padding:5px 10px">
+                    <div class="display">
                         <Display />
                     </div>
                     <PathDividerSvg />
@@ -254,7 +257,9 @@
                         {/if}
                     {/if}
                     {#each paths.visiblePaths as path}
-                        <div class="path-data" data-path={path} onclick={onPathClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">{path}</div>
+                        <div class="path-data" data-path={path} onclick={onPathClick} onkeydown={handleKeyEvent} role="button" tabindex="-1" style="max-width:{pathWidth - MIN_COMPONENT_WIDTH}px">
+                            {path}
+                        </div>
                         <PathDividerSvg />
                     {/each}
                     <div class="path-edit" onclick={onPathMarginClick} onkeydown={handleKeyEvent} role="button" tabindex="-1"></div>

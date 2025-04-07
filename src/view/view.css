@@ -178,6 +178,10 @@
     cursor: default;
 }
 
+.path .display {
+    padding:5px 10px
+}
+
 .path svg {
     overflow: visible;
 }
@@ -191,6 +195,9 @@
     margin-right: 5px;
     white-space: nowrap;
     font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .path-data:hover{

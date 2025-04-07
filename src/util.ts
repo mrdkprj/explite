@@ -76,6 +76,22 @@ class Util {
         };
     }
 
+    toFolder(fullPath: string): Mp.MediaFile {
+        return {
+            id: encodeURIComponent(fullPath),
+            fullPath,
+            dir: path.dirname(fullPath),
+            uuid: crypto.randomUUID(),
+            name: decodeURIComponent(encodeURIComponent(path.basename(fullPath))),
+            mdate: 0,
+            cdate: 0,
+            size: 0,
+            extension: "",
+            isFile: false,
+            fileType: "None",
+        };
+    }
+
     async toFileFromPath(fullPath: string): Promise<Mp.MediaFile> {
         const attr = await ipc.invoke("stat", fullPath);
         const mimeType = attr.is_directory ? "" : await ipc.invoke("get_mime_type", fullPath);

@@ -50,8 +50,7 @@
         if ($listState.currentDir.fullPath != HOME) {
             onRowClick(e);
             const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
-            if (!file) return;
-            main.openListContextMenu({ x: e.screenX, y: e.screenY }, file.fullPath);
+            main.openListContextMenu({ x: e.screenX, y: e.screenY }, file ? file.fullPath : "");
         }
     };
 
@@ -575,11 +574,12 @@
     };
 
     const writeFullPathToClipboard = async () => {
-        if (!$appState.selection.selectedIds.length) return;
-        const fullPaths = $listState.files
-            .filter((file) => $appState.selection.selectedIds.includes(file.id))
-            .map((file) => file.fullPath)
-            .join("\r\n");
+        const fullPaths = $appState.selection.selectedIds.length
+            ? $listState.files
+                  .filter((file) => $appState.selection.selectedIds.includes(file.id))
+                  .map((file) => file.fullPath)
+                  .join("\r\n")
+            : $listState.currentDir.fullPath;
         await main.writeFullpathToClipboard(fullPaths);
     };
 
@@ -929,11 +929,11 @@
                 if ($appState.hoverFavoriteId) {
                     await main.openPropertyDielog($appState.hoverFavoriteId);
                     dispatch({ type: "hoverFavoriteId", value: "" });
-                } else {
-                    const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
-                    if (!file) return;
-                    await main.openPropertyDielog(file);
+                    break;
                 }
+
+                const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                await main.openPropertyDielog(file ?? util.toFolder($listState.currentDir.fullPath));
 
                 break;
             }
