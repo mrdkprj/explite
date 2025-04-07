@@ -169,6 +169,7 @@ class Main {
         }
 
         const allDirents = await ipc.invoke("readdir", { directory: e.dir, recursive: true });
+        console.log("recv done")
         this.searchCache[e.dir] = allDirents.filter((direcnt) => !direcnt.attributes.is_system).map((dirent) => path.join(dirent.parent_path, dirent.name));
 
         this.files = await this.filterCache(e.dir, key);
@@ -177,6 +178,7 @@ class Main {
 
     private filterCache = async (dir: string, key: string) => {
         const fildtered = this.searchCache[dir].filter((fullPath) => this.isSearchFileFound(path.basename(fullPath), key));
+        console.log(fildtered)
         return await Promise.all(fildtered.map(async (fullPath) => await util.toFileFromPath(fullPath)));
     };
 

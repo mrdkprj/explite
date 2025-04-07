@@ -1,11 +1,13 @@
-import { SEPARATOR } from "./constants";
+import { OS, SEPARATOR } from "./constants";
 
 export class path {
     static join(...paths: string[]) {
-        const components = paths
-            .map((a) => a.split(SEPARATOR))
-            .flat()
-            .filter(Boolean);
+        const components = navigator.userAgent.includes(OS.windows)
+            ? paths
+                  .map((a) => a.split(SEPARATOR))
+                  .flat()
+                  .filter(Boolean)
+            : paths.map((a) => a.split(SEPARATOR)).flat();
         return components.join(SEPARATOR);
     }
 
