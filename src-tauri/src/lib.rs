@@ -276,10 +276,10 @@ fn open_terminal(payload: String) -> Result<(), String> {
         nonstd::shell::execute(arg, "powershell")
     }
     #[cfg(target_os = "linux")]
-    {
-        let mut arg = "--working-directory=".to_string();
-        arg.push_str(&payload);
-        nonstd::shell::execute(arg, "gnome-terminal")
+    {   
+        let mut commandline_arg = "gnome-terminal --working-directory=".to_string();
+        commandline_arg.push_str(&payload);
+        nonstd::shell::execute("/", commandline_arg)
     }
 }
 
