@@ -222,6 +222,7 @@ declare global {
         type ReadyEvent = {
             settings: Settings;
             data: Mp.LoadEvent;
+            selectId?: string;
         };
 
         type SelectionChanged = {

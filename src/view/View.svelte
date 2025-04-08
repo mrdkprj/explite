@@ -1141,6 +1141,9 @@
         dispatch({ type: "changeFavorites", value: e.settings.favorites });
         await init(e.data);
         await tick();
+        if (e.selectId) {
+            await select(e.selectId);
+        }
         const window = WebviewWindow.getCurrent();
         await window.setSize(util.toPhysicalSize(e.settings.bounds));
         await window.setPosition(util.toPhysicalPosition(e.settings.bounds));

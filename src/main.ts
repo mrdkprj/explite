@@ -24,13 +24,21 @@ class Main {
 
         const args = await ipc.invoke("get_args", undefined);
 
+        let selectId;
         if (args.length) {
-            await this.readFiles(args[0]);
+            const item = await util.toFileFromPath(args[0]);
+            if (item.isFile) {
+                selectId = item.id;
+                await this.readFiles(item.dir);
+            } else {
+                await this.readFiles(item.fullPath);
+            }
         }
 
         return {
             settings: this.settings.data,
             data: { files: this.files, disks, directory: this.currentDir, navigation: "Direct", sortType: DEFAULT_SORT_TYPE, failed: false },
+            selectId,
         };
     };
 
@@ -169,7 +177,7 @@ class Main {
         }
 
         const allDirents = await ipc.invoke("readdir", { directory: e.dir, recursive: true });
-        console.log("recv done")
+        console.log("recv done");
         this.searchCache[e.dir] = allDirents.filter((direcnt) => !direcnt.attributes.is_system).map((dirent) => path.join(dirent.parent_path, dirent.name));
 
         this.files = await this.filterCache(e.dir, key);
@@ -178,7 +186,7 @@ class Main {
 
     private filterCache = async (dir: string, key: string) => {
         const fildtered = this.searchCache[dir].filter((fullPath) => this.isSearchFileFound(path.basename(fullPath), key));
-        console.log(fildtered)
+        console.log(fildtered);
         return await Promise.all(fildtered.map(async (fullPath) => await util.toFileFromPath(fullPath)));
     };
 

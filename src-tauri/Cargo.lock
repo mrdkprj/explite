@@ -2195,7 +2195,7 @@ checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
 [[package]]
 name = "nonstd"
 version = "0.1.0"
-source = "git+https://github.com/mrdkprj/nonstd.git?rev=aea6b9ee89975eaaef0fe4dcce523af58391c2a3#aea6b9ee89975eaaef0fe4dcce523af58391c2a3"
+source = "git+https://github.com/mrdkprj/nonstd.git?rev=57f7c7a8efeefe6b50a2d132bc8fd4062862e858#57f7c7a8efeefe6b50a2d132bc8fd4062862e858"
 dependencies = [
  "async-std",
  "gtk",
