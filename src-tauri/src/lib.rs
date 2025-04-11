@@ -119,6 +119,7 @@ fn copy(payload: CopyInfo) -> Result<(), String> {
     }
     #[cfg(target_os = "linux")]
     {
+        println!("copy");
         fs::copy_all(&payload.from, payload.to, None)
     }
 }
@@ -275,7 +276,7 @@ fn open_terminal(payload: String) -> Result<(), String> {
         nonstd::shell::execute(arg, "powershell")
     }
     #[cfg(target_os = "linux")]
-    {   
+    {
         let mut commandline_arg = "gnome-terminal --working-directory=".to_string();
         commandline_arg.push_str(&payload);
         nonstd::shell::execute("/", commandline_arg)

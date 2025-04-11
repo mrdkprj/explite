@@ -24,6 +24,9 @@ static PENDING_FROM: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(Vec::new
 static PENDING_TO: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(Vec::new()));
 
 const WATCH_EVENT_NAME: &str = "watch_event";
+const CREATE: &str = "Create";
+const REMOVE: &str = "Remove";
+const RENAME: &str = "Rename";
 
 fn async_watcher() -> notify::Result<(RecommendedWatcher, Receiver<notify::Result<Event>>)> {
     let (tx, rx) = channel::bounded(1);
@@ -70,34 +73,44 @@ pub async fn watch(window: &WebviewWindow, file_path: String) -> notify::Result<
 
                 // To comes after From in case of rename
                 match event_type {
-                    EventType::Create | EventType::Remove | EventType::RenameFrom => {
-                        let paths: Vec<String> = event.paths.iter().map(|path| path.to_string_lossy().to_string()).collect();
-                        if event_type == EventType::RenameFrom {
-                            *PENDING_FROM.try_lock().unwrap() = paths;
+                    EventType::Create | EventType::Remove | EventType::RenameFrom | EventType::RenameTo => {
+                        let mut operation = if event_type == EventType::Create {
+                            CREATE.to_string()
+                        } else if event_type == EventType::Remove {
+                            REMOVE.to_string()
                         } else {
-                            *PENDING_TO.try_lock().unwrap() = paths;
+                            String::new()
+                        };
+
+                        let first_paths: Vec<String> = event.paths.iter().map(|path| path.to_string_lossy().to_string()).collect();
+                        if event_type == EventType::RenameFrom {
+                            *PENDING_FROM.try_lock().unwrap() = first_paths;
+                        } else {
+                            *PENDING_TO.try_lock().unwrap() = first_paths;
                         }
 
                         if event_type == EventType::RenameFrom {
-                            // loop {
-                            //     if let Ok(Ok(next_event)) = rx.try_recv() {
-                            //         let next_event_type = get_event_type(next_event.kind);
-                            //         let paths: Vec<String> = next_event.paths.iter().map(|path| path.to_string_lossy().to_string()).collect();
-                            //         if next_event_type == EventType::RenameTo {
-                            //             *PENDING_TO.try_lock().unwrap() = paths;
-                            //             break;
-                            //         }
-                            //     }
-                            // }
-                            // RenameTo may come so late. So wait for 50 msecs
                             std::thread::sleep(std::time::Duration::from_millis(50));
-                            if let Ok(Ok(next_event)) = rx.try_recv() {
+                            operation = if let Ok(Ok(next_event)) = rx.try_recv() {
                                 let next_event_type = get_event_type(next_event.kind);
-                                let paths: Vec<String> = next_event.paths.iter().map(|path| path.to_string_lossy().to_string()).collect();
+                                let next_paths: Vec<String> = next_event.paths.iter().map(|path| path.to_string_lossy().to_string()).collect();
                                 if next_event_type == EventType::RenameTo {
-                                    *PENDING_TO.try_lock().unwrap() = paths;
+                                    *PENDING_TO.try_lock().unwrap() = next_paths;
                                 }
+                                RENAME.to_string()
+                            } else if cfg!(target_os = "linux") {
+                                // On Linux, RenameFrom is equal to trash. So swap from and to and change operation
+                                *PENDING_TO.try_lock().unwrap() = PENDING_FROM.try_lock().unwrap().clone();
+                                *PENDING_FROM.try_lock().unwrap() = Vec::new();
+                                REMOVE.to_string()
+                            } else {
+                                String::new()
                             }
+                        }
+
+                        if event_type == EventType::RenameTo && cfg!(target_os = "linux") {
+                            // On Linux, RenameTo is equal to move. So swap from and to and change operation
+                            operation = CREATE.to_string();
                         }
 
                         window
@@ -107,13 +120,7 @@ pub async fn watch(window: &WebviewWindow, file_path: String) -> notify::Result<
                                 },
                                 WATCH_EVENT_NAME,
                                 WatchEvent {
-                                    operation: if event_type == EventType::Create {
-                                        "Create".to_string()
-                                    } else if event_type == EventType::Remove {
-                                        "Remove".to_string()
-                                    } else {
-                                        "Rename".to_string()
-                                    },
+                                    operation,
                                     to_paths: PENDING_TO.try_lock().unwrap().to_vec().clone(),
                                     from_paths: PENDING_FROM.try_lock().unwrap().to_vec().clone(),
                                 },

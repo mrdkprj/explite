@@ -238,9 +238,16 @@ declare global {
             newId: string;
         };
 
+        type ClipboardOperation = "Move" | "Copy" | "None";
+
+        type ClipboardData = {
+            operation: Mp.ClipboardOperation;
+            urls: string[];
+        };
+
         type WriteClipboardRequest = {
             files: Mp.MediaFile[];
-            operation: ClipboardOperation;
+            operation: Mp.ClipboardOperation;
         };
 
         type SettingsChangeEvent = {

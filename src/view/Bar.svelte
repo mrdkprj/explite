@@ -1,7 +1,7 @@
 <script lang="ts">
     import { appState, dispatch } from "./appStateReducer";
     import { listState } from "./listStateReducer";
-    import { handleKeyEvent } from "../constants";
+    import { handleKeyEvent, OS } from "../constants";
     import Launch from "../svg/Launch.svelte";
     import main from "../main";
     import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -24,14 +24,16 @@
     };
 </script>
 
-<div class="title-bar">
+<div class="title-bar" data-tauri-drag-region={navigator.userAgent.includes(OS.linux) ? true : null}>
     <div class="icon-area">
         <div class="button" onclick={launchNew} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <Launch />
         </div>
         <div style="margin-left: 10px;">{$listState.files.length ? `${$appState.selection.selectedIds.length} / ${$listState.files.length}` : ""}</div>
     </div>
-    <div class="title">{$listState.currentDir.paths.length ? $listState.currentDir.paths[$listState.currentDir.paths.length - 1] : ""}</div>
+    <div class="title" data-tauri-drag-region={navigator.userAgent.includes(OS.linux) ? true : null}>
+        {$listState.currentDir.paths.length ? $listState.currentDir.paths[$listState.currentDir.paths.length - 1] : ""}
+    </div>
     <div class="window-area">
         <div class="minimize" onclick={minimize} onkeydown={handleKeyEvent} role="button" tabindex="-1">&minus;</div>
         <div class="maximize" onclick={toggleMaximize} onkeydown={handleKeyEvent} role="button" tabindex="-1">

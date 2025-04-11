@@ -177,7 +177,6 @@ class Main {
         }
 
         const allDirents = await ipc.invoke("readdir", { directory: e.dir, recursive: true });
-        console.log("recv done");
         this.searchCache[e.dir] = allDirents.filter((direcnt) => !direcnt.attributes.is_system).map((dirent) => path.join(dirent.parent_path, dirent.name));
 
         this.files = await this.filterCache(e.dir, key);
@@ -186,7 +185,6 @@ class Main {
 
     private filterCache = async (dir: string, key: string) => {
         const fildtered = this.searchCache[dir].filter((fullPath) => this.isSearchFileFound(path.basename(fullPath), key));
-        console.log(fildtered);
         return await Promise.all(fildtered.map(async (fullPath) => await util.toFileFromPath(fullPath)));
     };
 
@@ -435,21 +433,38 @@ class Main {
         return mapped.filter((item) => item != null);
     };
 
-    getUrlsFromClipboard = async (): Promise<Mp.PasteData> => {
-        if (!this.currentDir) return { fullPaths: [], dir: this.currentDir, copy: true };
+    getUrlsFromClipboard = async (targets: Mp.MediaFile[], operation: Mp.ClipboardOperation): Promise<Mp.PasteData> => {
+        const failedResult = { fullPaths: [], dir: this.currentDir, copy: true };
+        if (!this.currentDir) return failedResult;
 
         const uriAvailable = await ipc.invoke("is_uris_available", undefined);
-        if (uriAvailable) {
-            const data = await ipc.invoke("read_uris", undefined);
-            if (!data.urls.length) return { fullPaths: [], dir: this.currentDir, copy: true };
 
-            const copy = data.operation == "None" ? util.getRootDirectory(data.urls[0]) != util.getRootDirectory(this.currentDir) : data.operation == "Copy";
+        if (!uriAvailable) return failedResult;
 
-            return { fullPaths: data.urls, dir: this.currentDir, copy };
+        const data = await ipc.invoke("read_uris", undefined);
+        if (!data.urls.length) return failedResult;
+
+        let isCopy = this.isClipboardCopy(targets, operation, data.urls, data.operation);
+        return { fullPaths: data.urls, dir: this.currentDir, copy: isCopy };
+    };
+
+    private isClipboardCopy(targets: Mp.MediaFile[], internalOperation: Mp.ClipboardOperation, externalUrls: string[], externalOperation: Mp.ClipboardOperation): boolean {
+        if (!targets.length) {
+            return externalOperation == "None" ? true : externalOperation == "Copy";
         }
 
-        return { fullPaths: [], dir: this.currentDir, copy: true };
-    };
+        const urls = externalUrls.sort();
+        const isInternalOperation = targets
+            .map((file) => file.fullPath)
+            .sort()
+            .every((fullPath, index) => fullPath == urls[index]);
+
+        if (isInternalOperation) {
+            return internalOperation == "Copy";
+        }
+
+        return true;
+    }
 
     moveItems = async (e: Mp.MoveItemsRequest): Promise<Mp.MoveItemResult> => {
         const targetFiles = navigator.userAgent.includes(OS.linux) ? await this.beforeMoveItems(e.dir, e.fullPaths) : e.fullPaths;
@@ -553,7 +568,6 @@ class Main {
     /* Do nothing to files which will be changed by watcher */
     undo = async () => {
         const fileOperation = await this.history.undo();
-
         if (!fileOperation) return;
 
         try {
@@ -575,8 +589,11 @@ class Main {
                     break;
             }
         } catch (ex: any) {
-            this.history.rollback();
-            this.showErrorMessage(ex);
+            /* Remove operation includes both of trash and delete. So ignore undelete error. */
+            if (fileOperation.operation != "Undelete") {
+                this.history.rollback();
+                this.showErrorMessage(ex);
+            }
         }
     };
 

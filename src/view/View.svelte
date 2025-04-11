@@ -14,7 +14,7 @@
     import VirtualList from "./VirtualList.svelte";
     import Home from "./Home.svelte";
     import Column from "./Column.svelte";
-    import { BROWSER_SHORTCUT_KEYS, DEFAULT_SORT_TYPE, HOME, handleKeyEvent } from "../constants";
+    import { BROWSER_SHORTCUT_KEYS, DEFAULT_SORT_TYPE, HOME, OS, handleKeyEvent } from "../constants";
     import { IPC } from "../ipc";
     import main from "../main";
     import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -34,6 +34,8 @@
     let handleMouseEvent = false;
     // Prevent drop from other apps
     let dragging = false;
+    // Linux only
+    let handleKeyUp = false;
 
     const ipc = new IPC("View");
     const HEADER_DIVIDER_WIDTh = 10;
@@ -585,7 +587,7 @@
 
     const markCopyCut = async (copy: boolean) => {
         const files = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
-        dispatch({ type: "copyCut", value: { operation: copy ? "Copy" : "Cut", ids: $appState.selection.selectedIds, files } });
+        dispatch({ type: "copyCut", value: { operation: copy ? "Copy" : "Move", ids: $appState.selection.selectedIds, files } });
         await main.writeClipboard({ files, operation: copy ? "Copy" : "Move" });
     };
 
@@ -601,7 +603,7 @@
     };
 
     const pasteItems = async () => {
-        const result = await main.getUrlsFromClipboard();
+        const result = await main.getUrlsFromClipboard($appState.copyCutTargets.files, $appState.copyCutTargets.op);
         if (result.fullPaths.length) {
             await moveItems(result.fullPaths, result.dir, result.copy);
         }
@@ -974,7 +976,50 @@
         }
     };
 
+    const onkeyup = async (e: KeyboardEvent) => {
+        if (navigator.userAgent.includes(OS.windows)) return;
+
+        if (e.key == "Delete") {
+            e.preventDefault();
+            if (e.shiftKey) {
+                return deleteItem();
+            } else {
+                return trashItem();
+            }
+        }
+
+        if (!handleKeyUp) return;
+
+        if (e.key == "Control") {
+            return;
+        }
+
+        if (e.key == "c") {
+            handleKeyUp = false;
+            e.preventDefault();
+            markCopyCut(true);
+        }
+
+        if (e.key == "x") {
+            handleKeyUp = false;
+            e.preventDefault();
+            return markCopyCut(false);
+        }
+
+        if (e.key == "v") {
+            handleKeyUp = false;
+            e.preventDefault();
+            return pasteItems();
+        }
+
+        handleKeyUp = false;
+    };
+
     const onkeydown = async (e: KeyboardEvent) => {
+        if (e.ctrlKey) {
+            handleKeyUp = true;
+        }
+
         if (e.ctrlKey && BROWSER_SHORTCUT_KEYS.includes(e.key)) {
             e.preventDefault();
         }
@@ -1164,7 +1209,7 @@
 </script>
 
 <svelte:window oncontextmenu={(e) => e.preventDefault()} />
-<svelte:document {onkeydown} onmousemove={onMouseMove} onmousedown={onMouseDown} onmouseup={onMouseUp} ondragover={(e) => e.preventDefault()} />
+<svelte:document {onkeydown} {onkeyup} onmousemove={onMouseMove} onmousedown={onMouseDown} onmouseup={onMouseUp} ondragover={(e) => e.preventDefault()} />
 
 <div class="viewport" class:full-screen={$appState.isFullScreen} class:sliding={$appState.slideState.sliding}>
     <Bar />
@@ -1237,14 +1282,14 @@
                                 draggable="true"
                                 class:selected={$appState.selection.selectedIds.includes(item.id)}
                                 class:being-selected={$appState.selection.selectedId == item.id}
-                                class:cut={$appState.copyCutTargets.ids.includes(item.id) && $appState.copyCutTargets.op == "Cut"}
+                                class:cut={$appState.copyCutTargets.ids.includes(item.id) && $appState.copyCutTargets.op == "Move"}
                                 class:drag-highlight={!item.isFile && $appState.dragTargetId == item.id}
                                 class:searched={$appState.search.searching}
                                 ondragenter={onDragEnter}
                                 onmouseover={clipMouseEnter}
                                 onmouseout={clipMouseLeave}
-                                onfocus={handleKeyEvent}
-                                onblur={handleKeyEvent}
+                                onfocus={() => {}}
+                                onblur={() => {}}
                                 onclick={onRowClick}
                                 ondblclick={onSelect}
                                 onkeydown={handleKeyEvent}

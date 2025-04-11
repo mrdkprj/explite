@@ -42,7 +42,7 @@ type AppState = {
     leftWidth: number;
     slideState: SlideState;
     copyCutTargets: {
-        op: "Cut" | "Copy";
+        op: Mp.ClipboardOperation;
         ids: string[];
         files: Mp.MediaFile[];
     };
@@ -76,7 +76,7 @@ export const initialAppState: AppState = {
         startX: 0,
     },
     copyCutTargets: {
-        op: "Copy",
+        op: "None",
         ids: [],
         files: [],
     },
@@ -125,7 +125,7 @@ type AppAction =
     | { type: "startSlide"; value: { target: "Area" | Mp.SortKey; startX: number } }
     | { type: "slide"; value: number }
     | { type: "endSlide" }
-    | { type: "copyCut"; value: { operation: "Cut" | "Copy"; ids: string[]; files: Mp.MediaFile[] } }
+    | { type: "copyCut"; value: { operation: Mp.ClipboardOperation; ids: string[]; files: Mp.MediaFile[] } }
     | { type: "clearCopyCut" }
     | { type: "dragEnter"; value: string }
     | { type: "dragLeave" }

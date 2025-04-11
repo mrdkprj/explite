@@ -26,11 +26,6 @@ type FileAttribute = {
     size: number;
 };
 
-type ClipboardOperation = "Copy" | "Move" | "None";
-type ClipboardData = {
-    operation: ClipboardOperation;
-    urls: string[];
-};
 type Volume = {
     mount_point: string;
     volume_label: string;
@@ -58,7 +53,7 @@ type CopyInfo = {
 
 type WriteUriInfo = {
     fullPaths: string[];
-    operation: ClipboardOperation;
+    operation: Mp.ClipboardOperation;
 };
 
 type WriteFileInfo = {
@@ -106,7 +101,7 @@ type TauriCommandMap = {
     copy: TauriCommand<CopyInfo, undefined>;
     mv: TauriCommand<CopyInfo, undefined>;
     is_uris_available: TauriCommand<undefined, boolean>;
-    read_uris: TauriCommand<undefined, ClipboardData>;
+    read_uris: TauriCommand<undefined, Mp.ClipboardData>;
     read_text: TauriCommand<undefined, string>;
     write_uris: TauriCommand<WriteUriInfo, undefined>;
     write_text: TauriCommand<string, undefined>;
