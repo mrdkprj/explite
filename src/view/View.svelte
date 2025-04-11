@@ -598,6 +598,7 @@
             folderUpdatePromise = null;
             return;
         }
+        dispatch({ type: "clearCopyCut" });
         await folderUpdatePromise.promise;
         onPasteEnd(result);
     };
@@ -610,7 +611,6 @@
     };
 
     const onPasteEnd = async (e: Mp.MoveItemResult) => {
-        dispatch({ type: "clearCopyCut" });
         const ids = $listState.files.filter((file) => e.fullPaths.includes(file.fullPath)).map((file) => file.id);
         await selectMultiple(ids);
     };
