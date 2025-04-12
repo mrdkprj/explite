@@ -44,7 +44,7 @@
     const BACKWARD: Mp.NavigationHistory[] = [];
     const FORWARD: Mp.NavigationHistory[] = [];
 
-    const onListContextMenu = (e: MouseEvent) => {
+    const onListContextMenu = async (e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
         if ($listState.rename.renaming) return;
@@ -52,7 +52,7 @@
         if ($listState.currentDir.fullPath != HOME) {
             onRowClick(e);
             const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
-            main.openListContextMenu({ x: e.screenX, y: e.screenY }, file ? file.fullPath : "");
+            await main.openListContextMenu({ x: e.screenX, y: e.screenY }, file ? file.fullPath : "");
         }
     };
 
@@ -892,6 +892,13 @@
                 if (result) {
                     load(result);
                 }
+                break;
+            }
+
+            case "OpenInNewWindow": {
+                const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                if (!file) return;
+                await main.openInNewWindow(file.fullPath);
                 break;
             }
 

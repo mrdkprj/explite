@@ -87,6 +87,7 @@ type TauriCommandMap = {
     exists: TauriCommand<string, boolean>;
     open_path: TauriCommand<string, undefined>;
     open_path_with: TauriCommand<OpenWithArg, undefined>;
+    open_in_new_window: TauriCommand<string, undefined>;
     show_app_selector: TauriCommand<string, undefined>;
     open_property_dielog: TauriCommand<string, undefined>;
     readdir: TauriCommand<ReadDirRequest, Dirent[]>;

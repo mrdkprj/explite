@@ -119,7 +119,6 @@ fn copy(payload: CopyInfo) -> Result<(), String> {
     }
     #[cfg(target_os = "linux")]
     {
-        println!("copy");
         fs::copy_all(&payload.from, payload.to, None)
     }
 }
@@ -269,14 +268,11 @@ async fn message(payload: DialogOptions) -> bool {
 
 #[tauri::command]
 fn open_terminal(payload: String) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    {
+    if cfg!(windows) {
         let mut arg = "wt.exe -d ".to_string();
         arg.push_str(&payload);
         nonstd::shell::execute(arg, "powershell")
-    }
-    #[cfg(target_os = "linux")]
-    {
+    } else {
         let mut commandline_arg = "gnome-terminal --working-directory=".to_string();
         commandline_arg.push_str(&payload);
         nonstd::shell::execute("/", commandline_arg)
@@ -285,8 +281,25 @@ fn open_terminal(payload: String) -> Result<(), String> {
 
 #[tauri::command]
 fn launch_new(app: AppHandle) -> Result<(), String> {
-    let path = tauri::process::current_binary(&app.env()).map_err(|e| e.to_string())?;
-    nonstd::shell::open_path(path)
+    let app_path = tauri::process::current_binary(&app.env()).map_err(|e| e.to_string())?;
+
+    if cfg!(windows) {
+        nonstd::shell::open_path(app_path)
+    } else {
+        std::process::Command::new(app_path).spawn().map_err(|e| e.to_string())?;
+        Ok(())
+    }
+}
+
+#[tauri::command]
+fn open_in_new_window(app: AppHandle, payload: String) -> Result<(), String> {
+    let app_path = tauri::process::current_binary(&app.env()).map_err(|e| e.to_string())?;
+    if cfg!(windows) {
+        nonstd::shell::open_path_with(payload, app_path)
+    } else {
+        std::process::Command::new(app_path).arg(payload).spawn().map_err(|e| e.to_string())?;
+        Ok(())
+    }
 }
 
 #[tauri::command]
@@ -361,6 +374,7 @@ pub fn run() {
             launch_new,
             get_args,
             register_drop_target,
+            open_in_new_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -3,7 +3,7 @@ use nonstd::AppInfo;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::Path};
-use tauri::{AppHandle, Emitter, EventTarget, Manager, WebviewWindow};
+use tauri::{Emitter, EventTarget, WebviewWindow};
 use wcpopup::{
     config::{ColorScheme, Config, MenuSize, Theme, ThemeColor, DEFAULT_DARK_COLOR_SCHEME},
     Menu, MenuBuilder, MenuIcon, MenuItem, MenuItemType,
@@ -32,7 +32,7 @@ pub async fn popup_menu(window: &WebviewWindow, menu_name: &str, position: Posit
     let menu = map.get(target_menu_name).unwrap();
 
     if target_menu_name == LIST {
-        update_open_with(window.app_handle(), menu, full_path);
+        update_open_with(menu, full_path);
     }
 
     let result = menu.popup_at_async(position.x, position.y).await;
@@ -50,7 +50,7 @@ pub async fn popup_menu(window: &WebviewWindow, menu_name: &str, position: Posit
     };
 }
 
-fn update_open_with(app: &AppHandle, menu: &Menu, file_path: String) {
+fn update_open_with(menu: &Menu, file_path: String) {
     let submenu_item = menu.get_menu_item_by_id("OpenWith").unwrap();
 
     let mut submenu = submenu_item.submenu.unwrap();
@@ -68,9 +68,7 @@ fn update_open_with(app: &AppHandle, menu: &Menu, file_path: String) {
 
     if Path::new(&file_path).is_dir() {
         select_app_item.set_visible(false);
-        let app_dir = tauri::process::current_binary(&app.env()).unwrap();
-        let this_app = app_dir.to_str().unwrap();
-        submenu.insert(MenuItem::builder(MenuItemType::Text).id(this_app).label("Open New Window").build(), 0);
+        submenu.insert(MenuItem::builder(MenuItemType::Text).id("OpenInNewWindow").label("Open New Window").build(), 0);
         return;
     }
 

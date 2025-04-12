@@ -72,6 +72,10 @@ class Main {
         await ipc.invoke("open_path_with", { full_path: `"${fullPath}"`, app_path: appPath });
     };
 
+    openInNewWindow = async (fullPath: string) => {
+        await ipc.invoke("open_in_new_window", fullPath);
+    };
+
     showAppSelector = async (fullPath: string) => {
         await ipc.invoke("show_app_selector", fullPath);
     };
