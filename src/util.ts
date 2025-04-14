@@ -2,6 +2,7 @@ import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
 import { Dirent, IPCBase } from "./ipc";
 import { path } from "./path";
 import { MIME_TYPE, OS, SEPARATOR } from "./constants";
+import { t } from "./translation/useTranslation";
 
 const REGULAR_TYPES = [".ts", ".json", ".mjs", ".cjs"];
 const ipc = new IPCBase();
@@ -59,7 +60,7 @@ class Util {
     toFile(dirent: Dirent): Mp.MediaFile {
         const fullPath = dirent.full_path;
         const attr = dirent.attributes;
-        const extension = attr.is_directory ? "ファイルフォルダー" : path.extname(fullPath);
+        const extension = attr.is_directory ? t("typeFolder") : path.extname(fullPath);
 
         return {
             id: encodeURIComponent(fullPath),
@@ -95,7 +96,7 @@ class Util {
     async toFileFromPath(fullPath: string): Promise<Mp.MediaFile> {
         const attr = await ipc.invoke("stat", fullPath);
         const mimeType = attr.is_directory ? "" : await ipc.invoke("get_mime_type", fullPath);
-        const extension = attr.is_directory ? "ファイルフォルダー" : path.extname(fullPath);
+        const extension = attr.is_directory ? t("typeFolder") : path.extname(fullPath);
 
         return {
             id: encodeURIComponent(fullPath),
