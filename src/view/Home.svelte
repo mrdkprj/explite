@@ -3,6 +3,7 @@
     import { listState } from "./listStateReducer";
     import LargeDriveSvg from "../svg/LargeDriveSvg.svelte";
     import { handleKeyEvent } from "../constants";
+    import { t } from "../translation/useTranslation";
 
     let { requestLoad }: { requestLoad: (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => void } = $props();
 
@@ -26,7 +27,8 @@
                     <div class="used" style="width: {Math.floor(((disk.total - disk.available) / disk.total) * 100)}%"></div>
                 </div>
                 <div>
-                    空き領域 {new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingMode: "floor" }).format(disk.available / 1.074e9)} GB/{new Intl.NumberFormat("en-US", {
+                    {t("availableSpace")}&nbsp;
+                    {new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingMode: "floor" }).format(disk.available / 1.074e9)} GB/{new Intl.NumberFormat("en-US", {
                         maximumSignificantDigits: 3,
                         roundingMode: "floor",
                     }).format(disk.total / 1.074e9)} GB

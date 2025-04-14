@@ -55,7 +55,7 @@
                 overflownPaths: [],
             };
         }
-        context.font = 'normal 14px "Segoe UI';
+        context.font = 'normal 14px "Segoe UI"';
         let width = 200;
         const _visiblePaths: string[] = [];
         const _overflownPaths: string[] = [];

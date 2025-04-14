@@ -302,12 +302,24 @@ fn open_in_new_window(app: AppHandle, payload: String) -> Result<(), String> {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct InitArgs {
+    urls: Vec<String>,
+    locales: Vec<String>,
+}
 #[tauri::command]
-fn get_args(app: AppHandle) -> Vec<String> {
+fn get_args(app: AppHandle) -> InitArgs {
     if let Some(urls) = app.try_state::<Vec<String>>() {
-        return urls.inner().clone();
+        return InitArgs {
+            urls: urls.inner().clone(),
+            locales: vec![nonstd::shell::get_locale()],
+        };
     }
-    Vec::new()
+
+    InitArgs {
+        urls: Vec::new(),
+        locales: Vec::new(),
+    }
 }
 
 #[allow(unused_variables)]

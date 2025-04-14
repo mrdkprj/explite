@@ -14,13 +14,14 @@
     import VirtualList from "./VirtualList.svelte";
     import Home from "./Home.svelte";
     import Column from "./Column.svelte";
-    import { BROWSER_SHORTCUT_KEYS, DEFAULT_SORT_TYPE, HOME, OS, handleKeyEvent } from "../constants";
+    import { BROWSER_SHORTCUT_KEYS, DEFAULT_LABLES, DEFAULT_SORT_TYPE, HOME, OS, handleKeyEvent } from "../constants";
     import { IPC } from "../ipc";
     import main from "../main";
     import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
     import util from "../util";
     import { path } from "../path";
     import Deferred from "../deferred";
+    import { t } from "../translation/useTranslation";
 
     let fileListContainer = $state<HTMLDivElement>();
     let virtualList = $state<VirtualList<Mp.MediaFile>>();
@@ -542,7 +543,7 @@
                 overflownPaths: [],
             };
         }
-        context.font = 'normal 12px "Segoe UI';
+        context.font = 'normal 12px "Segoe UI"';
         let width = 5;
         const metrics = context.measureText($listState.rename.newName);
         width += metrics.width;
@@ -1187,7 +1188,36 @@
 
     const prepare = async () => {
         const e = await main.onMainReady();
-        dispatch({ type: "headerLabels", value: e.settings.headerLabels });
+
+        window.lang = e.locale;
+        const headerLabels: Mp.HeaderLabels = DEFAULT_LABLES;
+        Object.entries(e.settings.headerLabels).forEach((entry) => {
+            const header = entry[1];
+            let label = "";
+            switch (header.sortKey) {
+                case "cdate":
+                    label = t("colCreated");
+                    break;
+                case "directory":
+                    label = t("colDirectory");
+                    break;
+                case "extension":
+                    label = t("colExtension");
+                    break;
+                case "mdate":
+                    label = t("colModified");
+                    break;
+                case "name":
+                    label = t("colName");
+                    break;
+                case "size":
+                    label = t("colSize");
+                    break;
+            }
+            header.label = label;
+            headerLabels[header.sortKey] = header;
+        });
+        dispatch({ type: "headerLabels", value: headerLabels });
         dispatch({ type: "leftWidth", value: e.settings.leftAreaWidth });
         dispatch({ type: "sort", value: DEFAULT_SORT_TYPE });
         dispatch({ type: "changeFavorites", value: e.settings.favorites });
@@ -1196,10 +1226,10 @@
         if (e.selectId) {
             await select(e.selectId);
         }
-        const window = WebviewWindow.getCurrent();
-        await window.setSize(util.toPhysicalSize(e.settings.bounds));
-        await window.setPosition(util.toPhysicalPosition(e.settings.bounds));
-        await window.show();
+        const webview = WebviewWindow.getCurrent();
+        await webview.setSize(util.toPhysicalSize(e.settings.bounds));
+        await webview.setPosition(util.toPhysicalPosition(e.settings.bounds));
+        await webview.show();
     };
 
     onMount(() => {

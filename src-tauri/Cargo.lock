@@ -2195,7 +2195,7 @@ checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
 [[package]]
 name = "nonstd"
 version = "0.1.0"
-source = "git+https://github.com/mrdkprj/nonstd.git?rev=e61eadb511dbb5da11307b939064d0511ab6888f#e61eadb511dbb5da11307b939064d0511ab6888f"
+source = "git+https://github.com/mrdkprj/nonstd.git?rev=f648afadc5bb3f834441fcc5daa613e845cf56dc#f648afadc5bb3f834441fcc5daa613e845cf56dc"
 dependencies = [
  "async-std",
  "gtk",
@@ -4544,26 +4544,15 @@ dependencies = [
 [[package]]
 name = "wcpopup"
 version = "0.6.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "137792cb2832486cf38ad93cb8d278e9bb758c89332aa30e27c5a6337cdd5f90"
+source = "git+https://github.com/mrdkprj/wcpopup.git?rev=c25fc25fd6354b1ece11bfcf2fd7f1a5937ff27a#c25fc25fd6354b1ece11bfcf2fd7f1a5937ff27a"
 dependencies = [
  "async-std",
  "gtk",
  "once_cell",
  "serde",
- "wcpopup_win_hook",
  "windows 0.60.0",
  "windows-numerics",
  "windows-version",
-]
-
-[[package]]
-name = "wcpopup_win_hook"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb03b946975aa5bc3f8298d432db40e0e077a1cde7bc94432342810f03bf12de"
-dependencies = [
- "windows 0.60.0",
 ]
 
 [[package]]

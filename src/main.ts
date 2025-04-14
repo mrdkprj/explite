@@ -1,21 +1,22 @@
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import Settings from "./settings";
 import util from "./util";
 import { DEFAULT_SORT_TYPE, HOME, OS } from "./constants";
 import { IPC } from "./ipc";
 import { path } from "./path";
 import { History } from "./history";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { t } from "./translation/useTranslation";
 
 const ipc = new IPC("View");
 
 class Main {
-    settings = new Settings();
-    searchCache: { [key: string]: string[] } = { "": [] };
-    files: Mp.MediaFile[] = [];
-    unfilteredFiles: Mp.MediaFile[] = [];
-    currentDir = HOME;
-    watchTarget = HOME;
-    history = new History();
+    private settings = new Settings();
+    private searchCache: { [key: string]: string[] } = { "": [] };
+    private files: Mp.MediaFile[] = [];
+    private unfilteredFiles: Mp.MediaFile[] = [];
+    private currentDir = HOME;
+    private watchTarget = HOME;
+    private history = new History();
 
     onMainReady = async (): Promise<Mp.ReadyEvent> => {
         await this.settings.init();
@@ -25,8 +26,8 @@ class Main {
         const args = await ipc.invoke("get_args", undefined);
 
         let selectId;
-        if (args.length) {
-            const item = await util.toFileFromPath(args[0]);
+        if (args.urls.length) {
+            const item = await util.toFileFromPath(args.urls[0]);
             if (item.isFile) {
                 selectId = item.id;
                 await this.readFiles(item.dir);
@@ -35,8 +36,10 @@ class Main {
             }
         }
 
+        const locale = args.locales.some((locale) => locale.toLowerCase().includes("ja")) ? "ja" : "en";
         return {
             settings: this.settings.data,
+            locale,
             data: { files: this.files, disks, directory: this.currentDir, navigation: "Direct", sortType: DEFAULT_SORT_TYPE, failed: false },
             selectId,
         };
@@ -316,7 +319,7 @@ class Main {
     };
 
     private getNewName = async (isFile: boolean) => {
-        const name = isFile ? "新しいファイル" : "新しいフォルダー";
+        const name = isFile ? t("newFile") : t("newFolder");
         const found = await util.exists(path.join(this.currentDir, isFile ? `${name}.txt` : name));
         if (!found) return name;
 
@@ -394,7 +397,7 @@ class Main {
 
     deleteItems = async (e: Mp.TrashItemRequest) => {
         try {
-            const confimed = await ipc.invoke("message", { dialog_type: "confirm", kind: "info", message: "このファイルを完全に削除しますか？", ok_label: "はい", cancel_label: "いいえ" });
+            const confimed = await ipc.invoke("message", { dialog_type: "confirm", kind: "info", message: "このファイルを完全に削除しますか？", ok_label: t("yes"), cancel_label: t("no") });
             if (!confimed) return;
 
             const fullPaths = e.files.map((file) => file.fullPath);
@@ -419,10 +422,10 @@ class Main {
                 if (found) {
                     const isOK = await ipc.invoke("message", {
                         dialog_type: "confirm",
-                        message: `宛先には既に${path.basename(fullPath)}という名前のファイルが存在します\nファイルを置き換えますか`,
+                        message: t("destExistsConfirm").replace("{}", path.basename(fullPath)),
                         kind: "warning",
-                        ok_label: "ファイルを置き換える",
-                        cancel_label: "ファイルは置き換えずスキップする",
+                        ok_label: t("destExistsOkLabel"),
+                        cancel_label: t("destExistsCancelLabel"),
                     });
 
                     if (!isOK) {

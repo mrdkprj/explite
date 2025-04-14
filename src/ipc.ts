@@ -80,6 +80,11 @@ type DialogOptions = {
     message: string;
 };
 
+type InitArgs = {
+    urls: string[];
+    locales: string[];
+};
+
 type TauriCommandMap = {
     prepare_menu: TauriCommand<undefined, undefined>;
     open_list_context_menu: TauriCommand<ContextMenuArg, undefined>;
@@ -116,7 +121,7 @@ type TauriCommandMap = {
     message: TauriCommand<DialogOptions, boolean>;
     open_terminal: TauriCommand<string, undefined>;
     launch_new: TauriCommand<undefined, undefined>;
-    get_args: TauriCommand<undefined, string[]>;
+    get_args: TauriCommand<undefined, InitArgs>;
     register_drop_target: TauriCommand<undefined, undefined>;
 };
 

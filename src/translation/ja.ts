@@ -1,0 +1,18 @@
+export const ja: Mp.Labels = {
+    availableSpace: "空き領域",
+    colName: "名前",
+    colDirectory: "フォルダー",
+    colExtension: "種類",
+    colModified: "更新日時",
+    colCreated: "作成日時",
+    colSize: "サイズ",
+    typeFolder: "ファイルフォルダー",
+    newFile: "新しいファイル",
+    newFolder: "新しいフォルダー",
+    destExistsConfirm: "宛先には既に{}という名前のファイルが存在します\nファイルを置き換えますか",
+    destExistsOkLabel: "ファイルを置き換える",
+    destExistsCancelLabel: "ファイルは置き換えずスキップする",
+    deleteConfirm: "このファイルを完全に削除しますか？",
+    yes: "はい",
+    no: "いいえ",
+};

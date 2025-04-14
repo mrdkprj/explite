@@ -1,7 +1,7 @@
 import type { ClipboardOperation } from "movefile-node/lib";
 declare global {
     interface Window {
-        api: Api;
+        lang: Mp.LocaleName;
     }
 
     type RendererName = "View";
@@ -223,6 +223,7 @@ declare global {
         type ReadyEvent = {
             settings: Settings;
             data: Mp.LoadEvent;
+            locale: Mp.LocaleName;
             selectId?: string;
         };
 
@@ -284,6 +285,27 @@ declare global {
 
         type Event = {
             args?: any;
+        };
+
+        type LocaleName = "en" | "ja";
+
+        type Labels = {
+            availableSpace: string;
+            colName: string;
+            colDirectory: string;
+            colExtension: string;
+            colModified: string;
+            colCreated: string;
+            colSize: string;
+            typeFolder: string;
+            newFile: string;
+            newFolder: string;
+            destExistsConfirm: string;
+            destExistsOkLabel: string;
+            destExistsCancelLabel: string;
+            deleteConfirm: string;
+            yes: string;
+            no: string;
         };
     }
 }
