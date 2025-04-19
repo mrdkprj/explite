@@ -90,23 +90,8 @@ pub async fn watch(window: &WebviewWindow, file_path: String) -> notify::Result<
                         }
 
                         if event_type == EventType::RenameFrom {
-                            std::thread::sleep(std::time::Duration::from_millis(50));
-                            operation = if let Ok(Ok(next_event)) = rx.try_recv() {
-                                let next_event_type = get_event_type(next_event.kind);
-                                let next_paths: Vec<String> = next_event.paths.iter().map(|path| path.to_string_lossy().to_string()).collect();
-                                if next_event_type == EventType::RenameTo {
-                                    *PENDING_TO.try_lock().unwrap() = next_paths;
-                                }
-                                RENAME.to_string()
-                            } else if cfg!(target_os = "linux") {
-                                // On Linux, RenameFrom is equal to trash. So swap from and to and change operation
-                                *PENDING_TO.try_lock().unwrap() = PENDING_FROM.try_lock().unwrap().clone();
-                                *PENDING_FROM.try_lock().unwrap() = Vec::new();
-                                REMOVE.to_string()
-                            } else {
-                                String::new()
-                            }
-                        }
+                            operation = handle_rename_from(&rx);
+                        };
 
                         if event_type == EventType::RenameTo && cfg!(target_os = "linux") {
                             // On Linux, RenameTo is equal to move. So swap from and to and change operation
@@ -139,6 +124,48 @@ pub async fn watch(window: &WebviewWindow, file_path: String) -> notify::Result<
     }
 
     Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn handle_rename_from(rx: &Receiver<Result<Event, notify::Error>>) -> String {
+    std::thread::sleep(std::time::Duration::from_millis(50));
+    if let Ok(Ok(next_event)) = rx.try_recv() {
+        let next_event_type = get_event_type(next_event.kind);
+        let next_paths: Vec<String> = next_event.paths.iter().map(|path| path.to_string_lossy().to_string()).collect();
+        if next_event_type == EventType::RenameTo {
+            *PENDING_TO.try_lock().unwrap() = next_paths;
+        }
+    }
+
+    RENAME.to_string()
+}
+
+#[cfg(target_os = "linux")]
+fn handle_rename_from(rx: &Receiver<Result<Event, notify::Error>>) -> String {
+    std::thread::sleep(std::time::Duration::from_millis(50));
+    let operation = if let Ok(Ok(next_event)) = rx.try_recv() {
+        let next_event_type = get_event_type(next_event.kind);
+        let mut next_paths: Vec<String> = next_event.paths.iter().map(|path| path.to_string_lossy().to_string()).collect();
+        if next_event_type == EventType::RenameTo {
+            *PENDING_TO.try_lock().unwrap() = next_paths;
+            RENAME.to_string()
+        } else {
+            // RenameFrom is equal to trash. So extends to.
+            next_paths.extend(PENDING_FROM.try_lock().unwrap().clone());
+            *PENDING_TO.try_lock().unwrap() = next_paths;
+            PENDING_FROM.try_lock().unwrap().clear();
+            REMOVE.to_string()
+        }
+    } else if cfg!(target_os = "linux") {
+        // RenameFrom is equal to trash. So swap from and to and change operation
+        *PENDING_TO.try_lock().unwrap() = PENDING_FROM.try_lock().unwrap().clone();
+        PENDING_FROM.try_lock().unwrap().clear();
+        REMOVE.to_string()
+    } else {
+        String::new()
+    };
+
+    operation
 }
 
 #[derive(PartialEq, Debug)]

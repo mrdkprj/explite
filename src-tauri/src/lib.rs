@@ -112,26 +112,34 @@ struct CopyInfo {
     to: String,
 }
 #[tauri::command]
-fn copy(payload: CopyInfo) -> Result<(), String> {
+async fn copy(window: WebviewWindow, payload: CopyInfo) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         fs::copy_all(&payload.from, payload.to)
     }
     #[cfg(target_os = "linux")]
     {
-        fs::copy_all(&payload.from, payload.to, None)
+        window
+            .run_on_main_thread(move || {
+                gtk::glib::spawn_future_local(async move { fs::copy_all(&payload.from, payload.to).await });
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
 #[tauri::command]
-fn mv(payload: CopyInfo) -> Result<(), String> {
+async fn mv(window: WebviewWindow, payload: CopyInfo) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         fs::mv_all(&payload.from, payload.to)
     }
     #[cfg(target_os = "linux")]
     {
-        fs::mv_all(&payload.from, payload.to, None)
+        window
+            .run_on_main_thread(move || {
+                gtk::glib::spawn_future_local(async move { fs::mv_all(&payload.from, payload.to).await });
+            })
+            .map_err(|e| e.to_string())
     }
 }
 
