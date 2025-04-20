@@ -111,6 +111,7 @@ struct CopyInfo {
     from: Vec<String>,
     to: String,
 }
+#[allow(unused_variables)]
 #[tauri::command]
 async fn copy(window: WebviewWindow, payload: CopyInfo) -> Result<(), String> {
     #[cfg(target_os = "windows")]
@@ -127,6 +128,7 @@ async fn copy(window: WebviewWindow, payload: CopyInfo) -> Result<(), String> {
     }
 }
 
+#[allow(unused_variables)]
 #[tauri::command]
 async fn mv(window: WebviewWindow, payload: CopyInfo) -> Result<(), String> {
     #[cfg(target_os = "windows")]
