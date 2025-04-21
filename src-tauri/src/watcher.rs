@@ -49,7 +49,7 @@ struct WatchEvent {
     from_paths: Vec<String>,
 }
 
-pub async fn watch(window: &WebviewWindow, file_path: String) -> notify::Result<()> {
+pub async fn watch(window: &WebviewWindow, file_path: String, recursive: bool) -> notify::Result<()> {
     let (mut watcher, rx) = async_watcher()?;
 
     let path = Path::new(&file_path);
@@ -59,7 +59,14 @@ pub async fn watch(window: &WebviewWindow, file_path: String) -> notify::Result<
     }
     // Add a path to be watched. All files and directories at that path and
     // below will be monitored for changes.
-    watcher.watch(Path::new(&path), RecursiveMode::NonRecursive)?;
+    watcher.watch(
+        Path::new(&path),
+        if recursive {
+            RecursiveMode::Recursive
+        } else {
+            RecursiveMode::NonRecursive
+        },
+    )?;
 
     {
         let mut inner = WATCHER.try_lock().unwrap();

@@ -261,9 +261,14 @@ async fn open_fav_context_menu(window: WebviewWindow, payload: menu::Position) {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct WatchRequest {
+    path: String,
+    recursive: bool,
+}
 #[tauri::command]
-async fn watch(window: WebviewWindow, payload: String) {
-    let _ = watcher::watch(&window, payload).await;
+async fn watch(window: WebviewWindow, payload: WatchRequest) {
+    let _ = watcher::watch(&window, payload.path, payload.recursive).await;
 }
 
 #[tauri::command]

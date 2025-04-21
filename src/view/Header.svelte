@@ -200,11 +200,11 @@
         <div class="button {$appState.canGoForward ? '' : 'disabled'}" onclick={goForward} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <FowardSvg />
         </div>
-        <div class="button {$listState.currentDir.fullPath == 'Home' ? 'disabled' : ''}" onclick={() => reload(true)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div class="button {$listState.currentDir.fullPath == HOME ? 'disabled' : ''}" onclick={() => reload(true)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <ReloadSvg />
         </div>
         <div
-            class="button {$listState.currentDir.fullPath == 'Home' || $appState.search.searching ? 'disabled' : ''}"
+            class="button {$listState.currentDir.fullPath == HOME || $appState.search.searching ? 'disabled' : ''}"
             onclick={() => createItem(true)}
             onkeydown={handleKeyEvent}
             role="button"
@@ -213,7 +213,7 @@
             <NewFileSvg />
         </div>
         <div
-            class="button {$listState.currentDir.fullPath == 'Home' || $appState.search.searching ? 'disabled' : ''}"
+            class="button {$listState.currentDir.fullPath == HOME || $appState.search.searching ? 'disabled' : ''}"
             onclick={() => createItem(false)}
             onkeydown={handleKeyEvent}
             role="button"

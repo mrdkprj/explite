@@ -21,10 +21,8 @@
     -webkit-app-region: drag;
 }
 
-.ico{
-    width: 16px;
-    height: 16px;
-    margin: 0 5px;
+.file-count{
+    margin-left: 10px;
 }
 
 .window-area{
@@ -494,7 +492,8 @@
     white-space: nowrap;
 }
 
-.searched .col-detail{
+.searched .col-detail,
+.searched .input.rename{
     font-size: 14px;
 }
 

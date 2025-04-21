@@ -12,8 +12,9 @@ const ipc = new IPC("View");
 class Main {
     private settings = new Settings();
     private searchCache: { [key: string]: string[] } = { "": [] };
+    private searchKeyword = "";
     private files: Mp.MediaFile[] = [];
-    private unfilteredFiles: Mp.MediaFile[] = [];
+    private searchBackup: Mp.MediaFile[] = [];
     private currentDir = HOME;
     private watchTarget = HOME;
     private history = new History();
@@ -107,12 +108,12 @@ class Main {
         await ipc.invoke("open_property_dielog", file.fullPath);
     };
 
-    startWatch = async () => {
+    startWatch = async (recursive: boolean) => {
         if (!this.currentDir) return;
 
         await this.abortWatch();
         this.watchTarget = this.currentDir;
-        await ipc.invoke("watch", this.watchTarget);
+        await ipc.invoke("watch", { path: this.watchTarget, recursive });
     };
 
     abortWatch = async () => {
@@ -149,7 +150,7 @@ class Main {
             const sortType = this.sortFiles(directory, this.files);
 
             if (this.currentDir != directory) {
-                this.startWatch();
+                this.startWatch(false);
             }
 
             this.currentDir = directory;
@@ -173,11 +174,14 @@ class Main {
     };
 
     search = async (e: Mp.SearchRequest): Promise<Mp.SearchResult> => {
-        if (!this.unfilteredFiles.length) {
-            this.unfilteredFiles = [...this.files];
+        if (!this.searchBackup.length) {
+            this.searchBackup = [...this.files];
+            // In search, all items needs to be listed, so watch recursively
+            this.startWatch(true);
         }
 
         const key = e.key.toLocaleLowerCase();
+        this.searchKeyword = key;
         if (e.dir in this.searchCache) {
             this.files = await this.filterCache(e.dir, key);
             return { files: this.files };
@@ -187,6 +191,7 @@ class Main {
         this.searchCache[e.dir] = allDirents.filter((direcnt) => !direcnt.attributes.is_system).map((dirent) => path.join(dirent.parent_path, dirent.name));
 
         this.files = await this.filterCache(e.dir, key);
+        this.sortFiles(this.currentDir, this.files);
         return { files: this.files };
     };
 
@@ -201,11 +206,17 @@ class Main {
         return strippedText.some((s) => s.toLocaleLowerCase().startsWith(key)) || withoutExt == key || withoutExt.startsWith(key);
     };
 
-    onSearchEnd = (): Mp.SearchResult => {
-        if (this.unfilteredFiles.length) {
-            this.sortFiles(this.currentDir, this.unfilteredFiles);
-            this.files = [...this.unfilteredFiles];
-            this.unfilteredFiles = [];
+    onSearchEnd = async (temporal: boolean): Promise<Mp.SearchResult> => {
+        if (this.searchBackup.length) {
+            this.sortFiles(this.currentDir, this.searchBackup);
+            this.files = [...this.searchBackup];
+            this.searchBackup = [];
+            this.searchKeyword = "";
+        }
+
+        // If temporarily ended for refresh, don't change watch recursive mode
+        if (!temporal) {
+            this.startWatch(false);
         }
 
         return { files: this.files };
@@ -504,35 +515,41 @@ class Main {
     onWatchEvent = async (e: Mp.WatchEvent) => {
         const hasSearchCache = this.currentDir in this.searchCache;
 
-        /* In searching, only rename is applied to files */
         switch (e.operation) {
             case "Create": {
-                const newPaths = await Promise.all(e.to_paths.map((a) => a).filter(async (path) => await util.exists(path)));
-                if (!newPaths.length) {
-                    return;
+                if (hasSearchCache) {
+                    // Add to cache anyway
+                    this.searchCache[this.currentDir].push(...e.to_paths);
                 }
-                const newItems = await Promise.all(newPaths.map(async (path) => await util.toFileFromPath(path)));
 
-                if (!this.unfilteredFiles.length) {
+                if (this.searchBackup.length) {
+                    const pathsInSearch = e.to_paths.filter((fullPath) => this.isSearchFileFound(path.basename(fullPath), this.searchKeyword));
+                    const pathsInCurrent = e.to_paths.filter((fullPath) => path.dirname(fullPath) == this.currentDir);
+                    // Add to files only if the paths match the search keyword
+                    if (pathsInSearch.length) {
+                        const newItems = await Promise.all(pathsInSearch.map(async (fullPath) => await util.toFileFromPath(fullPath)));
+                        this.files.push(...newItems);
+                    }
+
+                    // Add to backup only if the paths belongs to current dir
+                    if (pathsInCurrent.length) {
+                        const newItems = await Promise.all(pathsInCurrent.map(async (fullPath) => await util.toFileFromPath(fullPath)));
+                        this.searchBackup.push(...newItems);
+                    }
+                } else {
+                    const newItems = await Promise.all(e.to_paths.map(async (fullPath) => await util.toFileFromPath(fullPath)));
                     this.files.push(...newItems);
                 }
 
-                if (this.unfilteredFiles.length) {
-                    this.unfilteredFiles.push(...newItems);
-                }
-                if (hasSearchCache) {
-                    this.searchCache[this.currentDir].push(...e.to_paths);
-                }
                 break;
             }
             case "Remove": {
-                if (!this.unfilteredFiles.length) {
-                    this.files = this.files.filter((file) => !e.to_paths.includes(file.fullPath));
+                this.files = this.files.filter((file) => !e.to_paths.includes(file.fullPath));
+
+                if (this.searchBackup.length) {
+                    this.searchBackup = this.searchBackup.filter((file) => !e.to_paths.includes(file.fullPath));
                 }
 
-                if (this.unfilteredFiles.length) {
-                    this.unfilteredFiles = this.unfilteredFiles.filter((file) => !e.to_paths.includes(file.fullPath));
-                }
                 if (hasSearchCache) {
                     this.searchCache[this.currentDir] = this.searchCache[this.currentDir].filter((fullPath) => !e.to_paths.includes(fullPath));
                 }
@@ -545,9 +562,9 @@ class Main {
                 const newMediaFile = await util.toFileFromPath(newFullPath);
                 this.files[fileIndex] = newMediaFile;
 
-                if (this.unfilteredFiles.length) {
-                    const fileIndex = this.unfilteredFiles.findIndex((file) => file.fullPath == oldFullPath);
-                    this.unfilteredFiles[fileIndex] = newMediaFile;
+                if (this.searchBackup.length) {
+                    const fileIndex = this.searchBackup.findIndex((file) => file.fullPath == oldFullPath);
+                    this.searchBackup[fileIndex] = newMediaFile;
                 }
                 if (hasSearchCache) {
                     const index = this.searchCache[this.currentDir].findIndex((fullPath) => fullPath == oldFullPath);

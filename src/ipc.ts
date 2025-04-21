@@ -80,6 +80,11 @@ type DialogOptions = {
     message: string;
 };
 
+type WatchRequest = {
+    path: string;
+    recursive: boolean;
+};
+
 type InitArgs = {
     urls: string[];
     locales: string[];
@@ -116,7 +121,7 @@ type TauriCommandMap = {
     create: TauriCommand<string, undefined>;
     read_text_file: TauriCommand<string, string>;
     write_text_file: TauriCommand<WriteFileInfo, undefined>;
-    watch: TauriCommand<string, undefined>;
+    watch: TauriCommand<WatchRequest, undefined>;
     unwatch: TauriCommand<string, undefined>;
     message: TauriCommand<DialogOptions, boolean>;
     open_terminal: TauriCommand<string, undefined>;

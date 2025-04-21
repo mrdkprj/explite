@@ -62,6 +62,11 @@
         dispatch({ type: "isMaximized", value: isMaximized });
     };
 
+    const safePromise = async () => {
+        if (!folderUpdatePromise) return;
+        await folderUpdatePromise.promise;
+    };
+
     /* list */
     const clearSelection = () => {
         dispatch({ type: "clearSelection" });
@@ -246,7 +251,6 @@
         if ($appState.selection.selectedIds.includes(id)) return;
 
         if (e.button != 2) {
-            clearSelection();
             dispatch({
                 type: "startClip",
                 value: { position: { startX: e.clientX - fileListContainer.parentElement!.offsetLeft, startY: e.clientY - fileListContainer.parentElement!.offsetTop }, startId: id },
@@ -512,7 +516,7 @@
             return;
         }
 
-        await folderUpdatePromise.promise;
+        await safePromise();
         select(result.newId);
     };
 
@@ -555,7 +559,7 @@
         const result = await main.createItem(isFile);
 
         if (result.success) {
-            await folderUpdatePromise.promise;
+            await safePromise();
             await select(result.newItemId);
             startEditFileName();
         } else {
@@ -600,7 +604,7 @@
             return;
         }
         dispatch({ type: "clearCopyCut" });
-        await folderUpdatePromise.promise;
+        await safePromise();
         onPasteEnd(result);
     };
 
@@ -676,15 +680,15 @@
     };
 
     const endSearch = async (refresh: boolean) => {
-        dispatch({ type: "endSearch" });
         clearSearchHighlight();
 
         if (refresh) {
-            main.onSearchEnd();
+            await main.onSearchEnd(true);
             const result = await main.search({ dir: $listState.currentDir.fullPath, key: $appState.search.key, refresh: false });
             onSearched(result);
         } else {
-            const result = main.onSearchEnd();
+            dispatch({ type: "endSearch" });
+            const result = await main.onSearchEnd(false);
             onSearched(result);
         }
     };
@@ -990,9 +994,9 @@
         if (e.key == "Delete") {
             e.preventDefault();
             if (e.shiftKey) {
-                return deleteItem();
+                return await deleteItem();
             } else {
-                return trashItem();
+                return await trashItem();
             }
         }
 
@@ -1127,9 +1131,9 @@
         if (e.key == "Delete") {
             e.preventDefault();
             if (e.shiftKey) {
-                return deleteItem();
+                return await deleteItem();
             } else {
-                return trashItem();
+                return await trashItem();
             }
         }
 
@@ -1159,6 +1163,7 @@
     };
 
     const onWatchEvent = async (e: Mp.WatchEvent) => {
+        console.log(e);
         const files = await main.onWatchEvent(e);
         if (files) {
             dispatch({ type: "updateFiles", value: { files } });
@@ -1235,7 +1240,7 @@
     onMount(() => {
         prepare();
         ipc.receiveTauri("tauri://resize", onWindowSizeChanged);
-        ipc.receiveTauri("tauri://theme-changed", (e) => console.log(e));
+        // ipc.receiveTauri("tauri://theme-changed", (e) => console.log(e));
         ipc.receive("contextmenu_event", handleContextMenuEvent);
         ipc.receive("watch_event", onWatchEvent);
 
@@ -1257,6 +1262,7 @@
             <div
                 class="main"
                 class:clipping={$appState.clip.clipping}
+                class:searched={$appState.search.searching}
                 oncontextmenu={onListContextMenu}
                 onkeydown={handleKeyEvent}
                 onscroll={endEditFileName}
@@ -1321,7 +1327,6 @@
                                 class:being-selected={$appState.selection.selectedId == item.id}
                                 class:cut={$appState.copyCutTargets.ids.includes(item.id) && $appState.copyCutTargets.op == "Move"}
                                 class:drag-highlight={!item.isFile && $appState.dragTargetId == item.id}
-                                class:searched={$appState.search.searching}
                                 ondragenter={onDragEnter}
                                 onmouseover={clipMouseEnter}
                                 onmouseout={clipMouseLeave}
@@ -1367,7 +1372,7 @@
                                 </div>
                                 {#if $appState.search.searching}
                                     <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.directory.width + HEADER_DIVIDER_WIDTh}px;">
-                                        <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.dir}</div>
+                                        <div class="draggable" title={item.dir} data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.dir}</div>
                                     </div>
                                 {/if}
                                 <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.extension.width + HEADER_DIVIDER_WIDTh}px;">
