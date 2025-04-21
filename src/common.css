@@ -1,6 +1,6 @@
 :root{
-    --font:"Segoe UI";
-    --font-size:12px;
+    --font:"Yu Gothic UI";
+    --font-size: 12px;
 }
 
 @media (prefers-color-scheme: dark) {
