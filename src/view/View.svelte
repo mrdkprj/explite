@@ -168,14 +168,14 @@
     const onMouseUp = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
-        if (!handleMouseEvent) return;
-
         if ($appState.slideState.sliding) {
             const dist = e.clientX - $appState.slideState.startX;
             dispatch({ type: "slide", value: dist });
             dispatch({ type: "endSlide" });
             main.onWidthChange({ leftWidth: $appState.leftWidth, labels: $appState.headerLabels });
         }
+
+        if (!handleMouseEvent) return;
 
         if (!$appState.clip.moved && e.target.id == "list") {
             clearSelection();
