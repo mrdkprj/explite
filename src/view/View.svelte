@@ -302,10 +302,10 @@
         }
     };
 
-    const onRowClick = async (e: MouseEvent) => {
+    const onColumnHeaderClick = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
-        if (e.button != 2 && e.target.classList.contains("nofocus")) {
+        if (e.button != 2) {
             const key = (e.target.getAttribute("data-sort-key") as Mp.SortKey) ?? "name";
 
             const asc = $appState.sort.key == key ? !$appState.sort.asc : true;
@@ -316,9 +316,10 @@
             dispatch({ type: "sort", value: type });
             const result = main.sort({ files: $listState.files, type });
             onSorted(result);
-            return;
         }
+    };
 
+    const onRowClick = async (e: MouseEvent) => {
         await toggleSelect(e);
     };
 
@@ -1304,7 +1305,7 @@
                         onRefresh={searchHighlight}
                     >
                         {#snippet header()}
-                            <div class="list-header nofocus">
+                            <div class="list-header nofocus" onclick={onColumnHeaderClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
                                 {#if $appState.search.searching}
                                     {#each Object.values($appState.headerLabels) as label}
                                         <Column {onColSliderMousedown} {label} />

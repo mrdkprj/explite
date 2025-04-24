@@ -4544,8 +4544,9 @@ dependencies = [
 
 [[package]]
 name = "wcpopup"
-version = "0.6.4"
-source = "git+https://github.com/mrdkprj/wcpopup.git?rev=c25fc25fd6354b1ece11bfcf2fd7f1a5937ff27a#c25fc25fd6354b1ece11bfcf2fd7f1a5937ff27a"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e0879ec872fd3d4481baad4c0db2cd7123d43b791090a6f1e888ec7fd7031336"
 dependencies = [
  "async-std",
  "gtk",
