@@ -53,7 +53,11 @@
         if ($listState.currentDir.fullPath != HOME) {
             onRowClick(e);
             const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
-            await main.openListContextMenu({ x: e.screenX, y: e.screenY }, file ? file.fullPath : "");
+            if (navigator.userAgent.includes(OS.windows)) {
+                await main.openListContextMenu({ x: e.screenX, y: e.screenY }, file ? file.fullPath : "");
+            } else {
+                await main.openListContextMenu({ x: e.clientX, y: e.clientY }, file ? file.fullPath : "");
+            }
         }
     };
 
