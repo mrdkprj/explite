@@ -210,6 +210,7 @@
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
         const id = e.target.getAttribute("data-file-id") ?? "";
+        console.log(id);
         if (id) {
             dispatch({ type: "dragEnter", value: id });
         } else {
@@ -1256,7 +1257,7 @@
 </script>
 
 <svelte:window oncontextmenu={(e) => e.preventDefault()} />
-<svelte:document {onkeydown} {onkeyup} onmousemove={onMouseMove} onmousedown={onMouseDown} onmouseup={onMouseUp} ondragover={(e) => e.preventDefault()} />
+<svelte:document {onkeydown} {onkeyup} onmousemove={onMouseMove} onmousedown={onMouseDown} onmouseup={onMouseUp} ondragover={(e) => e.preventDefault()} ondragenter={onDragEnter} />
 
 <div class="viewport" class:full-screen={$appState.isFullScreen} class:sliding={$appState.slideState.sliding}>
     <Bar />
@@ -1332,7 +1333,6 @@
                                 class:being-selected={$appState.selection.selectedId == item.id}
                                 class:cut={$appState.copyCutTargets.ids.includes(item.id) && $appState.copyCutTargets.op == "Move"}
                                 class:drag-highlight={!item.isFile && $appState.dragTargetId == item.id}
-                                ondragenter={onDragEnter}
                                 onmouseover={clipMouseEnter}
                                 onmouseout={clipMouseLeave}
                                 onfocus={() => {}}
