@@ -37,6 +37,6 @@ export class path {
     static root(path: string | undefined) {
         if (!path) return "";
         const components = path.split(SEPARATOR);
-        return components[0];
+        return components[0] + SEPARATOR;
     }
 }

@@ -28,7 +28,7 @@ type SearchState = {
 };
 
 type AppState = {
-    disks: Mp.DriveInfo[];
+    drives: Mp.DriveInfo[];
     isMaximized: boolean;
     isFullScreen: boolean;
     pathEditing: boolean;
@@ -54,7 +54,7 @@ type AppState = {
 };
 
 export const initialAppState: AppState = {
-    disks: [],
+    drives: [],
     isMaximized: false,
     isFullScreen: false,
     pathEditing: false,
@@ -135,7 +135,7 @@ type AppAction =
     | { type: "incremental"; value: string }
     | { type: "clearIncremental" }
     | { type: "hoverFavoriteId"; value: string }
-    | { type: "disks"; value: Mp.DriveInfo[] }
+    | { type: "drives"; value: Mp.DriveInfo[] }
     | { type: "load"; value: { event: Mp.LoadEvent } };
 
 const updater = (state: AppState, action: AppAction): AppState => {
@@ -164,7 +164,7 @@ const updater = (state: AppState, action: AppAction): AppState => {
                 return {
                     ...state,
                     pathEditing: false,
-                    disks: action.value.event.disks ?? state.disks,
+                    drives: action.value.event.drives ?? state.drives,
                     search: { ...state.search, searching: false, key: "" },
                     copyCutTargets: { op: "Copy", ids: [], files: [] },
                     selection: {
@@ -177,7 +177,7 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return {
                 ...state,
                 pathEditing: false,
-                disks: action.value.event.disks ?? state.disks,
+                drives: action.value.event.drives ?? state.drives,
                 search: { ...state.search, searching: false, key: "" },
             };
         }
@@ -186,8 +186,8 @@ const updater = (state: AppState, action: AppAction): AppState => {
             dispatchList({ type: "updateFiles", value: action.value.files });
             return state;
 
-        case "disks":
-            return { ...state, disks: action.value };
+        case "drives":
+            return { ...state, drives: action.value };
 
         case "startSearch":
             return { ...state, search: { ...state.search, searching: true, key: state.search.key.trim() } };

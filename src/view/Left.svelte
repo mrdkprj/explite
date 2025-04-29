@@ -57,7 +57,7 @@
             </div>
             <div>PC</div>
         </div>
-        {#each $appState.disks as disk}
+        {#each $appState.drives as disk}
             <div data-full-path={disk.path} class="disk" class:current={disk.path == $listState.currentDir.fullPath} onclick={onDriveClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
                 <div>
                     <DriveSvg />

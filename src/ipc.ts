@@ -128,6 +128,8 @@ type TauriCommandMap = {
     launch_new: TauriCommand<undefined, undefined>;
     get_args: TauriCommand<undefined, InitArgs>;
     register_drop_target: TauriCommand<undefined, undefined>;
+    listen_devices: TauriCommand<undefined, boolean>;
+    unlisten_devices: TauriCommand<undefined, undefined>;
 };
 
 export class IPCBase {

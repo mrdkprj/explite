@@ -22,7 +22,7 @@ class Main {
     onMainReady = async (): Promise<Mp.ReadyEvent> => {
         await this.settings.init();
         await ipc.invoke("prepare_menu", undefined);
-        const disks = await util.getDriveInfo();
+        const drives = await util.getDriveInfo();
 
         const args = await ipc.invoke("get_args", undefined);
 
@@ -37,11 +37,13 @@ class Main {
             }
         }
 
+        await ipc.invoke("listen_devices", undefined);
+
         const locale = args.locales.some((locale) => locale.toLowerCase().includes("ja")) ? "ja" : "en";
         return {
             settings: this.settings.data,
             locale,
-            data: { files: this.files, disks, directory: this.currentDir, navigation: "Direct", sortType: DEFAULT_SORT_TYPE, failed: false },
+            data: { files: this.files, drives, directory: this.currentDir, navigation: "Direct", sortType: DEFAULT_SORT_TYPE, failed: false },
             selectId,
         };
     };
@@ -85,9 +87,14 @@ class Main {
     };
 
     private openFolder = async (fullPath: string, navigation: Mp.Navigation): Promise<Mp.LoadEvent | null> => {
+        if (fullPath == HOME) {
+            const result = await this.readFiles(HOME);
+            return { files: this.files, directory: HOME, navigation, sortType: result.sortType, failed: !result.done };
+        }
+
         const directory = fullPath;
         const found = await util.exists(directory);
-        if (directory != HOME && !found) {
+        if (!found) {
             await this.showErrorMessage(`"${directory}" does not exist.`);
             return null;
         }
@@ -262,6 +269,7 @@ class Main {
 
     closeWindow = async (view: WebviewWindow) => {
         await this.abortWatch();
+        await ipc.invoke("unlisten_devices", undefined);
 
         if (!this.settings.data.isMaximized) {
             const position = await view.innerPosition();
@@ -293,8 +301,8 @@ class Main {
 
     reload = async (includeDrive: boolean): Promise<Mp.LoadEvent> => {
         const result = await this.readFiles(this.currentDir);
-        const disks = includeDrive ? await util.getDriveInfo() : undefined;
-        return { files: this.files, disks, directory: this.currentDir, navigation: "Reload", sortType: result.sortType, failed: !result.done };
+        const drives = includeDrive ? await util.getDriveInfo() : undefined;
+        return { files: this.files, drives, directory: this.currentDir, navigation: "Reload", sortType: result.sortType, failed: !result.done };
     };
 
     startDrag = async (files: string[]) => {

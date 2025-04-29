@@ -146,6 +146,7 @@ class Util {
 
     async getDriveInfo(): Promise<Mp.DriveInfo[]> {
         const volumes = await ipc.invoke("list_volumes", undefined);
+
         const drives: Mp.DriveInfo[] = volumes
             .map((volume) => {
                 return {

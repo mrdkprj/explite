@@ -17,7 +17,7 @@
     import { BROWSER_SHORTCUT_KEYS, DEFAULT_LABLES, DEFAULT_SORT_TYPE, HOME, OS, handleKeyEvent } from "../constants";
     import { IPC } from "../ipc";
     import main from "../main";
-    import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+    import { webviewWindow } from "@tauri-apps/api";
     import util from "../util";
     import { path } from "../path";
     import Deferred from "../deferred";
@@ -62,7 +62,7 @@
     };
 
     const onWindowSizeChanged = async () => {
-        const isMaximized = await WebviewWindow.getCurrent().isMaximized();
+        const isMaximized = await webviewWindow.getCurrentWebviewWindow().isMaximized();
         dispatch({ type: "isMaximized", value: isMaximized });
     };
 
@@ -210,7 +210,7 @@
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
         const id = e.target.getAttribute("data-file-id") ?? "";
-        console.log(id);
+
         if (id) {
             dispatch({ type: "dragEnter", value: id });
         } else {
@@ -831,7 +831,7 @@
 
     const setTitle = async () => {
         const title = $listState.currentDir.paths.length ? $listState.currentDir.paths[$listState.currentDir.paths.length - 1] : HOME;
-        await WebviewWindow.getCurrent().setTitle(title);
+        await webviewWindow.getCurrentWebviewWindow().setTitle(title);
     };
 
     const navigate = (e: Mp.LoadEvent) => {
@@ -979,7 +979,7 @@
 
             case "Refresh":
                 const result = await util.getDriveInfo();
-                dispatch({ type: "disks", value: result });
+                dispatch({ type: "drives", value: result });
                 break;
 
             case "Terminal":
@@ -1168,8 +1168,38 @@
         }
     };
 
+    const onDeviceEvent = async (e: Mp.DeviceEvent) => {
+        if (!e.name.includes("Disk")) return;
+
+        const drives = await util.getDriveInfo();
+
+        if (e.event == "Removed") {
+            const newMountPoints = drives.map((info) => info.path);
+            const removedMountPoints = $appState.drives.filter((info) => !newMountPoints.includes(info.path)).map((info) => info.path);
+            const currentDirRoot = util.getRootDirectory($listState.currentDir.fullPath);
+
+            if (removedMountPoints.includes(currentDirRoot)) {
+                await requestLoad(HOME, false, "Direct");
+            }
+
+            // If any paths of removed drive exist in history, clear history
+            const invalidBackHistory = BACKWARD.filter((history) => removedMountPoints.includes(util.getRootDirectory(history.fullPath)));
+            if (invalidBackHistory.length) {
+                BACKWARD.length = 0;
+            }
+
+            const invalidForwardHistory = FORWARD.filter((history) => removedMountPoints.includes(util.getRootDirectory(history.fullPath)));
+            if (invalidForwardHistory.length) {
+                FORWARD.length = 0;
+            }
+
+            dispatch({ type: "history", value: { canGoBack: BACKWARD.length > 0, canGoForward: FORWARD.length > 0 } });
+        }
+
+        dispatch({ type: "drives", value: drives });
+    };
+
     const onWatchEvent = async (e: Mp.WatchEvent) => {
-        console.log(e);
         const files = await main.onWatchEvent(e);
         if (files) {
             dispatch({ type: "updateFiles", value: { files } });
@@ -1237,7 +1267,7 @@
         if (e.selectId) {
             await select(e.selectId);
         }
-        const webview = WebviewWindow.getCurrent();
+        const webview = webviewWindow.getCurrentWebviewWindow();
         await webview.setSize(util.toPhysicalSize(e.settings.bounds));
         await webview.setPosition(util.toPhysicalPosition(e.settings.bounds));
         await webview.show();
@@ -1249,6 +1279,7 @@
         // ipc.receiveTauri("tauri://theme-changed", (e) => console.log(e));
         ipc.receive("contextmenu_event", handleContextMenuEvent);
         ipc.receive("watch_event", onWatchEvent);
+        ipc.receive("device_event", onDeviceEvent);
 
         return () => {
             ipc.release();

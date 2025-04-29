@@ -46,6 +46,7 @@ declare global {
         moved: Mp.MoveItemResult;
         contextmenu_event: keyof MainContextMenuSubTypeMap | FavContextMenuSubTypeMap;
         watch_event: Mp.WatchEvent;
+        device_event: Mp.DeviceEvent;
     };
 
     namespace Mp {
@@ -115,7 +116,7 @@ declare global {
 
         type LoadEvent = {
             files: Mp.MediaFile[];
-            disks?: Mp.DriveInfo[];
+            drives?: Mp.DriveInfo[];
             directory: string;
             navigation: Mp.Navigation;
             sortType: Mp.SortType;
@@ -266,6 +267,11 @@ declare global {
         type NavigationHistory = {
             fullPath: string;
             selection: Mp.ItemSelection;
+        };
+
+        type DeviceEvent = {
+            name: string;
+            event: "Added" | "Removed";
         };
 
         type WatchEvent = {

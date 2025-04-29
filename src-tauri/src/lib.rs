@@ -2,7 +2,7 @@ use dialog::DialogOptions;
 use nonstd::*;
 use serde::{Deserialize, Serialize};
 use std::{env, path::PathBuf};
-use tauri::{AppHandle, Manager, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 mod dialog;
 mod menu;
 mod watcher;
@@ -342,7 +342,7 @@ fn get_args(app: AppHandle) -> InitArgs {
 fn register_drop_target(window: WebviewWindow) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        nonstd::drag_drop::register(window.hwnd().unwrap())
+        nonstd::drag_drop::register(window.hwnd().unwrap().0 as isize)
     }
     #[cfg(target_os = "linux")]
     {
@@ -350,8 +350,19 @@ fn register_drop_target(window: WebviewWindow) -> Result<(), String> {
     }
 }
 
+#[tauri::command]
+fn listen_devices(window: WebviewWindow) -> bool {
+    nonstd::device::listen(move |event| {
+        window.emit("device_event", event).unwrap();
+    })
+}
+
+#[tauri::command]
+fn unlisten_devices() {
+    nonstd::device::unlisten();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-#[allow(deprecated)]
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
@@ -402,6 +413,8 @@ pub fn run() {
             get_args,
             register_drop_target,
             open_in_new_window,
+            listen_devices,
+            unlisten_devices
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

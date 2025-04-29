@@ -16,7 +16,7 @@
 </script>
 
 <div class="container">
-    {#each $appState.disks as disk}
+    {#each $appState.drives as disk}
         <div data-full-path={disk.path} class="ldisk" class:current={disk.path == $listState.currentDir.fullPath} ondblclick={onDriveClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <div class="icon">
                 <LargeDriveSvg />
