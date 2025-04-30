@@ -1169,7 +1169,7 @@
     };
 
     const onDeviceEvent = async (e: Mp.DeviceEvent) => {
-        if (!e.name.includes("Disk")) return;
+        if (!e.name.includes("Disk") || !e.name.includes("Storage")) return;
 
         const drives = await util.getDriveInfo();
 
