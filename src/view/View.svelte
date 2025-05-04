@@ -17,7 +17,7 @@
     import { BROWSER_SHORTCUT_KEYS, DEFAULT_LABLES, DEFAULT_SORT_TYPE, HOME, OS, handleKeyEvent } from "../constants";
     import { IPC } from "../ipc";
     import main from "../main";
-    import { webviewWindow } from "@tauri-apps/api";
+    import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
     import util from "../util";
     import { path } from "../path";
     import Deferred from "../deferred";
@@ -62,7 +62,7 @@
     };
 
     const onWindowSizeChanged = async () => {
-        const isMaximized = await webviewWindow.getCurrentWebviewWindow().isMaximized();
+        const isMaximized = await WebviewWindow.getCurrent().isMaximized();
         dispatch({ type: "isMaximized", value: isMaximized });
     };
 
@@ -831,7 +831,7 @@
 
     const setTitle = async () => {
         const title = $listState.currentDir.paths.length ? $listState.currentDir.paths[$listState.currentDir.paths.length - 1] : HOME;
-        await webviewWindow.getCurrentWebviewWindow().setTitle(title);
+        await WebviewWindow.getCurrent().setTitle(title);
     };
 
     const navigate = (e: Mp.LoadEvent) => {
@@ -1267,7 +1267,7 @@
         if (e.selectId) {
             await select(e.selectId);
         }
-        const webview = webviewWindow.getCurrentWebviewWindow();
+        const webview = WebviewWindow.getCurrent();
         await webview.setSize(util.toPhysicalSize(e.settings.bounds));
         await webview.setPosition(util.toPhysicalPosition(e.settings.bounds));
         await webview.show();

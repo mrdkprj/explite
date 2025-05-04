@@ -29,7 +29,7 @@
     };
 </script>
 
-<div class="left" style="width: {$appState.leftWidth}px">
+<div class="left" style="flex-basis: {$appState.leftWidth}px">
     <div class="left-content">
         {#each $appState.favorites as favorite}
             <div
@@ -43,26 +43,27 @@
                 role="button"
                 tabindex="-1"
             >
-                <div>
+                <div class="icon">
                     <FolderSvg />
                 </div>
-                <div>{favorite.name}</div>
+                <div class="name">{favorite.name}</div>
             </div>
         {/each}
     </div>
     <div class="left-content">
         <div data-full-path={HOME} class="disk" onclick={onDriveClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
-            <div>
+            <div class="icon">
                 <DriveSvg />
             </div>
-            <div>PC</div>
+            <div class="name">PC</div>
         </div>
         {#each $appState.drives as disk}
             <div data-full-path={disk.path} class="disk" class:current={disk.path == $listState.currentDir.fullPath} onclick={onDriveClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
-                <div>
+                <div class="icon">
                     <DriveSvg />
                 </div>
-                <div>{disk.name}({disk.label})</div>
+                <!-- <div class="name"><div>{disk.name}({disk.label})</div></div> -->
+                <div class="name">{disk.name}({disk.label})</div>
             </div>
         {/each}
     </div>

@@ -336,6 +336,8 @@
     height: 100%;
     min-width: 50px;
     overflow: hidden;
+    flex-grow: 0;
+    flex-shrink: 0;
 }
 
 .main{
@@ -554,7 +556,6 @@
 }
 
 .left-content{
-    width: calc(100% - 5px);
     border-bottom: 1px solid var(--main-border-color);
     padding: 20px 0px;
 }
@@ -577,25 +578,36 @@
     flex-direction: row;
     padding: 8px 20px;
     align-items: center;
-    justify-content: center;
     justify-content: start;
     font-size: 13px;
     font-family: var(--font);
     cursor: pointer;
     margin-left: 5px;
+    white-space: nowrap;
 }
 
-.fav div,
-.disk div{
+.fav .icon,
+.disk .icon{
+    margin-right: 5px;
+    pointer-events: none;
     display: flex;
     align-items: center;
-    pointer-events: none;
+    justify-content: center;
+    position: relative;
+    z-index: 700;
 }
 
-.fav svg,
-.disk svg{
+.fav .name,
+.disk .name{
+    /* display: flex;
+    align-items: center;
+    pointer-events: none; */
     pointer-events: none;
-    margin-right: 5px;
+    position: relative;
+    z-index: 700;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 .input.rename{

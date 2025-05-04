@@ -22,7 +22,7 @@
                 <LargeDriveSvg />
             </div>
             <div class="info" data-full-path={disk.path}>
-                <div>{disk.name}({disk.label})</div>
+                <div class="name">{disk.name}({disk.label})</div>
                 <div class="bar">
                     <div class="used" style="width: {Math.floor(((disk.total - disk.available) / disk.total) * 100)}%"></div>
                 </div>
@@ -53,7 +53,7 @@
         font-size: 13px;
         font-family: var(--font);
         cursor: pointer;
-        min-width: 280px;
+        width: 280px;
     }
     .ldisk:hover {
         background-color: var(--selection-bgcolor);
@@ -71,6 +71,12 @@
     }
     .info div {
         pointer-events: none;
+    }
+    .info .name {
+        width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
     .bar {
         width: 90%;
