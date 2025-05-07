@@ -62,7 +62,6 @@
                 <div class="icon">
                     <DriveSvg />
                 </div>
-                <!-- <div class="name"><div>{disk.name}({disk.label})</div></div> -->
                 <div class="name">{disk.name}({disk.label})</div>
             </div>
         {/each}

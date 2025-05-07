@@ -362,6 +362,30 @@ fn unlisten_devices() {
     nonstd::device::unlisten();
 }
 
+#[tauri::command]
+fn listen_file_drop(window: WebviewWindow, app: AppHandle) -> tauri::Result<()> {
+    #[cfg(target_os = "windows")]
+    {
+        let label = window.label().to_string();
+        window.with_webview(move |webview| {
+            nonstd::webview2::register_file_drop(unsafe { &webview.controller().CoreWebView2().unwrap() }, Some("viewContent".to_string()), move |event| {
+                app.get_webview_window(&label).unwrap().emit("tauri://drag-drop", event).unwrap();
+            })
+            .unwrap();
+        })
+    }
+    #[cfg(target_os = "linux")]
+    {
+        Ok(())
+    }
+}
+
+#[tauri::command]
+fn unlisten_file_drop() {
+    #[cfg(target_os = "windows")]
+    nonstd::webview2::clear();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -414,7 +438,9 @@ pub fn run() {
             register_drop_target,
             open_in_new_window,
             listen_devices,
-            unlisten_devices
+            unlisten_devices,
+            listen_file_drop,
+            unlisten_file_drop,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

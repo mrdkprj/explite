@@ -8,9 +8,9 @@ declare global {
     type Renderer = { [key in RendererName]: Electron.BrowserWindow | null };
 
     type MainChannelEventMap = {
-        minimize: Mp.Event;
-        "toggle-maximize": Mp.Event;
-        close: Mp.Event;
+        minimize: Mp.AnyEvent;
+        "toggle-maximize": Mp.AnyEvent;
+        close: Mp.AnyEvent;
         selected: Mp.SelectEvent;
         sort: Mp.SortRequest;
         search: Mp.SearchRequest;
@@ -18,15 +18,15 @@ declare global {
         "open-fav-context-menu": Mp.Position;
         focus: Mp.SelectionChanged;
         widthChanged: Mp.WidthChangeEvent;
-        endSearch: Mp.Event;
-        reload: Mp.Event;
+        endSearch: Mp.AnyEvent;
+        reload: Mp.AnyEvent;
         startDrag: string[];
         createItem: Mp.CreateItemRequest;
         trash: Mp.TrashItemRequest;
         moveItems: Mp.MoveItemsRequest;
         removeFavorite: string;
         "rename-file": Mp.RenameRequest;
-        pasteFile: Mp.Event;
+        pasteFile: Mp.AnyEvent;
         writeClipboard: Mp.WriteClipboardRequest;
     };
 
@@ -38,10 +38,10 @@ declare global {
         favoriteChanged: Mp.MediaFile[];
         markItem: Mp.MarkItemRequest;
         itemCreated: Mp.CreateItemResult;
-        pasteRequest: Mp.Event;
-        getSelectedFavorite: Mp.Event;
+        pasteRequest: Mp.AnyEvent;
+        getSelectedFavorite: Mp.AnyEvent;
         "after-toggle-maximize": Mp.SettingsChangeEvent;
-        "start-rename": Mp.Event;
+        "start-rename": Mp.AnyEvent;
         "after-rename": Mp.RenameResult;
         moved: Mp.MoveItemResult;
         contextmenu_event: keyof MainContextMenuSubTypeMap | FavContextMenuSubTypeMap;
@@ -269,6 +269,10 @@ declare global {
             selection: Mp.ItemSelection;
         };
 
+        type FileDropEvent = {
+            paths: string[];
+        };
+
         type DeviceEvent = {
             name: string;
             event: "Added" | "Removed";
@@ -289,7 +293,7 @@ declare global {
             isFile: boolean;
         };
 
-        type Event = {
+        type AnyEvent = {
             args?: any;
         };
 
@@ -312,6 +316,43 @@ declare global {
             deleteConfirm: string;
             yes: string;
             no: string;
+        };
+    }
+}
+
+/**
+ * window.chrome.webview is the class to access the WebView2-specific APIs that are available
+ * to the script running within WebView2 Runtime.
+ */
+export interface WebView extends EventTarget {
+    /**
+     * The standard EventTarget.addEventListener method. Use it to subscribe to the message event
+     * or sharedbufferreceived event. The message event receives messages posted from the WebView2
+     * host via CoreWebView2.PostWebMessageAsJson or CoreWebView2.PostWebMessageAsString. The
+     * sharedbufferreceived event receives shared buffers posted from the WebView2 host via
+     * CoreWebView2.PostSharedBufferToScript.
+     * See CoreWebView2.PostWebMessageAsJson( Win32/C++, .NET, WinRT).
+     * @param type The name of the event to subscribe to. Valid values are message, and sharedbufferreceived.
+     * @param listener The callback to invoke when the event is raised.
+     * @param options Options to control how the event is handled.
+     */
+    addEventListener(type: string, listener: WebViewEventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
+
+    /**
+     * The standard EventTarget.removeEventListener method. Use it to unsubscribe to the message
+     * or sharedbufferreceived event.
+     * @param type The name of the event to unsubscribe from. Valid values are message and sharedbufferreceived.
+     * @param listener The callback to remove from the event.
+     * @param options Options to control how the event is handled.
+     */
+    removeEventListener(type: string, listener?: WebViewEventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
+}
+
+// Global object
+declare global {
+    interface Window {
+        chrome: {
+            webview: WebView;
         };
     }
 }

@@ -10,6 +10,7 @@ import { t } from "./translation/useTranslation";
 const ipc = new IPC("View");
 
 class Main {
+    private initialized = false;
     private settings = new Settings();
     private searchCache: { [key: string]: string[] } = { "": [] };
     private searchKeyword = "";
@@ -19,9 +20,14 @@ class Main {
     private watchTarget = HOME;
     private history = new History();
 
-    onMainReady = async (): Promise<Mp.ReadyEvent> => {
-        await this.settings.init();
-        await ipc.invoke("prepare_menu", undefined);
+    onMainReady = async (dropTagetId: string): Promise<Mp.ReadyEvent> => {
+        if (!this.initialized) {
+            await this.settings.init();
+            await ipc.invoke("prepare_menu", undefined);
+            await ipc.invoke("listen_devices", undefined);
+            await ipc.invoke("listen_file_drop", dropTagetId);
+        }
+
         const drives = await util.getDriveInfo();
 
         const args = await ipc.invoke("get_args", undefined);
@@ -37,9 +43,10 @@ class Main {
             }
         }
 
-        await ipc.invoke("listen_devices", undefined);
-
         const locale = args.locales.some((locale) => locale.toLowerCase().includes("ja")) ? "ja" : "en";
+
+        this.initialized = true;
+
         return {
             settings: this.settings.data,
             locale,
@@ -270,6 +277,7 @@ class Main {
     closeWindow = async (view: WebviewWindow) => {
         await this.abortWatch();
         await ipc.invoke("unlisten_devices", undefined);
+        await ipc.invoke("unlisten_file_drop", undefined);
 
         if (!this.settings.data.isMaximized) {
             const position = await view.innerPosition();

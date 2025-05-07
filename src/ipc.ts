@@ -130,6 +130,8 @@ type TauriCommandMap = {
     register_drop_target: TauriCommand<undefined, undefined>;
     listen_devices: TauriCommand<undefined, boolean>;
     unlisten_devices: TauriCommand<undefined, undefined>;
+    listen_file_drop: TauriCommand<string, undefined>;
+    unlisten_file_drop: TauriCommand<undefined, undefined>;
 };
 
 export class IPCBase {

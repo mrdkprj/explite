@@ -33,8 +33,6 @@
     let canvas: HTMLCanvasElement;
     let folderUpdatePromise: Deferred<number> | null;
     let handleMouseEvent = false;
-    // Prevent drop from other apps
-    let dragging = false;
     // Linux only
     let handleKeyUp = false;
 
@@ -202,7 +200,7 @@
         if (!paths.length) return;
 
         await ipc.invoke("register_drop_target", undefined);
-        dragging = true;
+
         await main.startDrag(paths);
     };
 
@@ -218,33 +216,45 @@
         }
     };
 
-    const onItemDrop = async (e: DragEvent) => {
-        e.preventDefault();
-        dispatch({ type: "dragLeave" });
-
-        if (!dragging) return;
-
-        dragging = false;
-
+    const onDragLeave = (e: DragEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
-        const id = e.target.getAttribute("data-file-id");
-        if (!id) return;
+        const id = e.target.getAttribute("data-file-id") ?? "";
+        if ($appState.dragTargetId == id) {
+            dispatch({ type: "dragLeave" });
+        }
+    };
 
-        const destinationFile = $listState.files.find((file) => file.id == id);
-        if (!destinationFile) return;
+    const onFileDrop = async (e: Mp.FileDropEvent) => {
+        const dragTargetId = $appState.dragTargetId;
 
-        if (destinationFile.isFile) return;
+        dispatch({ type: "dragLeave" });
 
-        if ($appState.selection.selectedIds.includes(destinationFile.id)) return;
+        if ($listState.currentDir.fullPath == HOME || !e.paths) return;
 
-        const files = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+        const destPath = getDropTarget(dragTargetId);
 
-        if (!files.length) return;
+        const sourcePaths = e.paths;
 
-        const fullPaths = files.map((file) => file.fullPath);
+        if (destPath != path.dirname(sourcePaths[0]) && !sourcePaths.includes(destPath)) return;
 
-        await moveItems(fullPaths, destinationFile.fullPath, false);
+        const shouldCopy = util.getRootDirectory(destPath) != util.getRootDirectory(sourcePaths[0]);
+
+        await moveItems(sourcePaths, destPath, shouldCopy);
+    };
+
+    const getDropTarget = (dragTargetId: string): string => {
+        const defaultTarget = $listState.currentDir.fullPath;
+
+        if (!dragTargetId) return defaultTarget;
+
+        const destinationFile = $listState.files.find((file) => file.id == dragTargetId);
+
+        if (!destinationFile) return defaultTarget;
+
+        if (destinationFile.isFile) return defaultTarget;
+
+        return destinationFile.fullPath;
     };
 
     const startClip = (e: MouseEvent) => {
@@ -1228,7 +1238,7 @@
     };
 
     const prepare = async () => {
-        const e = await main.onMainReady();
+        const e = await main.onMainReady("viewContent");
 
         window.lang = e.locale;
         const headerLabels: Mp.HeaderLabels = DEFAULT_LABLES;
@@ -1280,6 +1290,7 @@
         ipc.receive("contextmenu_event", handleContextMenuEvent);
         ipc.receive("watch_event", onWatchEvent);
         ipc.receive("device_event", onDeviceEvent);
+        ipc.receiveTauri<Mp.FileDropEvent>("tauri://drag-drop", onFileDrop);
 
         return () => {
             ipc.release();
@@ -1288,13 +1299,22 @@
 </script>
 
 <svelte:window oncontextmenu={(e) => e.preventDefault()} />
-<svelte:document {onkeydown} {onkeyup} onmousemove={onMouseMove} onmousedown={onMouseDown} onmouseup={onMouseUp} ondragover={(e) => e.preventDefault()} ondragenter={onDragEnter} />
+<svelte:document
+    {onkeydown}
+    {onkeyup}
+    onmousemove={onMouseMove}
+    onmousedown={onMouseDown}
+    onmouseup={onMouseUp}
+    ondragover={(e) => e.preventDefault()}
+    ondragenter={onDragEnter}
+    ondragleave={onDragLeave}
+/>
 
 <div class="viewport" class:full-screen={$appState.isFullScreen} class:sliding={$appState.slideState.sliding}>
     <Bar />
     <div class="view">
         <Header {requestLoad} {startSearch} {endSearch} {goBack} {goForward} {createItem} {reload} bind:this={header} />
-        <div class="body" ondragover={(e) => e.preventDefault()} ondrop={onItemDrop} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div id="viewContent" class="body" ondragover={(e) => e.preventDefault()} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <Left {requestLoad} />
             <div
                 class="main"
