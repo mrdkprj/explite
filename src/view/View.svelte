@@ -823,6 +823,10 @@
     };
 
     const requestLoad = async (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => {
+        if ($appState.search.searching) {
+            await endSearch(false);
+        }
+
         if (fullPath != $listState.currentDir.fullPath) {
             const result = await main.onSelect({ fullPath, isFile, navigation });
             if (result) {
