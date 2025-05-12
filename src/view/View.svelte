@@ -236,7 +236,7 @@
 
         const sourcePaths = e.paths;
 
-        if (destPath != path.dirname(sourcePaths[0]) && !sourcePaths.includes(destPath)) return;
+        if (destPath == path.dirname(sourcePaths[0]) || sourcePaths.includes(destPath)) return;
 
         const shouldCopy = util.getRootDirectory(destPath) != util.getRootDirectory(sourcePaths[0]);
 

@@ -24,10 +24,6 @@
         "media-src":"'self' asset: http://asset.localhost",
         "style-src": "'unsafe-inline' 'self'"
       }
-    },
-    "trayIcon": {
-      "iconPath": "icons/icon.ico",
-      "showMenuOnLeftClick": true
     }
   }
 }
