@@ -525,6 +525,14 @@
     z-index: 700;
 }
 
+.folder {
+    color: #e59d1a;
+}
+
+.hidden-folder {
+    color: rgb(229 157 26 / 45%);
+}
+
 .entry-name .name {
     pointer-events: none;
     position: relative;

@@ -1,5 +1,5 @@
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
-import { Dirent, IPCBase } from "./ipc";
+import { Dirent, FileAttribute, IPCBase } from "./ipc";
 import { path } from "./path";
 import { MIME_TYPE, OS, SEPARATOR } from "./constants";
 import { t } from "./translation/useTranslation";
@@ -32,7 +32,11 @@ class Util {
         return hash;
     }
 
-    getFileType(mimeType: string, extension: string): Mp.FileType {
+    getFileType(attr: FileAttribute, mimeType: string, extension: string): Mp.FileType {
+        if (attr.is_directory) {
+            return attr.is_hidden ? "HiddenFolder" : "Folder";
+        }
+
         if (REGULAR_TYPES.includes(extension)) {
             return "Normal";
         }
@@ -61,7 +65,9 @@ class Util {
         const fullPath = dirent.full_path;
         const attr = dirent.attributes;
         const extension = attr.is_directory ? t("typeFolder") : path.extname(fullPath);
-
+        if (dirent.attributes.is_hidden) {
+            console.log(fullPath);
+        }
         return {
             id: encodeURIComponent(fullPath),
             fullPath,
@@ -73,7 +79,7 @@ class Util {
             size: Math.ceil(attr.size / 1024),
             extension,
             isFile: attr.is_file,
-            fileType: attr.is_directory ? "None" : this.getFileType(dirent.mime_type, extension),
+            fileType: this.getFileType(attr, dirent.mime_type, extension),
         };
     }
 
@@ -89,7 +95,7 @@ class Util {
             size: 0,
             extension: "",
             isFile: false,
-            fileType: "None",
+            fileType: "Folder",
         };
     }
 
@@ -109,7 +115,7 @@ class Util {
             size: Math.ceil(attr.size / 1024),
             extension,
             isFile: attr.is_file,
-            fileType: attr.is_directory ? "None" : this.getFileType(mimeType, extension),
+            fileType: this.getFileType(attr, mimeType, extension),
         };
     }
 

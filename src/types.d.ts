@@ -99,7 +99,7 @@ declare global {
             type: Mp.SortType;
         };
 
-        type FileType = "Video" | "Audio" | "Image" | "App" | "Normal" | "None";
+        type FileType = "Video" | "Audio" | "Image" | "App" | "Normal" | "Folder" | "HiddenFolder";
         type MediaFile = {
             id: string;
             fullPath: string;

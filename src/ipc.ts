@@ -11,7 +11,7 @@ type ReadDirRequest = {
     recursive: boolean;
 };
 
-type FileAttribute = {
+export type FileAttribute = {
     is_device: boolean;
     is_directory: boolean;
     is_file: boolean;

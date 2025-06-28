@@ -129,8 +129,7 @@
             pendingPath = null;
         }
 
-        const fullPath = $listState.currentDir.fullPath;
-        const tempPath = fullPath.substring(0, fullPath.indexOf(path) + path.length);
+        const tempPath = $listState.currentDir.paths.slice(0, $listState.currentDir.paths.indexOf(path) + 1).join(SEPARATOR);
         const targetPath = tempPath.endsWith(":") ? `${tempPath}${SEPARATOR}` : tempPath;
 
         requestLoad(targetPath, false, "PathSelect");

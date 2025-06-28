@@ -680,10 +680,9 @@
     };
 
     const startSearch = async () => {
-        const result = await main.search({ dir: $listState.currentDir.fullPath, key: $appState.search.key, refresh: false });
         dispatch({ type: "clearCopyCut" });
         dispatch({ type: "startSearch" });
-
+        const result = await main.search({ dir: $listState.currentDir.fullPath, key: $appState.search.key, refresh: false });
         onSearched(result);
     };
 
@@ -1408,7 +1407,7 @@
                                         role="button"
                                         tabindex="-1"
                                     >
-                                        <div class="icon" data-file-id={item.id}>
+                                        <div class="icon" class:folder={item.fileType == "Folder"} class:hidden-folder={item.fileType == "HiddenFolder"} data-file-id={item.id}>
                                             {#if item.isFile}
                                                 {#if item.fileType == "Audio"}
                                                     <AudioSvg />

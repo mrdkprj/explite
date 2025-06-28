@@ -43,7 +43,7 @@
                 role="button"
                 tabindex="-1"
             >
-                <div class="icon">
+                <div class="icon folder">
                     <FolderSvg />
                 </div>
                 <div class="name">{favorite.name}</div>
