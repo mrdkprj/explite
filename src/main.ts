@@ -215,9 +215,9 @@ class Main {
     };
 
     private isSearchFileFound = (value: string, key: string) => {
-        const lowerValue = value.toLocaleLowerCase();
-        const strippedText = lowerValue.replace(/[\!#\$\%&'\(\)\=\~\^\-\|`@\{\[\+;\]\}\,\_\s]/g, " ").split(" ");
-        return strippedText.some((s) => s.toLocaleLowerCase().includes(key)) || lowerValue == key;
+        const strippedKey = key.replace(/[\!#\$\%&'\(\)\=\~\^\-\|`@\{\[\+;\]\}\,\_\s]/g, "");
+        const strippedText = value.toLocaleLowerCase().replace(/[\!#\$\%&'\(\)\=\~\^\-\|`@\{\[\+;\]\}\,\_\s]/g, "");
+        return strippedText.includes(strippedKey);
     };
 
     onSearchEnd = async (temporal: boolean): Promise<Mp.SearchResult> => {
