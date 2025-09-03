@@ -1,8 +1,8 @@
 use dialog::DialogOptions;
-use nonstd::*;
 use serde::{Deserialize, Serialize};
 use std::{env, path::PathBuf};
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
+use zouni::*;
 mod dialog;
 mod menu;
 mod watcher;
@@ -286,11 +286,11 @@ fn open_terminal(payload: String) -> Result<(), String> {
     if cfg!(windows) {
         let mut arg = "wt.exe -d ".to_string();
         arg.push_str(&payload);
-        nonstd::shell::execute(arg, "powershell")
+        zouni::shell::execute(arg, "powershell")
     } else {
         let mut commandline_arg = "gnome-terminal --working-directory=".to_string();
         commandline_arg.push_str(&payload);
-        nonstd::shell::execute("/", commandline_arg)
+        zouni::shell::execute("/", commandline_arg)
     }
 }
 
@@ -299,7 +299,7 @@ fn launch_new(app: AppHandle) -> Result<(), String> {
     let app_path = tauri::process::current_binary(&app.env()).map_err(|e| e.to_string())?;
 
     if cfg!(windows) {
-        nonstd::shell::open_path(app_path)
+        zouni::shell::open_path(app_path)
     } else {
         std::process::Command::new(app_path).spawn().map_err(|e| e.to_string())?;
         Ok(())
@@ -310,7 +310,7 @@ fn launch_new(app: AppHandle) -> Result<(), String> {
 fn open_in_new_window(app: AppHandle, payload: String) -> Result<(), String> {
     let app_path = tauri::process::current_binary(&app.env()).map_err(|e| e.to_string())?;
     if cfg!(windows) {
-        nonstd::shell::open_path_with(payload, app_path)
+        zouni::shell::open_path_with(payload, app_path)
     } else {
         std::process::Command::new(app_path).arg(payload).spawn().map_err(|e| e.to_string())?;
         Ok(())
@@ -327,7 +327,7 @@ fn get_args(app: AppHandle) -> InitArgs {
     if let Some(urls) = app.try_state::<Vec<String>>() {
         return InitArgs {
             urls: urls.inner().clone(),
-            locales: vec![nonstd::shell::get_locale()],
+            locales: vec![zouni::shell::get_locale()],
         };
     }
 
@@ -342,7 +342,7 @@ fn get_args(app: AppHandle) -> InitArgs {
 fn register_drop_target(window: WebviewWindow) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        nonstd::drag_drop::register(window.hwnd().unwrap().0 as isize)
+        zouni::drag_drop::register(window.hwnd().unwrap().0 as isize)
     }
     #[cfg(target_os = "linux")]
     {
@@ -352,14 +352,14 @@ fn register_drop_target(window: WebviewWindow) -> Result<(), String> {
 
 #[tauri::command]
 fn listen_devices(window: WebviewWindow) -> bool {
-    nonstd::device::listen(move |event| {
+    zouni::device::listen(move |event| {
         window.emit("device_event", event).unwrap();
     })
 }
 
 #[tauri::command]
 fn unlisten_devices() {
-    nonstd::device::unlisten();
+    zouni::device::unlisten();
 }
 
 #[tauri::command]
@@ -368,7 +368,7 @@ fn listen_file_drop(window: WebviewWindow, app: AppHandle) -> tauri::Result<()> 
     {
         let label = window.label().to_string();
         window.with_webview(move |webview| {
-            nonstd::webview2::register_file_drop(unsafe { &webview.controller().CoreWebView2().unwrap() }, Some("viewContent".to_string()), move |event| {
+            zouni::webview2::register_file_drop(unsafe { &webview.controller().CoreWebView2().unwrap() }, Some("viewContent".to_string()), move |event| {
                 app.get_webview_window(&label).unwrap().emit("tauri://drag-drop", event).unwrap();
             })
             .unwrap();
@@ -383,7 +383,7 @@ fn listen_file_drop(window: WebviewWindow, app: AppHandle) -> tauri::Result<()> 
 #[tauri::command]
 fn unlisten_file_drop() {
     #[cfg(target_os = "windows")]
-    nonstd::webview2::clear();
+    zouni::webview2::clear();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

@@ -1,5 +1,4 @@
 use async_std::sync::Mutex;
-use nonstd::AppInfo;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::Path};
@@ -8,6 +7,7 @@ use wcpopup::{
     config::{ColorScheme, Config, MenuSize, Theme, ThemeColor, DEFAULT_DARK_COLOR_SCHEME},
     Menu, MenuBuilder, MenuIcon, MenuItem, MenuItemType,
 };
+use zouni::AppInfo;
 
 static MENU_MAP: Lazy<Mutex<HashMap<String, Menu>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 pub const LIST: &str = "list";
@@ -74,7 +74,7 @@ fn update_open_with(menu: &Menu, file_path: String) {
 
     select_app_item.set_visible(true);
 
-    let apps = nonstd::shell::get_open_with(file_path);
+    let apps = zouni::shell::get_open_with(file_path);
 
     let apps: Vec<AppInfo> = apps.into_iter().filter(|app| !app.path.is_empty()).rev().collect();
 

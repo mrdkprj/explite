@@ -889,13 +889,13 @@ version = "0.1.0"
 dependencies = [
  "async-std",
  "gtk",
- "nonstd",
  "notify",
  "once_cell",
  "serde",
  "tauri",
  "tauri-build",
  "wcpopup",
+ "zouni",
 ]
 
 [[package]]
@@ -2165,27 +2165,6 @@ name = "nodrop"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
-
-[[package]]
-name = "nonstd"
-version = "0.1.0"
-source = "git+https://github.com/mrdkprj/nonstd.git?rev=cc31907d4805514ade3d0ff0d6c8d78a6cbbe752#cc31907d4805514ade3d0ff0d6c8d78a6cbbe752"
-dependencies = [
- "async-std",
- "gio",
- "gtk",
- "libc",
- "mime_guess",
- "once_cell",
- "rfd",
- "rusb",
- "serde",
- "serde_json",
- "shared_child",
- "webview2-com",
- "windows",
- "windows-core",
-]
 
 [[package]]
 name = "notify"
@@ -5119,4 +5098,26 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.101",
+]
+
+[[package]]
+name = "zouni"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a87ba976e503b80efd95f2c0c4ec8f4cf5ced913aa87dca166656dd6dc7ca1b"
+dependencies = [
+ "async-std",
+ "gio",
+ "gtk",
+ "libc",
+ "mime_guess",
+ "once_cell",
+ "rfd",
+ "rusb",
+ "serde",
+ "serde_json",
+ "shared_child",
+ "webview2-com",
+ "windows",
+ "windows-core",
 ]

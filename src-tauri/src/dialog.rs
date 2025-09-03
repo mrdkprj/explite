@@ -1,5 +1,5 @@
-use nonstd::dialog::{message, MessageDialogKind, MessageDialogOptions};
 use serde::{Deserialize, Serialize};
+use zouni::dialog::{message, MessageDialogKind, MessageDialogOptions};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DialogOptions {
