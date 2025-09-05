@@ -28,17 +28,22 @@ class Main {
             await ipc.invoke("listen_file_drop", dropTagetId);
         }
 
+        this.cleanHeaderHistory();
+
         const drives = await util.getDriveInfo();
 
         const args = await ipc.invoke("get_args", undefined);
 
         let selectId;
-        if (args.urls.length) {
-            const item = await util.toFileFromPath(args.urls[0]);
+        let initialDirectory = "";
+        const item = args.urls.length ? await util.toFileFromPath(args.urls[0]) : null;
+        if (item) {
             if (item.isFile) {
                 selectId = item.id;
+                initialDirectory = item.dir;
                 await this.readFiles(item.dir);
             } else {
+                initialDirectory = item.fullPath;
                 await this.readFiles(item.fullPath);
             }
         }
@@ -48,9 +53,19 @@ class Main {
         this.initialized = true;
 
         return {
-            settings: this.settings.data,
+            settings: structuredClone(this.settings.data),
             locale,
-            data: { files: this.files, drives, directory: this.currentDir, navigation: "Direct", sortType: DEFAULT_SORT_TYPE, failed: false },
+            data: {
+                files: this.files,
+                drives,
+                directory: this.currentDir,
+                navigation: "Direct",
+                sortType: DEFAULT_SORT_TYPE,
+                failed: false,
+                headers: this.settings.data.headerHistory[initialDirectory]
+                    ? structuredClone(this.settings.data.headerHistory[initialDirectory].labels)
+                    : structuredClone(this.settings.data.headerLabels),
+            },
             selectId,
         };
     };
@@ -96,7 +111,7 @@ class Main {
     private openFolder = async (fullPath: string, navigation: Mp.Navigation): Promise<Mp.LoadEvent | null> => {
         if (fullPath == HOME) {
             const result = await this.readFiles(HOME);
-            return { files: this.files, directory: HOME, navigation, sortType: result.sortType, failed: !result.done };
+            return { files: this.files, directory: HOME, navigation, sortType: result.sortType, failed: !result.done, headers: [] };
         }
 
         const directory = fullPath;
@@ -106,6 +121,8 @@ class Main {
             return null;
         }
 
+        this.validateHeaderHistory(directory);
+
         const cacheKey = Object.keys(this.searchCache)[0];
         if (cacheKey != directory) {
             delete this.searchCache[cacheKey];
@@ -113,7 +130,14 @@ class Main {
 
         const result = await this.readFiles(directory);
 
-        return { files: this.files, directory, navigation, sortType: result.sortType, failed: !result.done };
+        return {
+            files: this.files,
+            directory,
+            navigation,
+            sortType: result.sortType,
+            failed: !result.done,
+            headers: this.settings.data.headerHistory[directory] ? structuredClone(this.settings.data.headerHistory[directory].labels) : structuredClone(this.settings.data.headerLabels),
+        };
     };
 
     openPropertyDielog = async (fileOrId: Mp.MediaFile | string) => {
@@ -189,7 +213,7 @@ class Main {
 
     search = async (e: Mp.SearchRequest): Promise<Mp.SearchResult> => {
         if (!this.searchBackup.length) {
-            this.searchBackup = [...this.files];
+            this.searchBackup = structuredClone(this.files);
             // In search, all items needs to be listed, so watch recursively
             this.startWatch(true);
         }
@@ -223,7 +247,7 @@ class Main {
     onSearchEnd = async (temporal: boolean): Promise<Mp.SearchResult> => {
         if (this.searchBackup.length) {
             this.sortFiles(this.currentDir, this.searchBackup);
-            this.files = [...this.searchBackup];
+            this.files = structuredClone(this.searchBackup);
             this.searchBackup = [];
             this.searchKeyword = "";
         }
@@ -238,16 +262,45 @@ class Main {
 
     sortFiles = (directory: string, files: Mp.MediaFile[], sortType?: Mp.SortType): Mp.SortType => {
         if (sortType) {
-            if (Object.keys(this.settings.data.sortHistory).length == 100) {
-                const oldestEntry = Object.entries(this.settings.data.sortHistory).reduce((prev, curr) => (prev[1].time < curr[1].time ? prev : curr));
-                delete this.settings.data.sortHistory[oldestEntry[0]];
-            }
-            this.settings.data.sortHistory[directory] = { time: new Date().getTime(), type: sortType };
+            this.updateHeaderHistory(directory, sortType, null);
         }
-
-        const applicableSort = this.settings.data.sortHistory[directory] ? this.settings.data.sortHistory[directory].type : DEFAULT_SORT_TYPE;
+        const applicableSort = this.settings.data.headerHistory[directory] ? this.settings.data.headerHistory[directory].sortType : DEFAULT_SORT_TYPE;
         util.sort(files, applicableSort.asc, applicableSort.key);
         return applicableSort;
+    };
+
+    private updateHeaderHistory = (directory: string, sortType: Mp.SortType | null, labels: Mp.HeaderLabel[] | null) => {
+        if (directory == HOME) return;
+
+        if (Object.keys(this.settings.data.headerHistory).length == 100) {
+            const oldestEntry = Object.entries(this.settings.data.headerHistory).reduce((prev, curr) => (prev[1].time < curr[1].time ? prev : curr));
+            delete this.settings.data.headerHistory[oldestEntry[0]];
+        }
+
+        if (this.settings.data.headerHistory[directory]) {
+            this.settings.data.headerHistory[directory].time = new Date().getTime();
+            this.settings.data.headerHistory[directory].sortType = sortType ?? this.settings.data.headerHistory[directory].sortType;
+            this.settings.data.headerHistory[directory].labels = labels ?? this.settings.data.headerHistory[directory].labels;
+        } else {
+            this.settings.data.headerHistory[directory] = { time: new Date().getTime(), sortType: sortType ?? DEFAULT_SORT_TYPE, labels: labels ?? this.settings.data.headerLabels };
+        }
+    };
+
+    private validateHeaderHistory = (directory: string) => {
+        if (this.settings.data.headerHistory[directory]) {
+            this.settings.data.headerHistory[directory].time = new Date().getTime();
+        }
+    };
+
+    private cleanHeaderHistory = async () => {
+        const date = new Date();
+        date.setDate(date.getDate() - 30);
+        const monthBefore = date.getTime();
+        const newHistory: { [key: string]: Mp.HeaderSetting } = {};
+        Object.entries(this.settings.data.headerHistory)
+            .filter(([_, value]) => value.time > monthBefore)
+            .forEach(([key, value]) => (newHistory[key] = value));
+        this.settings.data.headerHistory = newHistory;
     };
 
     onUnmaximize = (): Mp.SettingsChangeEvent => {
@@ -302,15 +355,26 @@ class Main {
         await ipc.invoke("open_path", this.settings.getFilePath());
     };
 
-    onWidthChange = (e: Mp.WidthChangeEvent) => {
+    onColumnHeaderChanged = (e: Mp.WidthChangeEvent) => {
         this.settings.data.leftAreaWidth = e.leftWidth;
-        this.settings.data.headerLabels = e.labels;
+        this.updateHeaderHistory(this.currentDir, null, e.labels);
     };
 
-    reload = async (includeDrive: boolean): Promise<Mp.LoadEvent> => {
+    reload = async (includeDrive: boolean): Promise<Mp.LoadEvent | null> => {
+        if (this.currentDir == HOME) {
+            return null;
+        }
         const result = await this.readFiles(this.currentDir);
         const drives = includeDrive ? await util.getDriveInfo() : undefined;
-        return { files: this.files, drives, directory: this.currentDir, navigation: "Reload", sortType: result.sortType, failed: !result.done };
+        return {
+            files: this.files,
+            drives,
+            directory: this.currentDir,
+            navigation: "Reload",
+            sortType: result.sortType,
+            failed: !result.done,
+            headers: this.settings.data.headerHistory[this.currentDir] ? structuredClone(this.settings.data.headerHistory[this.currentDir].labels) : structuredClone(this.settings.data.headerLabels),
+        };
     };
 
     startDrag = async (files: string[]) => {

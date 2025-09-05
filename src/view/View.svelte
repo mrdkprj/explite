@@ -32,7 +32,6 @@
     let header: Header;
     let canvas: HTMLCanvasElement;
     let folderUpdatePromise: Deferred<number> | null;
-    let handleMouseEvent = false;
     // Linux only
     let handleKeyUp = false;
 
@@ -113,8 +112,7 @@
     };
 
     const onMouseDown = (e: MouseEvent) => {
-        handleMouseEvent = shouldHandleMouseEvent(e);
-        if (!handleMouseEvent) return;
+        if (!shouldHandleMouseEvent(e)) return;
 
         if (e.ctrlKey || e.shiftKey) return;
 
@@ -152,6 +150,7 @@
         if (!e.target || !(e.target instanceof HTMLElement)) return false;
         if (!fileListContainer) return false;
         if ($listState.rename.renaming) return false;
+        if ($appState.columnDragId) return false;
 
         if (e.target.hasAttribute("data-path") || e.target.classList.contains("button")) return false;
 
@@ -174,10 +173,10 @@
             const dist = e.clientX - $appState.slideState.startX;
             dispatch({ type: "slide", value: dist });
             dispatch({ type: "endSlide" });
-            main.onWidthChange({ leftWidth: $appState.leftWidth, labels: $appState.headerLabels });
+            onColumnHeaderChanged();
         }
 
-        if (!handleMouseEvent) return;
+        if (!shouldHandleMouseEvent(e)) return;
 
         if (!$appState.clip.moved && e.target.id == "list") {
             clearSelection();
@@ -186,12 +185,17 @@
         endClip();
     };
 
+    const onColumnHeaderChanged = () => {
+        main.onColumnHeaderChanged({ leftWidth: $appState.leftWidth, labels: $appState.headerLabels });
+    };
+
     const startDrag = async (e: DragEvent) => {
         e.preventDefault();
 
         if (!e.target || !(e.target instanceof HTMLElement)) return;
         if (!$appState.selection.selectedIds.length) return;
         if ($appState.clip.moved) return;
+        if ($appState.columnDragId) return;
 
         const id = e.target.getAttribute("data-file-id") ?? "";
         if (!$appState.selection.selectedIds.includes(id)) return;
@@ -202,6 +206,12 @@
         await ipc.invoke("register_drop_target", undefined);
 
         await main.startDrag(paths);
+    };
+
+    const onDragOver = (e: DragEvent) => {
+        if (!$appState.columnDragId) {
+            e.preventDefault();
+        }
     };
 
     const onDragEnter = (e: DragEvent) => {
@@ -260,6 +270,7 @@
     const startClip = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
         if (!fileListContainer) return;
+        if (e.target.hasAttribute("data-column")) return;
 
         const id = e.target.getAttribute("data-file-id") ?? "";
 
@@ -649,7 +660,9 @@
             await endSearch(true);
         } else {
             const result = await main.reload(includeDrive);
-            load(result);
+            if (result) {
+                load(result);
+            }
         }
     };
 
@@ -884,6 +897,7 @@
 
         if (!navigate(e)) return;
 
+        dispatch({ type: "headerLabels", value: e.headers });
         dispatch({ type: "history", value: { canGoBack: BACKWARD.length > 0, canGoForward: FORWARD.length > 0 } });
         dispatch({ type: "sort", value: e.sortType });
         dispatch({ type: "load", value: { event: e } });
@@ -1244,9 +1258,8 @@
         const e = await main.onMainReady("viewContent");
 
         window.lang = e.locale;
-        const headerLabels: Mp.HeaderLabels = DEFAULT_LABLES;
-        Object.entries(e.settings.headerLabels).forEach((entry) => {
-            const header = entry[1];
+        const headerLabels: Mp.HeaderLabel[] = DEFAULT_LABLES;
+        e.settings.headerLabels.forEach((header) => {
             let label = "";
             switch (header.sortKey) {
                 case "cdate":
@@ -1269,9 +1282,11 @@
                     break;
             }
             header.label = label;
-            headerLabels[header.sortKey] = header;
+            let target = e.settings.headerLabels.findIndex((label) => label.sortKey == header.sortKey);
+            headerLabels[target] = header;
         });
         dispatch({ type: "headerLabels", value: headerLabels });
+
         dispatch({ type: "leftWidth", value: e.settings.leftAreaWidth });
         dispatch({ type: "sort", value: DEFAULT_SORT_TYPE });
         dispatch({ type: "changeFavorites", value: e.settings.favorites });
@@ -1302,22 +1317,13 @@
 </script>
 
 <svelte:window oncontextmenu={(e) => e.preventDefault()} />
-<svelte:document
-    {onkeydown}
-    {onkeyup}
-    onmousemove={onMouseMove}
-    onmousedown={onMouseDown}
-    onmouseup={onMouseUp}
-    ondragover={(e) => e.preventDefault()}
-    ondragenter={onDragEnter}
-    ondragleave={onDragLeave}
-/>
+<svelte:document {onkeydown} {onkeyup} onmousemove={onMouseMove} onmousedown={onMouseDown} onmouseup={onMouseUp} ondragover={onDragOver} ondragenter={onDragEnter} ondragleave={onDragLeave} />
 
 <div class="viewport" class:full-screen={$appState.isFullScreen} class:sliding={$appState.slideState.sliding}>
     <Bar />
     <div class="view">
         <Header {requestLoad} {startSearch} {endSearch} {goBack} {goForward} {createItem} {reload} bind:this={header} />
-        <div id="viewContent" class="body" ondragover={(e) => e.preventDefault()} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div id="viewContent" class="body" ondragover={onDragOver} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <Left {requestLoad} />
             <div
                 class="main"
@@ -1366,13 +1372,13 @@
                         {#snippet header()}
                             <div class="list-header nofocus" onclick={onColumnHeaderClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
                                 {#if $appState.search.searching}
-                                    {#each Object.values($appState.headerLabels) as label}
-                                        <Column {onColSliderMousedown} {label} />
+                                    {#each $appState.headerLabels as label}
+                                        <Column {onColSliderMousedown} {label} columnHeaderChanged={onColumnHeaderChanged} />
                                     {/each}
                                 {:else}
-                                    {#each Object.values($appState.headerLabels) as label}
+                                    {#each $appState.headerLabels as label}
                                         {#if label.sortKey != "directory"}
-                                            <Column {onColSliderMousedown} {label} />
+                                            <Column {onColSliderMousedown} {label} columnHeaderChanged={onColumnHeaderChanged} />
                                         {/if}
                                     {/each}
                                 {/if}
@@ -1398,62 +1404,71 @@
                                 role="button"
                                 tabindex="-1"
                             >
-                                <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.name.width}px;">
-                                    <div
-                                        class="entry-name draggable"
-                                        title={$appState.search.searching ? item.fullPath : item.name}
-                                        data-file-id={item.id}
-                                        onmousedown={colDetailMouseDown}
-                                        role="button"
-                                        tabindex="-1"
-                                    >
-                                        <div class="icon" class:folder={item.fileType == "Folder"} class:hidden-folder={item.fileType == "HiddenFolder"} data-file-id={item.id}>
-                                            {#if item.isFile}
-                                                {#if item.fileType == "Audio"}
-                                                    <AudioSvg />
-                                                {:else if item.fileType == "Video"}
-                                                    <VideoSvg />
-                                                {:else if item.fileType == "Image"}
-                                                    <ImageSvg />
-                                                {:else if item.fileType == "App"}
-                                                    <AppSvg />
-                                                {:else}
-                                                    <FileSvg />
-                                                {/if}
-                                            {:else}
-                                                <FolderSvg />
-                                            {/if}
+                                {#each $appState.headerLabels as label}
+                                    {#if label.sortKey == "name"}
+                                        <div class="col-detail" data-file-id={item.id} style="width: {label.width}px;">
+                                            <div
+                                                class="entry-name draggable"
+                                                title={$appState.search.searching ? item.fullPath : item.name}
+                                                data-file-id={item.id}
+                                                onmousedown={colDetailMouseDown}
+                                                role="button"
+                                                tabindex="-1"
+                                            >
+                                                <div class="icon" class:folder={item.fileType == "Folder"} class:hidden-folder={item.fileType == "HiddenFolder"} data-file-id={item.id}>
+                                                    {#if item.isFile}
+                                                        {#if item.fileType == "Audio"}
+                                                            <AudioSvg />
+                                                        {:else if item.fileType == "Video"}
+                                                            <VideoSvg />
+                                                        {:else if item.fileType == "Image"}
+                                                            <ImageSvg />
+                                                        {:else if item.fileType == "App"}
+                                                            <AppSvg />
+                                                        {:else}
+                                                            <FileSvg />
+                                                        {/if}
+                                                    {:else}
+                                                        <FolderSvg />
+                                                    {/if}
+                                                </div>
+                                                <div class="name" id={item.uuid} data-file-id={item.id} class:rename-hidden={$listState.rename.targetUUID == item.uuid}>
+                                                    {item.name}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="name" id={item.uuid} data-file-id={item.id} class:rename-hidden={$listState.rename.targetUUID == item.uuid}>
-                                            {item.name}
+                                    {:else if label.sortKey == "directory"}
+                                        {#if $appState.search.searching}
+                                            <div class="col-detail" data-file-id={item.id} style="width: {label.width + HEADER_DIVIDER_WIDTh}px;">
+                                                <div class="draggable" title={item.dir} data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.dir}</div>
+                                            </div>
+                                        {/if}
+                                    {:else if label.sortKey == "extension"}
+                                        <div class="col-detail" data-file-id={item.id} style="width: {label.width + HEADER_DIVIDER_WIDTh}px;">
+                                            <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.extension}</div>
                                         </div>
-                                    </div>
-                                </div>
-                                {#if $appState.search.searching}
-                                    <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.directory.width + HEADER_DIVIDER_WIDTh}px;">
-                                        <div class="draggable" title={item.dir} data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.dir}</div>
-                                    </div>
-                                {/if}
-                                <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.extension.width + HEADER_DIVIDER_WIDTh}px;">
-                                    <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.extension}</div>
-                                </div>
-                                <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.mdate.width + HEADER_DIVIDER_WIDTh}px;">
-                                    <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
-                                        {new Date(item.mdate).toLocaleString("ja-JP", DATE_OPTION)}
-                                    </div>
-                                </div>
-                                <div class="col-detail" data-file-id={item.id} style="width: {$appState.headerLabels.cdate.width + HEADER_DIVIDER_WIDTh}px;">
-                                    <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
-                                        {new Date(item.cdate).toLocaleString("jp-JP", DATE_OPTION)}
-                                    </div>
-                                </div>
-                                <div class="col-detail size" data-file-id={item.id} style="width: {$appState.headerLabels.size.width + HEADER_DIVIDER_WIDTh}px;">
-                                    <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
-                                        {item.size > 0 || (item.size == 0 && item.isFile)
-                                            ? `${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingPriority: "morePrecision" }).format(item.size)} KB`
-                                            : ""}
-                                    </div>
-                                </div>
+                                    {:else if label.sortKey == "mdate"}
+                                        <div class="col-detail" data-file-id={item.id} style="width: {label.width + HEADER_DIVIDER_WIDTh}px;">
+                                            <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
+                                                {new Date(item.mdate).toLocaleString("ja-JP", DATE_OPTION)}
+                                            </div>
+                                        </div>
+                                    {:else if label.sortKey == "cdate"}
+                                        <div class="col-detail" data-file-id={item.id} style="width: {label.width + HEADER_DIVIDER_WIDTh}px;">
+                                            <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
+                                                {new Date(item.cdate).toLocaleString("jp-JP", DATE_OPTION)}
+                                            </div>
+                                        </div>
+                                    {:else if label.sortKey == "size"}
+                                        <div class="col-detail size" data-file-id={item.id} style="width: {label.width + HEADER_DIVIDER_WIDTh}px;">
+                                            <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
+                                                {item.size > 0 || (item.size == 0 && item.isFile)
+                                                    ? `${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingPriority: "morePrecision" }).format(item.size)} KB`
+                                                    : ""}
+                                            </div>
+                                        </div>
+                                    {/if}
+                                {/each}
                             </div>
                         {/snippet}
                         {#snippet empty()}{/snippet}

@@ -88,15 +88,16 @@ declare global {
         type Settings = {
             bounds: Bounds;
             isMaximized: boolean;
-            headerLabels: Mp.HeaderLabels;
+            headerLabels: Mp.HeaderLabel[];
             favorites: Mp.MediaFile[];
             leftAreaWidth: number;
-            sortHistory: { [key: string]: Mp.SortSetting };
+            headerHistory: { [key: string]: Mp.HeaderSetting };
         };
 
-        type SortSetting = {
+        type HeaderSetting = {
             time: number;
-            type: Mp.SortType;
+            sortType: Mp.SortType;
+            labels: Mp.HeaderLabel[];
         };
 
         type FileType = "Video" | "Audio" | "Image" | "App" | "Normal" | "Folder" | "HiddenFolder";
@@ -121,9 +122,10 @@ declare global {
             navigation: Mp.Navigation;
             sortType: Mp.SortType;
             failed: boolean;
+            headers: Mp.HeaderLabel[];
         };
 
-        type HeaderLabels = { [key in Mp.SortKey]: Mp.HeaderLabel };
+        type HeaderLabelMap = { [key in Mp.SortKey]: Mp.HeaderLabel };
 
         type HeaderLabel = {
             label: string;
@@ -177,7 +179,7 @@ declare global {
 
         type WidthChangeEvent = {
             leftWidth: number;
-            labels: Mp.HeaderLabels;
+            labels: Mp.HeaderLabel[];
         };
 
         type CreateItemResult = {

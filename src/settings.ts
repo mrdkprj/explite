@@ -4,7 +4,7 @@ import { IPC } from "./ipc";
 
 const ipc = new IPC("View");
 const SETTING_FILE_NAME = "explite.settings.json";
-const EXCEPTION_KEYS = ["sortHistory"];
+const EXCEPTION_KEYS = ["headerHistory"];
 
 const defaultSettings: Mp.Settings = {
     bounds: { width: 1200, height: 800, x: 0, y: 0 },
@@ -12,7 +12,7 @@ const defaultSettings: Mp.Settings = {
     headerLabels: DEFAULT_LABLES,
     favorites: [],
     leftAreaWidth: 0,
-    sortHistory: {},
+    headerHistory: {},
 };
 
 export default class Settings {

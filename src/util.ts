@@ -65,9 +65,7 @@ class Util {
         const fullPath = dirent.full_path;
         const attr = dirent.attributes;
         const extension = attr.is_directory ? t("typeFolder") : path.extname(fullPath);
-        if (dirent.attributes.is_hidden) {
-            console.log(fullPath);
-        }
+
         return {
             id: encodeURIComponent(fullPath),
             fullPath,

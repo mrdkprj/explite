@@ -32,7 +32,7 @@ type AppState = {
     isMaximized: boolean;
     isFullScreen: boolean;
     pathEditing: boolean;
-    headerLabels: Mp.HeaderLabels;
+    headerLabels: Mp.HeaderLabel[];
     canGoBack: boolean;
     canGoForward: boolean;
     sort: Mp.SortType;
@@ -47,6 +47,7 @@ type AppState = {
         files: Mp.MediaFile[];
     };
     dragTargetId: string;
+    columnDragId: string;
     clip: Clip;
     incrementalKey: string;
     search: SearchState;
@@ -81,6 +82,7 @@ export const initialAppState: AppState = {
         files: [],
     },
     dragTargetId: "",
+    columnDragId: "",
     clip: {
         startId: "",
         clipAreaStyle: "",
@@ -106,7 +108,7 @@ type AppAction =
     | { type: "pathEditing"; value: boolean }
     | { type: "startSearch" }
     | { type: "endSearch" }
-    | { type: "headerLabels"; value: Mp.HeaderLabels }
+    | { type: "headerLabels"; value: Mp.HeaderLabel[] }
     | { type: "history"; value: { canGoBack: boolean; canGoForward: boolean } }
     | { type: "sort"; value: Mp.SortType }
     | { type: "updateFiles"; value: { files: Mp.MediaFile[] } }
@@ -136,6 +138,8 @@ type AppAction =
     | { type: "clearIncremental" }
     | { type: "hoverFavoriteId"; value: string }
     | { type: "drives"; value: Mp.DriveInfo[] }
+    | { type: "startDragColumn"; value: string }
+    | { type: "endDragColumn" }
     | { type: "load"; value: { event: Mp.LoadEvent } };
 
 const updater = (state: AppState, action: AppAction): AppState => {
@@ -195,17 +199,14 @@ const updater = (state: AppState, action: AppAction): AppState => {
         case "endSearch":
             return { ...state, search: { ...state.search, searching: false, key: "" } };
 
-        case "incremental": {
+        case "incremental":
             return { ...state, incrementalKey: action.value };
-        }
 
-        case "clearIncremental": {
+        case "clearIncremental":
             return { ...state, incrementalKey: "" };
-        }
 
-        case "headerLabels": {
+        case "headerLabels":
             return { ...state, headerLabels: action.value };
-        }
 
         case "history":
             return { ...state, canGoBack: action.value.canGoBack, canGoForward: action.value.canGoForward };
@@ -257,8 +258,7 @@ const updater = (state: AppState, action: AppAction): AppState => {
             if (action.value.target == "Area") {
                 return { ...state, slideState: { ...state.slideState, sliding: true, target: action.value.target, initial: state.leftWidth, startX: action.value.startX } };
             }
-
-            const label = state.headerLabels[action.value.target];
+            const label = state.headerLabels.filter((label) => label.sortKey == action.value.target)[0];
             return { ...state, slideState: { ...state.slideState, sliding: true, target: action.value.target, initial: label.width, startX: action.value.startX } };
         }
 
@@ -266,8 +266,8 @@ const updater = (state: AppState, action: AppAction): AppState => {
             if (state.slideState.target == "Area") {
                 return { ...state, leftWidth: state.slideState.initial + action.value };
             }
-            const headerLabels = { ...state.headerLabels };
-            const label = headerLabels[state.slideState.target];
+            const headerLabels = structuredClone(state.headerLabels);
+            const label = headerLabels.filter((label) => label.sortKey == state.slideState.target)[0];
             const newWidth = state.slideState.initial + action.value;
             if (newWidth <= 50) {
                 return state;
@@ -346,6 +346,12 @@ const updater = (state: AppState, action: AppAction): AppState => {
         case "hoverFavoriteId": {
             return { ...state, hoverFavoriteId: action.value };
         }
+
+        case "startDragColumn":
+            return { ...state, columnDragId: action.value };
+
+        case "endDragColumn":
+            return { ...state, columnDragId: "" };
 
         default:
             return state;
