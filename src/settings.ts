@@ -13,6 +13,9 @@ const defaultSettings: Mp.Settings = {
     favorites: [],
     leftAreaWidth: 0,
     headerHistory: {},
+    theme: "system",
+    allowMoveColumn: true,
+    appMenuItems: [],
 };
 
 export default class Settings {

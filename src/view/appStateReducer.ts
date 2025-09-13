@@ -52,6 +52,10 @@ type AppState = {
     incrementalKey: string;
     search: SearchState;
     hoverFavoriteId: string;
+    prefVisible: boolean;
+    theme: Mp.Theme;
+    allowMoveColumn: boolean;
+    appMenuItems: Mp.AppMenuItem[];
 };
 
 export const initialAppState: AppState = {
@@ -99,6 +103,10 @@ export const initialAppState: AppState = {
         key: "",
     },
     hoverFavoriteId: "",
+    prefVisible: false,
+    theme: "system",
+    allowMoveColumn: true,
+    appMenuItems: [],
 };
 
 type AppAction =
@@ -140,6 +148,8 @@ type AppAction =
     | { type: "drives"; value: Mp.DriveInfo[] }
     | { type: "startDragColumn"; value: string }
     | { type: "endDragColumn" }
+    | { type: "setPreference"; value: { theme: Mp.Theme; appMenuItems: Mp.AppMenuItem[]; allowMoveColumn: boolean } }
+    | { type: "togglePreference" }
     | { type: "load"; value: { event: Mp.LoadEvent } };
 
 const updater = (state: AppState, action: AppAction): AppState => {
@@ -150,6 +160,9 @@ const updater = (state: AppState, action: AppAction): AppState => {
                 ...state,
                 pathEditing: false,
             };
+
+        case "setPreference":
+            return { ...state, theme: action.value.theme, allowMoveColumn: action.value.allowMoveColumn, appMenuItems: action.value.appMenuItems };
 
         case "isMaximized":
             return { ...state, isMaximized: action.value };
@@ -352,6 +365,9 @@ const updater = (state: AppState, action: AppAction): AppState => {
 
         case "endDragColumn":
             return { ...state, columnDragId: "" };
+
+        case "togglePreference":
+            return { ...state, prefVisible: !state.prefVisible };
 
         default:
             return state;

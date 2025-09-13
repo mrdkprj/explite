@@ -5,12 +5,17 @@
     import Bar from "./Bar.svelte";
     import Header from "./Header.svelte";
     import Left from "./Left.svelte";
+    import Preference from "./Preference.svelte";
+
     import FileSvg from "../svg/FileSvg.svelte";
     import ImageSvg from "../svg/ImageSvg.svelte";
     import VideoSvg from "../svg/VideoSvg.svelte";
     import AudioSvg from "../svg/AudioSvg.svelte";
     import AppSvg from "../svg/AppSvg.svelte";
     import FolderSvg from "../svg/FolderSvg.svelte";
+    import Shortcut from "../svg/Shortcut.svelte";
+    import Zip from "../svg/Zip.svelte";
+
     import VirtualList from "./VirtualList.svelte";
     import Home from "./Home.svelte";
     import Column from "./Column.svelte";
@@ -753,9 +758,8 @@
         const searchTextHighlight = new Highlight();
 
         Array.from(nodes).forEach((node) => {
-            const nameNode = node.childNodes[0].childNodes[0].childNodes[0].childNodes[2];
+            const nameNode = node.querySelectorAll(".name")[0];
             const text = nameNode.textContent;
-
             if (text) {
                 const start = text.toLocaleLowerCase().indexOf($appState.search.key.toLocaleLowerCase());
                 const end = $appState.search.key.length;
@@ -806,7 +810,7 @@
         const file = $listState.files.find((file) => file.id == id);
 
         if (file) {
-            requestLoad(file.fullPath, file.isFile, "Direct");
+            requestLoad(file.linkPath ? file.linkPath : file.fullPath, file.isFile, "Direct");
         } else {
             dispatch({ type: "reset" });
         }
@@ -921,6 +925,10 @@
         await setTitle();
     };
 
+    const openSettingsAsJson = async () => {
+        await main.openConfigFileJson();
+    };
+
     const handleContextMenuEvent = async (e: keyof Mp.MainContextMenuSubTypeMap | keyof Mp.FavContextMenuSubTypeMap) => {
         switch (e) {
             case "Open": {
@@ -997,7 +1005,7 @@
             }
 
             case "Settings":
-                await main.openConfigFileJson();
+                await openSettingsAsJson();
                 break;
 
             case "RemoveFromFavorite":
@@ -1075,6 +1083,7 @@
 
         if ($listState.rename.renaming) return;
         if ($appState.pathEditing) return;
+        if ($appState.prefVisible) return;
         if (header.hasSearchInputFocus()) return;
 
         if (e.ctrlKey && e.key == "f") {
@@ -1088,7 +1097,7 @@
                 const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (file) {
                     e.preventDefault();
-                    requestLoad(file.fullPath, file.isFile, "Direct");
+                    requestLoad(file.linkPath ? file.linkPath : file.fullPath, file.isFile, "Direct");
                 }
                 return;
             }
@@ -1173,6 +1182,9 @@
         if (e.key == "Escape") {
             e.preventDefault();
             dispatch({ type: "clearCopyCut" });
+            if ($appState.prefVisible) {
+                dispatch({ type: "togglePreference" });
+            }
             return;
         }
 
@@ -1192,6 +1204,13 @@
 
         if (e.ctrlKey || e.shiftKey || e.altKey || e.key.length > 1) {
             e.preventDefault();
+        }
+    };
+
+    const onPreferenceChange = async (isAppMenuItemChanged: boolean) => {
+        await main.onPreferenceChanged({ theme: $appState.theme, appMenuItems: $appState.appMenuItems, allowMoveColumn: $appState.allowMoveColumn });
+        if (isAppMenuItemChanged) {
+            await main.changeAppMenuItems($appState.appMenuItems);
         }
     };
 
@@ -1257,6 +1276,8 @@
     const prepare = async () => {
         const e = await main.onMainReady("viewContent");
 
+        await main.changeTheme(e.settings.theme);
+        await main.changeAppMenuItems(e.settings.appMenuItems);
         window.lang = e.locale;
         const headerLabels: Mp.HeaderLabel[] = DEFAULT_LABLES;
         e.settings.headerLabels.forEach((header) => {
@@ -1322,6 +1343,9 @@
 <div class="viewport" class:full-screen={$appState.isFullScreen} class:sliding={$appState.slideState.sliding}>
     <Bar />
     <div class="view">
+        {#if $appState.prefVisible}
+            <Preference preferenceChanged={onPreferenceChange} {openSettingsAsJson} />
+        {/if}
         <Header {requestLoad} {startSearch} {endSearch} {goBack} {goForward} {createItem} {reload} bind:this={header} />
         <div id="viewContent" class="body" ondragover={onDragOver} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <Left {requestLoad} />
@@ -1415,7 +1439,12 @@
                                                 role="button"
                                                 tabindex="-1"
                                             >
-                                                <div class="icon" class:folder={item.fileType == "Folder"} class:hidden-folder={item.fileType == "HiddenFolder"} data-file-id={item.id}>
+                                                <div
+                                                    class="icon"
+                                                    class:folder={item.fileType == "Folder" || item.fileType == "LinkDir"}
+                                                    class:hidden-folder={item.fileType == "HiddenFolder"}
+                                                    data-file-id={item.id}
+                                                >
                                                     {#if item.isFile}
                                                         {#if item.fileType == "Audio"}
                                                             <AudioSvg />
@@ -1423,11 +1452,15 @@
                                                             <VideoSvg />
                                                         {:else if item.fileType == "Image"}
                                                             <ImageSvg />
+                                                        {:else if item.fileType == "Zip"}
+                                                            <Zip />
                                                         {:else if item.fileType == "App"}
                                                             <AppSvg />
                                                         {:else}
                                                             <FileSvg />
                                                         {/if}
+                                                    {:else if item.fileType == "LinkDir"}
+                                                        <Shortcut />
                                                     {:else}
                                                         <FolderSvg />
                                                     {/if}

@@ -360,6 +360,21 @@ class Main {
         this.updateHeaderHistory(this.currentDir, null, e.labels);
     };
 
+    changeTheme = async (theme: Mp.Theme) => {
+        await ipc.invoke("change_theme", theme);
+    };
+
+    changeAppMenuItems = async (appMenuItems: Mp.AppMenuItem[]) => {
+        await ipc.invoke("change_app_menu_items", appMenuItems);
+    };
+
+    onPreferenceChanged = async (preference: Mp.Preference) => {
+        await this.changeTheme(preference.theme);
+        this.settings.data.theme = preference.theme;
+        this.settings.data.appMenuItems = preference.appMenuItems;
+        this.settings.data.allowMoveColumn = preference.allowMoveColumn;
+    };
+
     reload = async (includeDrive: boolean): Promise<Mp.LoadEvent | null> => {
         if (this.currentDir == HOME) {
             return null;

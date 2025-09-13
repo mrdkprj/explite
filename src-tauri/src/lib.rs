@@ -219,6 +219,28 @@ fn prepare_menu(window: WebviewWindow) {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppMenuItem {
+    label: String,
+    path: String,
+    target: String,
+}
+#[tauri::command]
+fn change_app_menu_items(payload: Vec<AppMenuItem>) {
+    menu::change_app_menu_items(payload);
+}
+
+#[tauri::command]
+fn change_theme(window: WebviewWindow, payload: String) {
+    let (tauri_them, menu_theme) = match payload.as_str() {
+        "dark" => (tauri::Theme::Dark, wcpopup::config::Theme::Dark),
+        "light" => (tauri::Theme::Light, wcpopup::config::Theme::Light),
+        _ => (tauri::Theme::Light, wcpopup::config::Theme::System),
+    };
+    let _ = window.set_theme(Some(tauri_them));
+    menu::change_menu_theme(menu_theme);
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct ContextMenuArg {
     position: menu::Position,
     full_path: String,
@@ -441,6 +463,8 @@ pub fn run() {
             unlisten_devices,
             listen_file_drop,
             unlisten_file_drop,
+            change_app_menu_items,
+            change_theme,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

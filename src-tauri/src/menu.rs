@@ -1,3 +1,4 @@
+use crate::AppMenuItem;
 use async_std::sync::Mutex;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -10,10 +11,18 @@ use wcpopup::{
 use zouni::AppInfo;
 
 static MENU_MAP: Lazy<Mutex<HashMap<String, Menu>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+static APP_MENU_ITEMS: Lazy<Mutex<Vec<AppMenuItem>>> = Lazy::new(|| Mutex::new(Vec::new()));
 pub const LIST: &str = "list";
 pub const FAV: &str = "fav";
 pub const NO_ITEM: &str = "noitem";
 const MENU_EVENT_NAME: &str = "contextmenu_event";
+const TARGET_FILE: &str = "File";
+const TARGET_FOLDER: &str = "Folder";
+const TERMINAL_SVG: &str = r#"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+    <path d="M0 3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm9.5 5.5h-3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1m-6.354-.354a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708l-2-2a.5.5 0 1 0-.708.708L4.793 6.5z"/>
+    </svg>
+"#;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Position {
@@ -32,7 +41,8 @@ pub async fn popup_menu(window: &WebviewWindow, menu_name: &str, position: Posit
     let menu = map.get(target_menu_name).unwrap();
 
     if target_menu_name == LIST {
-        update_open_with(menu, full_path);
+        update_open_with(menu, &full_path);
+        toggle_app_items(menu, &full_path);
     }
 
     let result = menu.popup_at_async(position.x, position.y).await;
@@ -50,7 +60,7 @@ pub async fn popup_menu(window: &WebviewWindow, menu_name: &str, position: Posit
     };
 }
 
-fn update_open_with(menu: &Menu, file_path: String) {
+fn update_open_with(menu: &Menu, file_path: &str) {
     let submenu_item = menu.get_menu_item_by_id("OpenWith").unwrap();
 
     let mut submenu = submenu_item.submenu.unwrap();
@@ -66,7 +76,7 @@ fn update_open_with(menu: &Menu, file_path: String) {
 
     let mut select_app_item = menu.get_menu_item_by_id("SelectApp").unwrap();
 
-    if Path::new(&file_path).is_dir() {
+    if Path::new(file_path).is_dir() {
         select_app_item.set_visible(false);
         submenu.insert(MenuItem::builder(MenuItemType::Text).id("OpenInNewWindow").label("Open New Window").build(), 0);
         return;
@@ -100,6 +110,31 @@ fn update_open_with(menu: &Menu, file_path: String) {
     }
 }
 
+fn toggle_app_items(menu: &Menu, file_path: &str) {
+    let is_dir = Path::new(file_path).is_dir();
+    let app_items = APP_MENU_ITEMS.try_lock().unwrap();
+    for app_item in &*app_items {
+        let mut menu_item = menu.get_menu_item_by_id(&app_item.path).unwrap();
+        match app_item.target.as_str() {
+            TARGET_FILE => {
+                if is_dir {
+                    menu_item.set_visible(false);
+                } else {
+                    menu_item.set_visible(true);
+                }
+            }
+            TARGET_FOLDER => {
+                if is_dir {
+                    menu_item.set_visible(false);
+                } else {
+                    menu_item.set_visible(true);
+                }
+            }
+            _ => menu_item.set_visible(true),
+        }
+    }
+}
+
 fn get_menu_config(theme: Theme) -> Config {
     Config {
         theme,
@@ -125,6 +160,40 @@ pub fn create(window_handle: isize) {
     create_noitem_menu(window_handle);
 }
 
+pub fn change_app_menu_items(new_app_menu_items: Vec<AppMenuItem>) {
+    let mut map = MENU_MAP.try_lock().unwrap();
+    let menu = map.get_mut(LIST).unwrap();
+
+    let mut items = APP_MENU_ITEMS.try_lock().unwrap();
+
+    for old_item in &*items {
+        if let Some(item) = menu.get_menu_item_by_id(&old_item.path) {
+            menu.remove_at(item.index as _);
+        }
+    }
+
+    let terminal = menu.get_menu_item_by_id("Terminal").unwrap();
+
+    let start_index = terminal.index + 1;
+    for (i, new_item) in new_app_menu_items.iter().enumerate() {
+        if let Ok(rgba_icon) = zouni::shell::extract_icon(&new_item.path) {
+            let item = MenuItem::new_text_item(&new_item.path, &new_item.label, None, false, Some(MenuIcon::from_rgba(rgba_icon.rgba, rgba_icon.width, rgba_icon.height)));
+            menu.insert(item, start_index + i as u32);
+        } else {
+            let item = MenuItem::new_text_item(&new_item.path, &new_item.label, None, false, None);
+            menu.insert(item, start_index + i as u32);
+        }
+    }
+    *items = new_app_menu_items;
+}
+
+pub fn change_menu_theme(theme: Theme) {
+    let map = MENU_MAP.try_lock().unwrap();
+    for menu in map.values() {
+        menu.set_theme(theme);
+    }
+}
+
 fn create_list_menu(window_handle: isize) {
     let config = get_menu_config(Theme::System);
     let mut builder = MenuBuilder::new_from_config(window_handle, config);
@@ -141,9 +210,9 @@ fn create_list_menu(window_handle: isize) {
     builder.text("AddToFavorite", "Add To Favorite", false);
     builder.text("CopyFullpath", "Copy Fullpath", false);
     builder.text("Property", "Property", false);
+
     builder.separator();
-    builder.text("Terminal", "Open Terminal", false);
-    builder.text("Settings", "Settings", false);
+    builder.text_with_icon("Terminal", "Open Terminal", false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
 
     let menu = builder.build().unwrap();
 
@@ -161,8 +230,7 @@ fn create_noitem_menu(window_handle: isize) {
     builder.text("CopyFullpath", "Copy Fullpath", false);
     builder.text("Property", "Property", false);
     builder.separator();
-    builder.text("Terminal", "Open Terminal", false);
-    builder.text("Settings", "Settings", false);
+    builder.text_with_icon("Terminal", "Open Terminal", false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
 
     let menu = builder.build().unwrap();
 

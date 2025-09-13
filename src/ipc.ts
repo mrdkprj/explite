@@ -24,6 +24,7 @@ export type FileAttribute = {
     mtime_ms: number;
     birthtime_ms: number;
     size: number;
+    link_path: string;
 };
 
 type Volume = {
@@ -132,6 +133,8 @@ type TauriCommandMap = {
     unlisten_devices: TauriCommand<undefined, undefined>;
     listen_file_drop: TauriCommand<string, undefined>;
     unlisten_file_drop: TauriCommand<undefined, undefined>;
+    change_app_menu_items: TauriCommand<Mp.AppMenuItem[], undefined>;
+    change_theme: TauriCommand<Mp.Theme, undefined>;
 };
 
 export class IPCBase {

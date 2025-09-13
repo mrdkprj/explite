@@ -9,34 +9,44 @@
         --main-color: #fff;
         --main-hover-color: #383857;
         --main-border-color: #505055;
+
         --bar-bg-color: #191a31;
         --bar-border-color: #292b41;
+
         --menu-bgcolor: #212337;
         --menu-color: #eceef3;
         --menu-hover-color: #5b5a67;
         --menu-shadow: #211f1f;
+
         --close-hover-bgcolor: #da0707c4;
         --close-hover-color: #fff;
+
         --path-bgcolor: #1f1e1e;
         --path-hover-color: #3f3b3b;
         --path-border-color: #ccc;
+
         --divier-bgcolor: #505055;
         --divider-hover-color: #aaaacb;
+
         --input-bgcolor: #1f1e1e;
         --input-color: #fff;
         --input-focus-outline: #1f1e1e;
         --input-bottom-border: blue;
         --input-hover-color: #433d3d;
+
         --button-border-color: #504949;
-        --button-bgcolor: red;
-        --button-color: red;
+        --button-bgcolor: #fff;
+        --button-color: #000;
         --button-disabled: #9f8e8e;
-        --button-hover-color: #626467;
+        --button-hover-color:#e1e4ed;
+
         --clip-bgcolor: #e6e6ff;
         --clip-border-color: #000;
+
         --search-highlight: #af0404;
         --selection-bgcolor: #3b3b51;
         --selection-border-color: #ccc;
+
         --current-dir-bg-color: #44444f;
         --cut-color: #747d97;
     }

@@ -7,6 +7,7 @@ export const en: Mp.Labels = {
     colCreated: "Created Date",
     colSize: "Size",
     typeFolder: "FileFolder",
+    typeShortcut: "Shortcut",
     newFile: "New File",
     newFolder: "New Folder",
     destExistsConfirm: "File whose name is {} already exists.\nDo you want to overwrite?",

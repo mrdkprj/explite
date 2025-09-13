@@ -7,6 +7,7 @@ export const ja: Mp.Labels = {
     colCreated: "作成日時",
     colSize: "サイズ",
     typeFolder: "ファイルフォルダー",
+    typeShortcut: "ショートカット",
     newFile: "新しいファイル",
     newFolder: "新しいフォルダー",
     destExistsConfirm: "宛先には既に{}という名前のファイルが存在します\nファイルを置き換えますか",

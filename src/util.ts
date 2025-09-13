@@ -1,7 +1,7 @@
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
 import { Dirent, FileAttribute, IPCBase } from "./ipc";
 import { path } from "./path";
-import { MIME_TYPE, OS, SEPARATOR } from "./constants";
+import { ARCHIVE_EXT, MIME_TYPE, OS, SEPARATOR } from "./constants";
 import { t } from "./translation/useTranslation";
 
 const REGULAR_TYPES = [".ts", ".json", ".mjs", ".cjs"];
@@ -33,6 +33,10 @@ class Util {
     }
 
     getFileType(attr: FileAttribute, mimeType: string, extension: string): Mp.FileType {
+        if (attr.is_symbolic_link) {
+            return attr.is_directory ? "LinkDir" : "LinkFile";
+        }
+
         if (attr.is_directory) {
             return attr.is_hidden ? "HiddenFolder" : "Folder";
         }
@@ -55,29 +59,70 @@ class Util {
         }
 
         if (lower.includes(MIME_TYPE.App)) {
+            if (ARCHIVE_EXT.includes(extension)) return "Zip";
             return "App";
         }
 
         return "Normal";
     }
 
+    private getExtension(fullPath: string, attr: FileAttribute) {
+        if (attr.is_directory) {
+            return attr.is_symbolic_link ? t("typeShortcut") : t("typeFolder");
+        }
+
+        return attr.is_symbolic_link ? t("typeShortcut") : path.extname(fullPath);
+    }
+
+    private getName(fullPath: string) {
+        const displayPath = path.extname(fullPath) == ".lnk" ? fullPath.substring(0, fullPath.lastIndexOf(".lnk")) : fullPath;
+
+        return path.basename(displayPath);
+    }
+
     toFile(dirent: Dirent): Mp.MediaFile {
         const fullPath = dirent.full_path;
         const attr = dirent.attributes;
-        const extension = attr.is_directory ? t("typeFolder") : path.extname(fullPath);
+        const extension = this.getExtension(fullPath, attr);
+        const fileType = this.getFileType(attr, dirent.mime_type, extension);
+        const name = this.getName(fullPath);
 
         return {
             id: encodeURIComponent(fullPath),
             fullPath,
             dir: path.dirname(fullPath),
             uuid: crypto.randomUUID(),
-            name: decodeURIComponent(encodeURIComponent(path.basename(fullPath))),
+            name,
             mdate: attr.mtime_ms,
             cdate: attr.birthtime_ms,
             size: Math.ceil(attr.size / 1024),
             extension,
             isFile: attr.is_file,
-            fileType: this.getFileType(attr, dirent.mime_type, extension),
+            fileType,
+            linkPath: attr.link_path,
+        };
+    }
+
+    async toFileFromPath(fullPath: string): Promise<Mp.MediaFile> {
+        const attr = await ipc.invoke("stat", fullPath);
+        const mimeType = attr.is_directory ? "" : await ipc.invoke("get_mime_type", fullPath);
+        const extension = this.getExtension(fullPath, attr);
+        const fileType = this.getFileType(attr, mimeType, extension);
+        const name = this.getName(fullPath);
+
+        return {
+            id: encodeURIComponent(fullPath),
+            fullPath,
+            dir: path.dirname(fullPath),
+            uuid: crypto.randomUUID(),
+            name,
+            mdate: attr.mtime_ms,
+            cdate: attr.birthtime_ms,
+            size: Math.ceil(attr.size / 1024),
+            extension,
+            isFile: attr.is_file,
+            fileType,
+            linkPath: attr.link_path,
         };
     }
 
@@ -94,35 +139,20 @@ class Util {
             extension: "",
             isFile: false,
             fileType: "Folder",
-        };
-    }
-
-    async toFileFromPath(fullPath: string): Promise<Mp.MediaFile> {
-        const attr = await ipc.invoke("stat", fullPath);
-        const mimeType = attr.is_directory ? "" : await ipc.invoke("get_mime_type", fullPath);
-        const extension = attr.is_directory ? t("typeFolder") : path.extname(fullPath);
-
-        return {
-            id: encodeURIComponent(fullPath),
-            fullPath,
-            dir: path.dirname(fullPath),
-            uuid: crypto.randomUUID(),
-            name: decodeURIComponent(encodeURIComponent(path.basename(fullPath))),
-            mdate: attr.mtime_ms,
-            cdate: attr.birthtime_ms,
-            size: Math.ceil(attr.size / 1024),
-            extension,
-            isFile: attr.is_file,
-            fileType: this.getFileType(attr, mimeType, extension),
+            linkPath: "",
         };
     }
 
     private localCompareName(a: Mp.MediaFile, b: Mp.MediaFile, sortKey: Mp.SortKey) {
-        if (!a.isFile && b.isFile) {
+        // Treat a shortcut as file
+        const aIsFile = a.linkPath ? true : a.isFile;
+        const bIsFile = b.linkPath ? true : b.isFile;
+
+        if (!aIsFile && bIsFile) {
             return -1;
         }
 
-        if (a.isFile && !b.isFile) {
+        if (aIsFile && !bIsFile) {
             return 1;
         }
 

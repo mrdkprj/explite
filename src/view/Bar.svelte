@@ -3,6 +3,7 @@
     import { listState } from "./listStateReducer";
     import { handleKeyEvent, OS } from "../constants";
     import Launch from "../svg/Launch.svelte";
+    import Pref from "../svg/Pref.svelte";
     import main from "../main";
     import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
@@ -20,6 +21,10 @@
 
     const launchNew = async () => {
         await main.launchNew();
+    };
+
+    const displayPreference = () => {
+        dispatch({ type: "togglePreference" });
     };
 
     const close = async () => {
@@ -54,6 +59,9 @@
 
 <div class="title-bar" data-tauri-drag-region={navigator.userAgent.includes(OS.linux) ? true : null}>
     <div class="icon-area">
+        <div class="button" onclick={displayPreference} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+            <Pref />
+        </div>
         <div class="button" onclick={launchNew} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <Launch />
         </div>

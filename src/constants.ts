@@ -56,4 +56,7 @@ export const MIME_TYPE = {
     Video: "video",
     Image: "image",
     App: "application",
+    Link: "shortcut",
 };
+
+export const ARCHIVE_EXT = [".zip", ".tar", ".7z", ".gz", ".bz", ".xz"];

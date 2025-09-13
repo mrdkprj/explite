@@ -10,6 +10,7 @@
     const DETAIL_PADDING = 10;
 
     const startDragColumn = (e: DragEvent) => {
+        if (!$appState.allowMoveColumn) return;
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
         e.stopPropagation();
@@ -17,6 +18,7 @@
     };
 
     const onDropColumn = (e: DragEvent) => {
+        if (!$appState.allowMoveColumn) return;
         if (!e.target || !(e.target instanceof HTMLElement)) return;
         const sourceId = $appState.columnDragId;
         dispatch({ type: "endDragColumn" });

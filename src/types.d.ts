@@ -51,6 +51,7 @@ declare global {
 
     namespace Mp {
         type SortKey = "name" | "extension" | "cdate" | "mdate" | "size" | "directory";
+        type Theme = "dark" | "light" | "system";
 
         type MainContextMenuSubTypeMap = {
             Open: null;
@@ -92,6 +93,21 @@ declare global {
             favorites: Mp.MediaFile[];
             leftAreaWidth: number;
             headerHistory: { [key: string]: Mp.HeaderSetting };
+            theme: Mp.Theme;
+            allowMoveColumn: boolean;
+            appMenuItems: AppMenuItem[];
+        };
+
+        type Preference = {
+            theme: Mp.Theme;
+            allowMoveColumn: boolean;
+            appMenuItems: AppMenuItem[];
+        };
+
+        type AppMenuItem = {
+            label: string;
+            path: string;
+            target: "File" | "Folder" | "Both";
         };
 
         type HeaderSetting = {
@@ -100,7 +116,7 @@ declare global {
             labels: Mp.HeaderLabel[];
         };
 
-        type FileType = "Video" | "Audio" | "Image" | "App" | "Normal" | "Folder" | "HiddenFolder";
+        type FileType = "Video" | "Audio" | "Image" | "App" | "Normal" | "Folder" | "HiddenFolder" | "LinkDir" | "LinkFile" | "Zip";
         type MediaFile = {
             id: string;
             fullPath: string;
@@ -113,6 +129,7 @@ declare global {
             extension: string;
             isFile: boolean;
             fileType: FileType;
+            linkPath: string;
         };
 
         type LoadEvent = {
@@ -310,6 +327,7 @@ declare global {
             colCreated: string;
             colSize: string;
             typeFolder: string;
+            typeShortcut: string;
             newFile: string;
             newFolder: string;
             destExistsConfirm: string;
