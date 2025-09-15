@@ -56,6 +56,7 @@ type AppState = {
     theme: Mp.Theme;
     allowMoveColumn: boolean;
     appMenuItems: Mp.AppMenuItem[];
+    symlinkVisible: boolean;
 };
 
 export const initialAppState: AppState = {
@@ -107,6 +108,7 @@ export const initialAppState: AppState = {
     theme: "system",
     allowMoveColumn: true,
     appMenuItems: [],
+    symlinkVisible: false,
 };
 
 type AppAction =
@@ -150,6 +152,7 @@ type AppAction =
     | { type: "endDragColumn" }
     | { type: "setPreference"; value: { theme: Mp.Theme; appMenuItems: Mp.AppMenuItem[]; allowMoveColumn: boolean } }
     | { type: "togglePreference" }
+    | { type: "toggleCreateSymlink" }
     | { type: "load"; value: { event: Mp.LoadEvent } };
 
 const updater = (state: AppState, action: AppAction): AppState => {
@@ -368,6 +371,9 @@ const updater = (state: AppState, action: AppAction): AppState => {
 
         case "togglePreference":
             return { ...state, prefVisible: !state.prefVisible };
+
+        case "toggleCreateSymlink":
+            return { ...state, symlinkVisible: !state.symlinkVisible };
 
         default:
             return state;

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use zouni::dialog::{message, MessageDialogKind, MessageDialogOptions};
+use zouni::dialog::{message, open, MessageDialogKind, MessageDialogOptions, OpenDialogOptions, OpenProperty};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DialogOptions {
@@ -52,4 +52,36 @@ async fn show_confirm(info: DialogOptions) -> bool {
         cancel_id: Some(1),
     };
     message(options).await
+}
+
+pub async fn show_file_dialog(title: String, default_path: String) -> Option<String> {
+    let options = OpenDialogOptions {
+        title: Some(title),
+        default_path: Some(default_path),
+        filters: None,
+        properties: Some(vec![OpenProperty::OpenFile]),
+    };
+
+    show_open_dialog(options).await
+}
+
+pub async fn show_folder_dialog(title: String, default_path: String) -> Option<String> {
+    let options = OpenDialogOptions {
+        title: Some(title),
+        default_path: Some(default_path),
+        filters: None,
+        properties: Some(vec![OpenProperty::OpenDirectory]),
+    };
+
+    show_open_dialog(options).await
+}
+
+async fn show_open_dialog(options: OpenDialogOptions) -> Option<String> {
+    let result = open(options).await;
+
+    if result.canceled {
+        None
+    } else {
+        Some(result.file_paths.first().unwrap().to_string())
+    }
 }

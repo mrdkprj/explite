@@ -81,6 +81,17 @@ type DialogOptions = {
     message: string;
 };
 
+type OpenFileFolderOption = {
+    title: string;
+    default_path: string;
+    select_folder: boolean;
+};
+
+type SymlinkRequest = {
+    path: string;
+    link_path: string;
+};
+
 type WatchRequest = {
     path: string;
     recursive: boolean;
@@ -135,6 +146,8 @@ type TauriCommandMap = {
     unlisten_file_drop: TauriCommand<undefined, undefined>;
     change_app_menu_items: TauriCommand<Mp.AppMenuItem[], undefined>;
     change_theme: TauriCommand<Mp.Theme, undefined>;
+    show_file_folder_dialog: TauriCommand<OpenFileFolderOption, string | null>;
+    create_symlink: TauriCommand<SymlinkRequest, undefined>;
 };
 
 export class IPCBase {

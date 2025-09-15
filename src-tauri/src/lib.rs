@@ -241,6 +241,31 @@ fn change_theme(window: WebviewWindow, payload: String) {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+struct OpenFileFolderOption {
+    title: String,
+    default_path: String,
+    select_folder: bool,
+}
+#[tauri::command]
+async fn show_file_folder_dialog(payload: OpenFileFolderOption) -> Option<String> {
+    if payload.select_folder {
+        dialog::show_folder_dialog(payload.title, payload.default_path).await
+    } else {
+        dialog::show_file_dialog(payload.title, payload.default_path).await
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SymlinkRequest {
+    path: String,
+    link_path: String,
+}
+#[tauri::command]
+fn create_symlink(payload: SymlinkRequest) -> Result<(), String> {
+    zouni::fs::create_symlink(payload.path, payload.link_path)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct ContextMenuArg {
     position: menu::Position,
     full_path: String,
@@ -465,6 +490,8 @@ pub fn run() {
             unlisten_file_drop,
             change_app_menu_items,
             change_theme,
+            show_file_folder_dialog,
+            create_symlink,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

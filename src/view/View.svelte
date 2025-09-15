@@ -13,7 +13,6 @@
     import AudioSvg from "../svg/AudioSvg.svelte";
     import AppSvg from "../svg/AppSvg.svelte";
     import FolderSvg from "../svg/FolderSvg.svelte";
-    import Shortcut from "../svg/Shortcut.svelte";
     import Zip from "../svg/Zip.svelte";
 
     import VirtualList from "./VirtualList.svelte";
@@ -27,6 +26,7 @@
     import { path } from "../path";
     import Deferred from "../deferred";
     import { t } from "../translation/useTranslation";
+    import Symlink from "./Symlink.svelte";
 
     let fileListContainer = $state<HTMLDivElement>();
     let virtualList = $state<VirtualList<Mp.MediaFile>>();
@@ -46,6 +46,10 @@
     const DATE_OPTION: Intl.DateTimeFormatOptions = { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "numeric", second: "numeric" };
     const BACKWARD: Mp.NavigationHistory[] = [];
     const FORWARD: Mp.NavigationHistory[] = [];
+
+    const showErrorMessage = async (message: string) => {
+        await main.showErrorMessage(message);
+    };
 
     const onListContextMenu = async (e: MouseEvent) => {
         e.preventDefault();
@@ -1084,6 +1088,7 @@
         if ($listState.rename.renaming) return;
         if ($appState.pathEditing) return;
         if ($appState.prefVisible) return;
+        if ($appState.symlinkVisible) return;
         if (header.hasSearchInputFocus()) return;
 
         if (e.ctrlKey && e.key == "f") {
@@ -1207,11 +1212,23 @@
         }
     };
 
+    const clearHeaderHistory = () => {
+        main.clearHeaderHistory();
+    };
+
     const onPreferenceChange = async (isAppMenuItemChanged: boolean) => {
         await main.onPreferenceChanged({ theme: $appState.theme, appMenuItems: $appState.appMenuItems, allowMoveColumn: $appState.allowMoveColumn });
         if (isAppMenuItemChanged) {
             await main.changeAppMenuItems($appState.appMenuItems);
         }
+    };
+
+    const getSymlinkTargetItem = async (currentDir: string, folder: boolean) => {
+        return main.showFileFolderDialog("Select a file/folder", currentDir, folder);
+    };
+
+    const createSymlink = async (path: string, linkPath: string) => {
+        await main.createSymlink(path, linkPath);
     };
 
     const onDeviceEvent = async (e: Mp.DeviceEvent) => {
@@ -1278,7 +1295,9 @@
 
         await main.changeTheme(e.settings.theme);
         await main.changeAppMenuItems(e.settings.appMenuItems);
+        dispatch({ type: "setPreference", value: { theme: e.settings.theme, appMenuItems: e.settings.appMenuItems, allowMoveColumn: e.settings.allowMoveColumn } });
         window.lang = e.locale;
+
         const headerLabels: Mp.HeaderLabel[] = DEFAULT_LABLES;
         e.settings.headerLabels.forEach((header) => {
             let label = "";
@@ -1344,7 +1363,10 @@
     <Bar />
     <div class="view">
         {#if $appState.prefVisible}
-            <Preference preferenceChanged={onPreferenceChange} {openSettingsAsJson} />
+            <Preference preferenceChanged={onPreferenceChange} {openSettingsAsJson} {clearHeaderHistory} />
+        {/if}
+        {#if $appState.symlinkVisible}
+            <Symlink {showErrorMessage} {getSymlinkTargetItem} {createSymlink} />
         {/if}
         <Header {requestLoad} {startSearch} {endSearch} {goBack} {goForward} {createItem} {reload} bind:this={header} />
         <div id="viewContent" class="body" ondragover={onDragOver} onkeydown={handleKeyEvent} role="button" tabindex="-1">
@@ -1445,6 +1467,9 @@
                                                     class:hidden-folder={item.fileType == "HiddenFolder"}
                                                     data-file-id={item.id}
                                                 >
+                                                    {#if item.linkPath}
+                                                        <div class="symlink-icon"><div class="symlink-arrow"></div></div>
+                                                    {/if}
                                                     {#if item.isFile}
                                                         {#if item.fileType == "Audio"}
                                                             <AudioSvg />
@@ -1459,8 +1484,6 @@
                                                         {:else}
                                                             <FileSvg />
                                                         {/if}
-                                                    {:else if item.fileType == "LinkDir"}
-                                                        <Shortcut />
                                                     {:else}
                                                         <FolderSvg />
                                                     {/if}

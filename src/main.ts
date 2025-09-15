@@ -70,7 +70,7 @@ class Main {
         };
     };
 
-    private showErrorMessage = async (ex: any | string) => {
+    showErrorMessage = async (ex: any | string) => {
         if (typeof ex == "string") {
             await ipc.invoke("message", { dialog_type: "message", message: ex, kind: "error" });
         } else {
@@ -368,11 +368,27 @@ class Main {
         await ipc.invoke("change_app_menu_items", appMenuItems);
     };
 
+    clearHeaderHistory = () => {
+        this.settings.data.headerHistory = {};
+    };
+
     onPreferenceChanged = async (preference: Mp.Preference) => {
         await this.changeTheme(preference.theme);
         this.settings.data.theme = preference.theme;
         this.settings.data.appMenuItems = preference.appMenuItems;
         this.settings.data.allowMoveColumn = preference.allowMoveColumn;
+    };
+
+    showFileFolderDialog = async (title: string, defaultPath: string, folder: boolean): Promise<string | null> => {
+        return await ipc.invoke("show_file_folder_dialog", { title, default_path: defaultPath, select_folder: folder });
+    };
+
+    createSymlink = async (path: string, linkPath: string) => {
+        try {
+            await ipc.invoke("create_symlink", { path, link_path: linkPath });
+        } catch (ex: any) {
+            await this.showErrorMessage(ex);
+        }
     };
 
     reload = async (includeDrive: boolean): Promise<Mp.LoadEvent | null> => {

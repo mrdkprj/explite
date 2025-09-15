@@ -3,7 +3,11 @@
     import { handleKeyEvent } from "../constants";
     import { appState, dispatch } from "./appStateReducer";
 
-    let { preferenceChanged, openSettingsAsJson }: { preferenceChanged: (isAppMenuItemChanged: boolean) => void; openSettingsAsJson: () => Promise<void> } = $props();
+    let {
+        preferenceChanged,
+        openSettingsAsJson,
+        clearHeaderHistory,
+    }: { preferenceChanged: (isAppMenuItemChanged: boolean) => void; openSettingsAsJson: () => Promise<void>; clearHeaderHistory: () => void } = $props();
 
     const originalTheme = $appState.theme;
     const originalAppMenuItems = $appState.appMenuItems;
@@ -25,7 +29,7 @@
     };
 
     const removeHistory = () => {
-        // dispatch({ type: "reflectSettings", value: { appMenuItems: $appState.appMenuItems, allowMoveColumn: !$appState.allowMoveColumn } });
+        clearHeaderHistory();
     };
 
     const onkeydown = (e: KeyboardEvent) => {

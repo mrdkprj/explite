@@ -1,6 +1,7 @@
 :root{
-    --font:"Yu Gothic UI";
+    --font:"Yu Gothic UI", "Segoe UI";
     --font-size: 12px;
+    --arrow-color:#7277dd;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -38,7 +39,7 @@
         --button-bgcolor: #fff;
         --button-color: #000;
         --button-disabled: #9f8e8e;
-        --button-hover-color:#e1e4ed;
+        --button-hover-color:#5b5a67;
 
         --clip-bgcolor: #e6e6ff;
         --clip-border-color: #000;
@@ -99,6 +100,7 @@
         --current-dir-bg-color:#e3dede;
 
         --cut-color:#747d97;
+
     }
 }
 

@@ -32,7 +32,7 @@
         goForward: () => Promise<void>;
         requestLoad: (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => void;
         reload: (includeDrive: boolean) => void;
-        createItem: (isFile: boolean) => void;
+        createItem: (isFile: boolean, shortcut?: boolean) => void;
     } = $props();
 
     let searchInterval = 0;
@@ -189,6 +189,14 @@
     const setPathDialogFocus = (node: HTMLDivElement) => {
         node.focus();
     };
+
+    const onCreateDirClick = (e: MouseEvent) => {
+        if (e.ctrlKey) {
+            dispatch({ type: "toggleCreateSymlink" });
+        } else {
+            createItem(false);
+        }
+    };
 </script>
 
 <div class="header">
@@ -211,13 +219,7 @@
         >
             <NewFileSvg />
         </div>
-        <div
-            class="button {$listState.currentDir.fullPath == HOME || $appState.search.searching ? 'disabled' : ''}"
-            onclick={() => createItem(false)}
-            onkeydown={handleKeyEvent}
-            role="button"
-            tabindex="-1"
-        >
+        <div class="button {$listState.currentDir.fullPath == HOME || $appState.search.searching ? 'disabled' : ''}" onclick={onCreateDirClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <NewFolderSvg />
         </div>
     </div>

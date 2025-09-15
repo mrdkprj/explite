@@ -525,6 +525,51 @@
     z-index: 700;
 }
 
+.symlink-icon {
+    outline: 1px solid var(--main-border-color);
+    width: 7px;
+    height: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    left: 1px;
+    top: 10px;
+    background-color:#fff ;
+}
+
+.symlink-arrow {
+  position: relative;
+  display: inline-block;
+  width: 1px;
+  height: 5px;
+  margin: 0 1.4px;
+  border-radius: 9999px;
+  background-color: var(--arrow-color);
+    transform: rotate(45deg);
+}
+
+.symlink-arrow::before,
+.symlink-arrow::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: calc(50% - 0.5px);
+  width: 1px;
+  height: 3px;
+  border-radius: 9999px;
+  background-color: var(--arrow-color);
+  transform-origin: 50% 0.5px;
+}
+
+.symlink-arrow::before {
+  transform: rotate(45deg);
+}
+
+.symlink-arrow::after {
+  transform: rotate(-45deg);
+}
+
 .folder {
     color: #e59d1a;
 }
@@ -607,9 +652,6 @@
 
 .fav .name,
 .disk .name{
-    /* display: flex;
-    align-items: center;
-    pointer-events: none; */
     pointer-events: none;
     position: relative;
     z-index: 700;
