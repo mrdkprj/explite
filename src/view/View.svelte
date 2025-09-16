@@ -765,8 +765,43 @@
             const nameNode = node.querySelectorAll(".name")[0];
             const text = nameNode.textContent;
             if (text) {
-                const start = text.toLocaleLowerCase().indexOf($appState.search.key.toLocaleLowerCase());
-                const end = $appState.search.key.length;
+                if (text.match(/[\!#\$\%&'\(\)\=\~\^\-\|`@\{\[\+;\]\}\,\_\s]/g)) {
+                    highlightNameOneByOne(text, nameNode, searchTextHighlight);
+                } else {
+                    highlightName(text, nameNode, searchTextHighlight);
+                }
+            }
+        });
+
+        CSS.highlights.set("searched", searchTextHighlight);
+    };
+
+    const highlightName = (text: string, nameNode: Element, searchTextHighlight: Highlight) => {
+        const start = text.toLocaleLowerCase().indexOf($appState.search.key.toLocaleLowerCase());
+        const end = $appState.search.key.length;
+
+        const range = new Range();
+        range.setStart(nameNode.childNodes[0], start);
+        range.setEnd(nameNode.childNodes[0], start + end);
+        searchTextHighlight.add(range);
+    };
+
+    const highlightNameOneByOne = (text: string, nameNode: Element, searchTextHighlight: Highlight) => {
+        const texts = text.toLocaleLowerCase().split("");
+        const keys = $appState.search.key.toLocaleLowerCase().split("");
+
+        texts.forEach((text, i) => {
+            if (keys.length - 1 < i) {
+                return;
+            }
+            const key = keys[i];
+            if (text != key && !key.match(/[\!#\$\%&'\(\)\=\~\^\-\|`@\{\[\+;\]\}\,\_\s]/g)) {
+                return keys.splice(i, 0, text);
+            }
+
+            if (text == key) {
+                const start = i;
+                const end = 1;
 
                 const range = new Range();
                 range.setStart(nameNode.childNodes[0], start);
@@ -774,8 +809,6 @@
                 searchTextHighlight.add(range);
             }
         });
-
-        CSS.highlights.set("searched", searchTextHighlight);
     };
 
     const onSorted = async (e: Mp.SortResult) => {

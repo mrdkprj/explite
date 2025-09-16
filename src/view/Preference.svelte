@@ -279,7 +279,7 @@
         padding: 5px;
     }
     .pref-btn-lg {
-        padding: 15px 20px;
+        padding: 8px;
     }
 
     .pref-close {
