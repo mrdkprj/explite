@@ -176,8 +176,11 @@ pub fn change_app_menu_items(new_app_menu_items: Vec<AppMenuItem>) {
 
     let start_index = terminal.index + 1;
     for (i, new_item) in new_app_menu_items.iter().enumerate() {
-        if let Ok(rgba_icon) = zouni::shell::extract_icon(&new_item.path) {
-            let item = MenuItem::new_text_item(&new_item.path, &new_item.label, None, false, Some(MenuIcon::from_rgba(rgba_icon.rgba, rgba_icon.width, rgba_icon.height)));
+        if let Ok(icon) = zouni::shell::extract_icon(&new_item.path) {
+            #[cfg(target_os = "windows")]
+            let item = MenuItem::new_text_item(&new_item.path, &new_item.label, None, false, Some(MenuIcon::from_rgba(icon.rgba, icon.width, icon.height)));
+            #[cfg(target_os = "linux")]
+            let item = MenuItem::new_text_item(&new_item.path, &new_item.label, None, false, Some(MenuIcon::new(icon)));
             menu.insert(item, start_index + i as u32);
         } else {
             let item = MenuItem::new_text_item(&new_item.path, &new_item.label, None, false, None);
