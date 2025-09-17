@@ -109,10 +109,10 @@
         color: var(--menu-color);
         display: flex;
         width: 540px;
-        height: 200px;
+        height: 540px;
         flex-direction: column;
-        box-shadow: 7px 5px 5px #8f7c7c;
-        outline: 1px solid #ccc;
+        box-shadow: 7px 5px 5px var(--dialog-shadow);
+        outline: 1px solid var(--dialog-border-color);
         border-radius: 8px;
     }
     .sym-header {

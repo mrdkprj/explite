@@ -14,14 +14,15 @@
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
         e.stopPropagation();
-        dispatch({ type: "startDragColumn", value: e.target.id });
+        dispatch({ type: "startDrag", value: { id: e.target.id, type: "Column" } });
     };
 
     const onDropColumn = (e: DragEvent) => {
         if (!$appState.allowMoveColumn) return;
+        if ($appState.dragHandler != "Column") return;
         if (!e.target || !(e.target instanceof HTMLElement)) return;
-        const sourceId = $appState.columnDragId;
-        dispatch({ type: "endDragColumn" });
+        const sourceId = $appState.dragTargetId;
+        dispatch({ type: "endDrag" });
 
         if (!e.target.hasAttribute("data-column")) return;
         if (sourceId == e.target.id) return;

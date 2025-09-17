@@ -26,6 +26,10 @@
         --path-hover-color: #3f3b3b;
         --path-border-color: #ccc;
 
+        --dialog-bgcolor:#000;
+        --dialog-border-color:#ccc;
+        --dialog-shadow:#3d3737;
+
         --divier-bgcolor: #505055;
         --divider-hover-color: #aaaacb;
 
@@ -74,6 +78,10 @@
         --path-bgcolor:#fff;
         --path-hover-color:#e1e4ed;
         --path-border-color:#ccc;
+
+        --dialog-bgcolor:#fff;
+        --dialog-border-color:#ccc;
+        --dialog-shadow:#8f7c7c;
 
         --divier-bgcolor:#e1e1ef;
         --divider-hover-color:#aaaacb;

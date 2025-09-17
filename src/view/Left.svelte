@@ -6,7 +6,7 @@
     import { handleKeyEvent, HOME } from "../constants";
     import main from "../main";
 
-    let { requestLoad }: { requestLoad: (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => void } = $props();
+    let { requestLoad, changeFavorites }: { requestLoad: (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => void; changeFavorites: () => void } = $props();
 
     const onAreaSliderMousedown = (e: MouseEvent) => {
         e.preventDefault();
@@ -27,10 +27,42 @@
         if (!fullPath) return;
         requestLoad(fullPath, false, "Direct");
     };
+
+    const startDragFavorite = (e: DragEvent) => {
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+
+        e.stopPropagation();
+        dispatch({ type: "startDrag", value: { id: e.target.getAttribute("data-id") ?? "", type: "Favorite" } });
+    };
+
+    const onDropFavorite = (e: DragEvent) => {
+        if ($appState.dragHandler != "Favorite") return;
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+        const sourceId = $appState.dragTargetId;
+        const targetId = e.target.getAttribute("data-id") ?? "";
+        dispatch({ type: "endDrag" });
+
+        if (!e.target.classList.contains("fav")) return;
+        if (sourceId == e.target.id) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const favorites = structuredClone($appState.favorites);
+
+        const sourceIndex = favorites.findIndex((label) => label.id == sourceId);
+        const source = favorites.splice(sourceIndex, 1)[0];
+
+        const targetIndex = favorites.findIndex((label) => label.id == targetId);
+        const shouldAppend = targetIndex >= sourceIndex;
+        favorites.splice(shouldAppend ? targetIndex + 1 : targetIndex, 0, source);
+        dispatch({ type: "changeFavorites", value: favorites });
+        changeFavorites();
+    };
 </script>
 
 <div class="left" style="flex-basis: {$appState.leftWidth}px">
-    <div class="left-content">
+    <div class="left-content" ondragover={(e) => e.preventDefault()} role="button" tabindex="-1">
         {#each $appState.favorites as favorite}
             <div
                 data-id={favorite.id}
@@ -40,8 +72,11 @@
                 onclick={onDriveClick}
                 onkeydown={handleKeyEvent}
                 oncontextmenu={onFavoriteContextMenu}
+                ondragstart={startDragFavorite}
+                ondrop={onDropFavorite}
                 role="button"
                 tabindex="-1"
+                draggable="true"
             >
                 <div class="icon folder">
                     <FolderSvg />

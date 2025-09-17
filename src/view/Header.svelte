@@ -44,6 +44,7 @@
     let pathWidth = $state(0);
     let dialogPosition = $state({ left: 0, top: 0 });
     let showHiddenPaths = $state(false);
+    let showCreateDir = $state(false);
     let paths: Paths = $derived.by(() => {
         const padding = 25;
         const separator = 16;
@@ -183,18 +184,44 @@
             pendingPath = target.getAttribute("data-path");
             if (pendingPath) return;
         }
-        showHiddenPaths = !showHiddenPaths;
+        showHiddenPaths = false;
     };
 
     const setPathDialogFocus = (node: HTMLDivElement) => {
         node.focus();
     };
 
-    const onCreateDirClick = (e: MouseEvent) => {
-        if (e.ctrlKey) {
-            dispatch({ type: "toggleCreateSymlink" });
-        } else {
-            createItem(false);
+    const showCreateDirDialog = (e: MouseEvent) => {
+        // extract half of header from clientY
+        dialogPosition = { left: e.clientX, top: e.clientY - 15 };
+        showCreateDir = true;
+    };
+
+    const setCreateDirDialogFocus = (node: HTMLDivElement) => {
+        node.focus();
+    };
+
+    const hideCreateDirDialog = () => {
+        showCreateDir = false;
+    };
+
+    const showSymlinkDialog = (e: MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dispatch({ type: "toggleCreateSymlink" });
+    };
+
+    const createDir = (e: MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        createItem(false);
+    };
+
+    const onkeydown = (e: KeyboardEvent) => {
+        if (e.key == "Escape") {
+            console.log("yes hide");
+            showHiddenPaths = false;
+            showCreateDir = false;
         }
     };
 </script>
@@ -219,8 +246,28 @@
         >
             <NewFileSvg />
         </div>
-        <div class="button {$listState.currentDir.fullPath == HOME || $appState.search.searching ? 'disabled' : ''}" onclick={onCreateDirClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div
+            class="button {$listState.currentDir.fullPath == HOME || $appState.search.searching ? 'disabled' : ''}"
+            onclick={showCreateDirDialog}
+            onkeydown={handleKeyEvent}
+            role="button"
+            tabindex="-1"
+        >
             <NewFolderSvg />
+            {#if showCreateDir}
+                <div
+                    class="header-dialog"
+                    style="top:{dialogPosition.top}px;left{dialogPosition.left};"
+                    use:setCreateDirDialogFocus
+                    onblur={hideCreateDirDialog}
+                    {onkeydown}
+                    tabindex="0"
+                    role="button"
+                >
+                    <div class="dialog-data" onmousedown={createDir} role="button" tabindex="-1">Directory</div>
+                    <div class="dialog-data" onmousedown={showSymlinkDialog} role="button" tabindex="-1">Shortcut</div>
+                </div>
+            {/if}
         </div>
     </div>
     <div class="path-area" bind:offsetWidth={pathWidth}>
@@ -248,9 +295,17 @@
                             <ThreeDots />
                         </div>
                         {#if showHiddenPaths}
-                            <div class="hidden-paths" style="top:{dialogPosition.top}px;left{dialogPosition.left};" use:setPathDialogFocus onblur={toggleHiddenPathDialog} tabindex="0" role="button">
+                            <div
+                                class="header-dialog"
+                                style="top:{dialogPosition.top}px;left{dialogPosition.left};"
+                                use:setPathDialogFocus
+                                onblur={toggleHiddenPathDialog}
+                                {onkeydown}
+                                tabindex="0"
+                                role="button"
+                            >
                                 {#each paths.overflownPaths as path}
-                                    <div class="hidden-path-data" data-path={path} onclick={onPathClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+                                    <div class="dialog-data" data-path={path} onclick={onPathClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
                                         {path}
                                     </div>
                                 {/each}
@@ -291,4 +346,193 @@
             </div>
         {/if}
     </div>
+    <div class="path" style="display:none"><svg></svg></div>
 </div>
+
+<style>
+    .header {
+        width: 100%;
+        height: 50px;
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        box-shadow: 0px 1px 5px 1px var(--menu-shadow);
+        background-color: var(--menu-bgcolor);
+        z-index: 980;
+        position: relative;
+    }
+
+    .path-area {
+        flex: 1 1 0;
+        height: 36px;
+        margin: 0px 10px;
+        max-width: calc(100% - 380px);
+        width: calc(100% - 250px);
+        min-width: 100px;
+        display: flex;
+        overflow: hidden;
+        justify-content: end;
+        border-radius: 5px;
+    }
+
+    .path-holder {
+        flex: 1 1 auto;
+    }
+
+    .path {
+        width: 100%;
+        height: 32px;
+        border-radius: 5px;
+        font-family: var(--font);
+        border: 2px solid transparent;
+        display: flex;
+        align-items: center;
+        background-color: var(--path-bgcolor);
+        cursor: default;
+    }
+
+    .path .display {
+        padding: 5px 10px;
+    }
+
+    .path svg {
+        overflow: visible;
+    }
+
+    .path-data:first-child {
+        margin-left: 10px;
+    }
+
+    .path-data {
+        padding: 5px 10px;
+        margin-right: 5px;
+        white-space: nowrap;
+        font-size: 14px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .path-data:hover {
+        background-color: var(--path-hover-color);
+        border-radius: 4px;
+    }
+
+    .header-dialog {
+        position: absolute;
+        z-index: 1000;
+        background-color: var(--dialog-bgcolor);
+        outline: 1px solid var(--dialog-border-color);
+        border-radius: 5px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: start;
+        padding: 0 5px 5px 5px;
+        box-shadow: 3px 4px 5px var(--dialog-shadow);
+    }
+
+    .dialog-data {
+        position: relative;
+        padding: 5px 5px;
+        width: calc(100% - 10px);
+        margin: 5px 0 0 0;
+        font-size: 14px;
+        white-space: nowrap;
+    }
+
+    .path-dots {
+        padding: 5px 10px;
+        display: flex;
+        align-items: center;
+        height: 19px;
+    }
+
+    .path-dots:hover,
+    .dialog-data:hover {
+        background-color: var(--path-hover-color);
+        border-radius: 4px;
+    }
+
+    .path-edit {
+        flex: 1 1 auto;
+        height: 100%;
+        min-width: 100px;
+    }
+
+    .path-input {
+        line-height: 20px;
+        white-space: nowrap;
+        font-family: var(--font);
+        font-size: 14px;
+        padding: 0 5px 0 0;
+        border-radius: 5px;
+    }
+
+    .header input,
+    .header input:disabled {
+        width: 100%;
+        height: 30px;
+        border-top-left-radius: 5px;
+        border-bottom-left-radius: 5px;
+        font-family: var(--font);
+        border: 2px solid transparent;
+        text-indent: 5px;
+        font-size: 14px;
+        background-color: var(--input-bgcolor);
+        border-bottom: 2px solid transparent;
+        color: var(--input-color);
+    }
+
+    .header .path-input:focus {
+        outline: 1px solid var(--input-focus-outline);
+        border-bottom: 2px solid var(--input-bottom-border);
+    }
+
+    .header .search-input:focus {
+        outline: none;
+    }
+
+    .search-area {
+        height: 36px;
+        width: calc(100% - 430px);
+        max-width: 250px;
+        margin-left: 10px;
+        margin-right: 10px;
+        display: flex;
+    }
+
+    .search-area:has(> input:focus) {
+        outline: 1px solid var(--input-focus-outline);
+        border-bottom: 2px solid var(--input-bottom-border);
+        border-radius: 5px;
+    }
+
+    .clear-area {
+        width: 45px;
+        height: 100%;
+        background-color: var(--input-bgcolor);
+        border-top-right-radius: 5px;
+        border-bottom-right-radius: 5px;
+        display: flex;
+        align-items: center;
+    }
+
+    .clear {
+        width: 25px;
+        height: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--input-bgcolor);
+    }
+
+    .clear:hover {
+        background-color: var(--input-hover-color);
+    }
+
+    .without-clear {
+        border-top-right-radius: 5px;
+        border-bottom-right-radius: 5px;
+    }
+</style>

@@ -147,7 +147,7 @@ fn get_menu_config(theme: Theme) -> Config {
             ..Default::default()
         },
         size: MenuSize {
-            item_horizontal_padding: 25,
+            item_horizontal_padding: 20,
             ..Default::default()
         },
         ..Default::default()

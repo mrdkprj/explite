@@ -159,7 +159,7 @@
         if (!e.target || !(e.target instanceof HTMLElement)) return false;
         if (!fileListContainer) return false;
         if ($listState.rename.renaming) return false;
-        if ($appState.columnDragId) return false;
+        if ($appState.dragHandler != "View") return false;
 
         if (e.target.hasAttribute("data-path") || e.target.classList.contains("button")) return false;
 
@@ -204,7 +204,7 @@
         if (!e.target || !(e.target instanceof HTMLElement)) return;
         if (!$appState.selection.selectedIds.length) return;
         if ($appState.clip.moved) return;
-        if ($appState.columnDragId) return;
+        if ($appState.dragHandler != "View") return;
 
         const id = e.target.getAttribute("data-file-id") ?? "";
         if (!$appState.selection.selectedIds.includes(id)) return;
@@ -218,12 +218,13 @@
     };
 
     const onDragOver = (e: DragEvent) => {
-        if (!$appState.columnDragId) {
+        if ($appState.dragHandler == "View") {
             e.preventDefault();
         }
     };
 
     const onDragEnter = (e: DragEvent) => {
+        if ($appState.dragHandler != "View") return;
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
         const id = e.target.getAttribute("data-file-id") ?? "";
@@ -236,6 +237,7 @@
     };
 
     const onDragLeave = (e: DragEvent) => {
+        if ($appState.dragHandler != "View") return;
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
         const id = e.target.getAttribute("data-file-id") ?? "";
@@ -245,6 +247,7 @@
     };
 
     const onFileDrop = async (e: Mp.FileDropEvent) => {
+        if ($appState.dragHandler != "View") return;
         const dragTargetId = $appState.dragTargetId;
 
         dispatch({ type: "dragLeave" });
@@ -824,6 +827,10 @@
         dispatch({ type: "changeFavorites", value: e });
     };
 
+    const changeFavorites = () => {
+        main.changeFavorites($appState.favorites);
+    };
+
     const undo = async () => {
         await main.undo();
     };
@@ -1220,9 +1227,6 @@
         if (e.key == "Escape") {
             e.preventDefault();
             dispatch({ type: "clearCopyCut" });
-            if ($appState.prefVisible) {
-                dispatch({ type: "togglePreference" });
-            }
             return;
         }
 
@@ -1296,6 +1300,7 @@
     };
 
     const onWatchEvent = async (e: Mp.WatchEvent) => {
+        dispatch({ type: "clearSelection" });
         const files = await main.onWatchEvent(e);
         if (files) {
             dispatch({ type: "updateFiles", value: { files } });
@@ -1403,7 +1408,7 @@
         {/if}
         <Header {requestLoad} {startSearch} {endSearch} {goBack} {goForward} {createItem} {reload} bind:this={header} />
         <div id="viewContent" class="body" ondragover={onDragOver} onkeydown={handleKeyEvent} role="button" tabindex="-1">
-            <Left {requestLoad} />
+            <Left {requestLoad} {changeFavorites} />
             <div
                 class="main"
                 class:clipping={$appState.clip.clipping}

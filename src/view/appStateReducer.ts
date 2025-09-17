@@ -27,6 +27,8 @@ type SearchState = {
     key: string;
 };
 
+type DragHandlerType = "View" | "Column" | "Favorite";
+
 type AppState = {
     drives: Mp.DriveInfo[];
     isMaximized: boolean;
@@ -47,7 +49,7 @@ type AppState = {
         files: Mp.MediaFile[];
     };
     dragTargetId: string;
-    columnDragId: string;
+    dragHandler: DragHandlerType;
     clip: Clip;
     incrementalKey: string;
     search: SearchState;
@@ -87,7 +89,7 @@ export const initialAppState: AppState = {
         files: [],
     },
     dragTargetId: "",
-    columnDragId: "",
+    dragHandler: "View",
     clip: {
         startId: "",
         clipAreaStyle: "",
@@ -148,8 +150,8 @@ type AppAction =
     | { type: "clearIncremental" }
     | { type: "hoverFavoriteId"; value: string }
     | { type: "drives"; value: Mp.DriveInfo[] }
-    | { type: "startDragColumn"; value: string }
-    | { type: "endDragColumn" }
+    | { type: "startDrag"; value: { id: string; type: DragHandlerType } }
+    | { type: "endDrag" }
     | { type: "setPreference"; value: { theme: Mp.Theme; appMenuItems: Mp.AppMenuItem[]; allowMoveColumn: boolean } }
     | { type: "togglePreference" }
     | { type: "toggleCreateSymlink" }
@@ -363,11 +365,11 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return { ...state, hoverFavoriteId: action.value };
         }
 
-        case "startDragColumn":
-            return { ...state, columnDragId: action.value };
+        case "startDrag":
+            return { ...state, dragTargetId: action.value.id, dragHandler: action.value.type };
 
-        case "endDragColumn":
-            return { ...state, columnDragId: "" };
+        case "endDrag":
+            return { ...state, dragTargetId: "", dragHandler: "View" };
 
         case "togglePreference":
             return { ...state, prefVisible: !state.prefVisible };

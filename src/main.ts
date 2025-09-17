@@ -412,12 +412,6 @@ class Main {
         await ipc.invoke("start_drag", files);
     };
 
-    removeFavorite = (id: string): Mp.MediaFile[] => {
-        const newFavorites = this.settings.data.favorites.filter((file) => file.id != id);
-        this.settings.data.favorites = newFavorites;
-        return this.settings.data.favorites;
-    };
-
     writeClipboard = async (e: Mp.WriteClipboardRequest) => {
         const fullPaths = e.files.map((file) => file.fullPath);
         await ipc.invoke("write_uris", { fullPaths, operation: e.operation });
@@ -430,6 +424,16 @@ class Main {
     addFavorite = (favorite: Mp.MediaFile): Mp.MediaFile[] => {
         this.settings.data.favorites.push(favorite);
         return this.settings.data.favorites;
+    };
+
+    removeFavorite = (id: string): Mp.MediaFile[] => {
+        const newFavorites = this.settings.data.favorites.filter((file) => file.id != id);
+        this.settings.data.favorites = newFavorites;
+        return this.settings.data.favorites;
+    };
+
+    changeFavorites = (favorites: Mp.MediaFile[]) => {
+        this.settings.data.favorites = favorites;
     };
 
     openTerminal = async (dir: string) => {
