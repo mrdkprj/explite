@@ -16,7 +16,7 @@
         "decorations":false,
         "skipTaskbar":false,
         "transparent":false,
-        "dragDropEnabled":false,
+        "dragDropEnabled":true,
         "shadow":true,
         "url":"src/view/index.html"
       }

@@ -168,7 +168,8 @@ pub fn change_app_menu_items(new_app_menu_items: Vec<AppMenuItem>) {
 
     for old_item in &*items {
         if let Some(item) = menu.get_menu_item_by_id(&old_item.path) {
-            menu.remove_at(item.index as _);
+            // menu.remove_at(item.index as _);
+            menu.remove(&item);
         }
     }
 

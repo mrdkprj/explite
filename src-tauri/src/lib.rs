@@ -331,13 +331,11 @@ async fn message(payload: DialogOptions) -> bool {
 #[tauri::command]
 fn open_terminal(payload: String) -> Result<(), String> {
     if cfg!(windows) {
-        let mut arg = "wt.exe -d ".to_string();
-        arg.push_str(&payload);
+        let arg = format!("wt.exe -d {}", payload);
         zouni::shell::execute(arg, "powershell")
     } else {
-        let mut commandline_arg = "gnome-terminal --working-directory=".to_string();
-        commandline_arg.push_str(&payload);
-        zouni::shell::execute("/", commandline_arg)
+        let commandline_arg = format!("--working-directory={}", payload);
+        zouni::shell::execute(commandline_arg, "gnome-terminal")
     }
 }
 
@@ -409,6 +407,7 @@ fn unlisten_devices() {
     zouni::device::unlisten();
 }
 
+#[allow(unused_variables)]
 #[tauri::command]
 fn listen_file_drop(window: WebviewWindow, app: AppHandle) -> tauri::Result<()> {
     #[cfg(target_os = "windows")]
