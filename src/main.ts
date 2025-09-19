@@ -111,7 +111,8 @@ class Main {
     private openFolder = async (fullPath: string, navigation: Mp.Navigation): Promise<Mp.LoadEvent | null> => {
         if (fullPath == HOME) {
             const result = await this.readFiles(HOME);
-            return { files: this.files, directory: HOME, navigation, sortType: result.sortType, failed: !result.done, headers: [] };
+            const drives = await util.getDriveInfo();
+            return { files: this.files, directory: HOME, navigation, sortType: result.sortType, failed: !result.done, headers: [], drives };
         }
 
         const directory = fullPath;

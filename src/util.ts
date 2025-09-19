@@ -34,9 +34,39 @@ class Util {
 
     getFileType(attr: FileAttribute, mimeType: string, extension: string): Mp.FileType {
         if (attr.is_symbolic_link) {
-            return attr.is_directory ? "LinkDir" : "LinkFile";
+            return attr.is_directory ? "SymlinkFolder" : "SymlinkFile";
         }
 
+        if (attr.is_directory) {
+            return attr.is_hidden ? "HiddenFolder" : "Folder";
+        }
+
+        if (REGULAR_TYPES.includes(extension)) {
+            return "Normal";
+        }
+
+        const lower = mimeType.toLowerCase();
+        if (lower.includes(MIME_TYPE.Audio)) {
+            return "Audio";
+        }
+
+        if (lower.includes(MIME_TYPE.Video)) {
+            return "Video";
+        }
+
+        if (lower.includes(MIME_TYPE.Image)) {
+            return "Image";
+        }
+
+        if (lower.includes(MIME_TYPE.App)) {
+            if (ARCHIVE_EXT.includes(extension)) return "Zip";
+            return "App";
+        }
+
+        return "Normal";
+    }
+
+    getSymlinkFileType(attr: FileAttribute, mimeType: string, extension: string): Mp.LinkFileType {
         if (attr.is_directory) {
             return attr.is_hidden ? "HiddenFolder" : "Folder";
         }
@@ -100,12 +130,16 @@ class Util {
             isFile: attr.is_file,
             fileType,
             linkPath: attr.link_path,
+            linkFileType: attr.is_symbolic_link ? this.getSymlinkFileType(attr, dirent.mime_type, this.getExtension(attr.link_path, attr)) : "None",
         };
     }
 
     async toFileFromPath(fullPath: string): Promise<Mp.MediaFile> {
         const attr = await ipc.invoke("stat", fullPath);
-        const mimeType = attr.is_directory ? "" : await ipc.invoke("get_mime_type", fullPath);
+        let mimeType = "";
+        if (attr.is_directory) {
+            mimeType = attr.is_symbolic_link ? await ipc.invoke("get_mime_type", fullPath) : await ipc.invoke("get_mime_type", attr.link_path);
+        }
         const extension = this.getExtension(fullPath, attr);
         const fileType = this.getFileType(attr, mimeType, extension);
         const name = this.getName(fullPath);
@@ -123,6 +157,7 @@ class Util {
             isFile: attr.is_file,
             fileType,
             linkPath: attr.link_path,
+            linkFileType: attr.is_symbolic_link ? this.getSymlinkFileType(attr, mimeType, this.getExtension(attr.link_path, attr)) : "None",
         };
     }
 
@@ -140,6 +175,7 @@ class Util {
             isFile: false,
             fileType: "Folder",
             linkPath: "",
+            linkFileType: "Folder",
         };
     }
 

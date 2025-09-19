@@ -116,7 +116,8 @@ declare global {
             labels: Mp.HeaderLabel[];
         };
 
-        type FileType = "Video" | "Audio" | "Image" | "App" | "Normal" | "Folder" | "HiddenFolder" | "LinkDir" | "LinkFile" | "Zip";
+        type FileType = "Video" | "Audio" | "Image" | "App" | "Normal" | "Folder" | "HiddenFolder" | "Zip" | "SymlinkFile" | "SymlinkFolder";
+        type LinkFileType = "None" | "Video" | "Audio" | "Image" | "App" | "Normal" | "Folder" | "HiddenFolder" | "Zip";
         type MediaFile = {
             id: string;
             fullPath: string;
@@ -128,8 +129,9 @@ declare global {
             size: number;
             extension: string;
             isFile: boolean;
-            fileType: FileType;
+            fileType: Mp.FileType;
             linkPath: string;
+            linkFileType: Mp.LinkFileType;
         };
 
         type LoadEvent = {

@@ -59,10 +59,14 @@
         if ($listState.currentDir.fullPath != HOME) {
             onRowClick(e);
             const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+            let itemPath = "";
+            if (file) {
+                itemPath = file.linkPath ? file.linkPath : file.fullPath;
+            }
             if (navigator.userAgent.includes(OS.windows)) {
-                await main.openListContextMenu({ x: e.screenX, y: e.screenY }, file ? file.fullPath : "");
+                await main.openListContextMenu({ x: e.screenX, y: e.screenY }, itemPath);
             } else {
-                await main.openListContextMenu({ x: e.clientX, y: e.clientY }, file ? file.fullPath : "");
+                await main.openListContextMenu({ x: e.clientX, y: e.clientY }, itemPath);
             }
         }
     };
@@ -950,6 +954,10 @@
         dispatch({ type: "sort", value: e.sortType });
         dispatch({ type: "load", value: { event: e } });
 
+        if (e.drives) {
+            dispatch({ type: "drives", value: e.drives });
+        }
+
         await setTitle();
 
         await tick();
@@ -1501,7 +1509,7 @@
                                             >
                                                 <div
                                                     class="icon"
-                                                    class:folder={item.fileType == "Folder" || item.fileType == "LinkDir"}
+                                                    class:folder={item.fileType == "Folder" || item.fileType == "SymlinkFolder"}
                                                     class:hidden-folder={item.fileType == "HiddenFolder"}
                                                     data-file-id={item.id}
                                                 >
@@ -1509,15 +1517,15 @@
                                                         <div class="symlink-icon"><div class="symlink-arrow"></div></div>
                                                     {/if}
                                                     {#if item.isFile}
-                                                        {#if item.fileType == "Audio"}
+                                                        {#if item.fileType == "Audio" || item.linkFileType == "Audio"}
                                                             <AudioSvg />
-                                                        {:else if item.fileType == "Video"}
+                                                        {:else if item.fileType == "Video" || item.linkFileType == "Video"}
                                                             <VideoSvg />
-                                                        {:else if item.fileType == "Image"}
+                                                        {:else if item.fileType == "Image" || item.linkFileType == "Image"}
                                                             <ImageSvg />
-                                                        {:else if item.fileType == "Zip"}
+                                                        {:else if item.fileType == "Zip" || item.linkFileType == "Zip"}
                                                             <Zip />
-                                                        {:else if item.fileType == "App"}
+                                                        {:else if item.fileType == "App" || item.linkFileType == "App"}
                                                             <AppSvg />
                                                         {:else}
                                                             <FileSvg />

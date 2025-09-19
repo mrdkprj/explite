@@ -109,7 +109,7 @@
         color: var(--menu-color);
         display: flex;
         width: 540px;
-        height: 540px;
+        height: 200px;
         flex-direction: column;
         box-shadow: 7px 5px 5px var(--dialog-shadow);
         outline: 1px solid var(--dialog-border-color);
