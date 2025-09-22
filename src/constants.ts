@@ -60,3 +60,15 @@ export const MIME_TYPE = {
 };
 
 export const ARCHIVE_EXT = [".zip", ".tar", ".7z", ".gz", ".bz", ".xz"];
+
+export const WinUserRootDir = "C:\\Users";
+export const LinuxUserRootDir = "/home/";
+
+export const WIN_SPECIAL_FOLDERS = {
+    Desktop: new RegExp(/C:\\Users\\.*\\Desktop$/),
+    Documents: new RegExp(/C:\\Users\\.*\\Documents$/),
+    Downloads: new RegExp(/C:\\Users\\.*\\Downloads$/),
+    Music: new RegExp(/C:\\Users\\.*\\Music$/),
+    Pictures: new RegExp(/C:\\Users\\.*\\Pictures$/),
+    Videos: new RegExp(/C:\\Users\\.*\\Videos$/),
+};

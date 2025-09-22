@@ -168,14 +168,19 @@ pub fn change_app_menu_items(new_app_menu_items: Vec<AppMenuItem>) {
 
     for old_item in &*items {
         if let Some(item) = menu.get_menu_item_by_id(&old_item.path) {
-            // menu.remove_at(item.index as _);
+            #[cfg(target_os = "windows")]
+            menu.remove_at(item.index as _);
+            #[cfg(target_os = "linux")]
             menu.remove(&item);
         }
     }
 
     let terminal = menu.get_menu_item_by_id("Terminal").unwrap();
 
+    #[cfg(target_os = "windows")]
     let start_index = terminal.index + 1;
+    #[cfg(target_os = "linux")]
+    let start_index = menu.items().iter().position(|item| item.uuid == terminal.uuid).unwrap() as u32 + 1;
     for (i, new_item) in new_app_menu_items.iter().enumerate() {
         if let Ok(icon) = zouni::shell::extract_icon(&new_item.path) {
             #[cfg(target_os = "windows")]

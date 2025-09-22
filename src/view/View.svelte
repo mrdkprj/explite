@@ -27,6 +27,12 @@
     import Deferred from "../deferred";
     import { t } from "../translation/useTranslation";
     import Symlink from "./Symlink.svelte";
+    import DirDesktop from "../svg/DirDesktop.svelte";
+    import DirDocuments from "../svg/DirDocuments.svelte";
+    import DirDownloads from "../svg/DirDownloads.svelte";
+    import DirMusic from "../svg/DirMusic.svelte";
+    import DirImage from "../svg/DirImage.svelte";
+    import DirVideo from "../svg/DirVideo.svelte";
 
     let fileListContainer = $state<HTMLDivElement>();
     let virtualList = $state<VirtualList<Mp.MediaFile>>();
@@ -1509,7 +1515,7 @@
                                             >
                                                 <div
                                                     class="icon"
-                                                    class:folder={item.fileType == "Folder" || item.fileType == "SymlinkFolder"}
+                                                    class:folder={item.entityType == "Folder" || item.entityType == "SymlinkFolder"}
                                                     class:hidden-folder={item.fileType == "HiddenFolder"}
                                                     data-file-id={item.id}
                                                 >
@@ -1517,19 +1523,31 @@
                                                         <div class="symlink-icon"><div class="symlink-arrow"></div></div>
                                                     {/if}
                                                     {#if item.isFile}
-                                                        {#if item.fileType == "Audio" || item.linkFileType == "Audio"}
+                                                        {#if item.fileType == "Audio"}
                                                             <AudioSvg />
-                                                        {:else if item.fileType == "Video" || item.linkFileType == "Video"}
+                                                        {:else if item.fileType == "Video"}
                                                             <VideoSvg />
-                                                        {:else if item.fileType == "Image" || item.linkFileType == "Image"}
+                                                        {:else if item.fileType == "Image"}
                                                             <ImageSvg />
-                                                        {:else if item.fileType == "Zip" || item.linkFileType == "Zip"}
+                                                        {:else if item.fileType == "Zip"}
                                                             <Zip />
-                                                        {:else if item.fileType == "App" || item.linkFileType == "App"}
+                                                        {:else if item.fileType == "App"}
                                                             <AppSvg />
                                                         {:else}
                                                             <FileSvg />
                                                         {/if}
+                                                    {:else if item.fileType == "Desktop"}
+                                                        <DirDesktop />
+                                                    {:else if item.fileType == "Documents"}
+                                                        <DirDocuments />
+                                                    {:else if item.fileType == "Downloads"}
+                                                        <DirDownloads />
+                                                    {:else if item.fileType == "Music"}
+                                                        <DirMusic />
+                                                    {:else if item.fileType == "Pictures"}
+                                                        <DirImage />
+                                                    {:else if item.fileType == "Videos"}
+                                                        <DirVideo />
                                                     {:else}
                                                         <FolderSvg />
                                                     {/if}

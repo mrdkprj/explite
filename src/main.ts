@@ -524,7 +524,7 @@ class Main {
 
     deleteItems = async (e: Mp.TrashItemRequest) => {
         try {
-            const confimed = await ipc.invoke("message", { dialog_type: "confirm", kind: "info", message: "このファイルを完全に削除しますか？", ok_label: t("yes"), cancel_label: t("no") });
+            const confimed = await ipc.invoke("message", { dialog_type: "confirm", kind: "info", message: t("deleteConfirm"), ok_label: t("yes"), cancel_label: t("no") });
             if (!confimed) return;
 
             const fullPaths = e.files.map((file) => file.fullPath);
@@ -721,7 +721,9 @@ class Main {
                     break;
 
                 case "Undelete":
-                    await ipc.invoke("undelete", fileOperation.target);
+                    /* Inside recycle bin, shortcut does not end with .lnk */
+                    const targets = fileOperation.target.map((target) => (path.extname(target) == ".lnk" ? target.replace(new RegExp(".lnk$"), "") : target));
+                    await ipc.invoke("undelete", targets);
                     break;
 
                 case "Rename":

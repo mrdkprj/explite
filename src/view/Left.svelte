@@ -1,6 +1,12 @@
 <script lang="ts">
     import DriveSvg from "../svg/DriveSvg.svelte";
     import FolderSvg from "../svg/FolderSvg.svelte";
+    import DirDesktop from "../svg/DirDesktop.svelte";
+    import DirDocuments from "../svg/DirDocuments.svelte";
+    import DirDownloads from "../svg/DirDownloads.svelte";
+    import DirMusic from "../svg/DirMusic.svelte";
+    import DirImage from "../svg/DirImage.svelte";
+    import DirVideo from "../svg/DirVideo.svelte";
     import { appState, dispatch } from "./appStateReducer";
     import { listState } from "./listStateReducer";
     import { handleKeyEvent, HOME } from "../constants";
@@ -79,7 +85,21 @@
                 draggable="true"
             >
                 <div class="icon folder">
-                    <FolderSvg />
+                    {#if favorite.fileType == "Desktop"}
+                        <DirDesktop />
+                    {:else if favorite.fileType == "Documents"}
+                        <DirDocuments />
+                    {:else if favorite.fileType == "Downloads"}
+                        <DirDownloads />
+                    {:else if favorite.fileType == "Music"}
+                        <DirMusic />
+                    {:else if favorite.fileType == "Pictures"}
+                        <DirImage />
+                    {:else if favorite.fileType == "Videos"}
+                        <DirVideo />
+                    {:else}
+                        <FolderSvg />
+                    {/if}
                 </div>
                 <div class="name">{favorite.name}</div>
             </div>

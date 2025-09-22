@@ -1,11 +1,12 @@
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
 import { Dirent, FileAttribute, IPCBase } from "./ipc";
 import { path } from "./path";
-import { ARCHIVE_EXT, MIME_TYPE, OS, SEPARATOR } from "./constants";
+import { ARCHIVE_EXT, LinuxUserRootDir, MIME_TYPE, OS, SEPARATOR, WIN_SPECIAL_FOLDERS, WinUserRootDir } from "./constants";
 import { t } from "./translation/useTranslation";
 
 const REGULAR_TYPES = [".ts", ".json", ".mjs", ".cjs"];
 const ipc = new IPCBase();
+const isWin = navigator.userAgent.includes(OS.windows);
 
 class Util {
     async exists(target: string | undefined | null, createIfNotFound = false) {
@@ -32,41 +33,47 @@ class Util {
         return hash;
     }
 
-    getFileType(attr: FileAttribute, mimeType: string, extension: string): Mp.FileType {
+    private mayContainSpecialFolder(fullPath: string, attr: FileAttribute) {
+        if (isWin && fullPath.startsWith(WinUserRootDir) && attr.is_directory) {
+            return true;
+        }
+
+        if (!isWin && fullPath.startsWith(LinuxUserRootDir) && attr.is_directory) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private getSpecialFolderType(fullPath: string) {
+        if (isWin) {
+            const matched = Object.entries(WIN_SPECIAL_FOLDERS).find(([_, reg]) => !!fullPath.match(reg));
+            if (matched) {
+                return matched[0];
+            }
+        }
+    }
+
+    private getEntityType(attr: FileAttribute): Mp.EntityType {
         if (attr.is_symbolic_link) {
             return attr.is_directory ? "SymlinkFolder" : "SymlinkFile";
         }
 
         if (attr.is_directory) {
-            return attr.is_hidden ? "HiddenFolder" : "Folder";
+            return "Folder";
         }
 
-        if (REGULAR_TYPES.includes(extension)) {
-            return "Normal";
-        }
-
-        const lower = mimeType.toLowerCase();
-        if (lower.includes(MIME_TYPE.Audio)) {
-            return "Audio";
-        }
-
-        if (lower.includes(MIME_TYPE.Video)) {
-            return "Video";
-        }
-
-        if (lower.includes(MIME_TYPE.Image)) {
-            return "Image";
-        }
-
-        if (lower.includes(MIME_TYPE.App)) {
-            if (ARCHIVE_EXT.includes(extension)) return "Zip";
-            return "App";
-        }
-
-        return "Normal";
+        return "File";
     }
 
-    getSymlinkFileType(attr: FileAttribute, mimeType: string, extension: string): Mp.LinkFileType {
+    private getFileType(fullPath: string, attr: FileAttribute, mimeType: string, extension: string): Mp.FileType {
+        if (this.mayContainSpecialFolder(fullPath, attr)) {
+            const specialFolder = this.getSpecialFolderType(fullPath);
+            if (specialFolder) {
+                return specialFolder as Mp.FileType;
+            }
+        }
+
         if (attr.is_directory) {
             return attr.is_hidden ? "HiddenFolder" : "Folder";
         }
@@ -114,7 +121,8 @@ class Util {
         const fullPath = dirent.full_path;
         const attr = dirent.attributes;
         const extension = this.getExtension(fullPath, attr);
-        const fileType = this.getFileType(attr, dirent.mime_type, extension);
+        const entityType = this.getEntityType(attr);
+        const fileType = this.getFileType(fullPath, attr, dirent.mime_type, extension);
         const name = this.getName(fullPath);
 
         return {
@@ -126,22 +134,23 @@ class Util {
             mdate: attr.mtime_ms,
             cdate: attr.birthtime_ms,
             size: Math.ceil(attr.size / 1024),
-            extension,
             isFile: attr.is_file,
+            extension,
             fileType,
             linkPath: attr.link_path,
-            linkFileType: attr.is_symbolic_link ? this.getSymlinkFileType(attr, dirent.mime_type, this.getExtension(attr.link_path, attr)) : "None",
+            entityType,
         };
     }
 
     async toFileFromPath(fullPath: string): Promise<Mp.MediaFile> {
         const attr = await ipc.invoke("stat", fullPath);
         let mimeType = "";
-        if (attr.is_directory) {
-            mimeType = attr.is_symbolic_link ? await ipc.invoke("get_mime_type", fullPath) : await ipc.invoke("get_mime_type", attr.link_path);
+        if (!attr.is_directory) {
+            mimeType = attr.is_symbolic_link ? await ipc.invoke("get_mime_type", attr.link_path) : await ipc.invoke("get_mime_type", fullPath);
         }
         const extension = this.getExtension(fullPath, attr);
-        const fileType = this.getFileType(attr, mimeType, extension);
+        const entityType = this.getEntityType(attr);
+        const fileType = this.getFileType(fullPath, attr, mimeType, extension);
         const name = this.getName(fullPath);
 
         return {
@@ -153,11 +162,11 @@ class Util {
             mdate: attr.mtime_ms,
             cdate: attr.birthtime_ms,
             size: Math.ceil(attr.size / 1024),
-            extension,
             isFile: attr.is_file,
+            extension,
+            entityType,
             fileType,
             linkPath: attr.link_path,
-            linkFileType: attr.is_symbolic_link ? this.getSymlinkFileType(attr, mimeType, this.getExtension(attr.link_path, attr)) : "None",
         };
     }
 
@@ -173,9 +182,9 @@ class Util {
             size: 0,
             extension: "",
             isFile: false,
+            entityType: "Folder",
             fileType: "Folder",
             linkPath: "",
-            linkFileType: "Folder",
         };
     }
 
