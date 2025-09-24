@@ -331,7 +331,7 @@ async fn message(payload: DialogOptions) -> bool {
 #[tauri::command]
 fn open_terminal(payload: String) -> Result<(), String> {
     if cfg!(windows) {
-        let arg = format!("wt.exe -d {}", payload);
+        let arg = format!("wt.exe -d '{}'", payload);
         zouni::shell::execute(arg, "powershell")
     } else {
         let commandline_arg = format!("--working-directory={}", payload);
