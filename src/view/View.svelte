@@ -70,9 +70,9 @@
                 itemPath = file.linkPath ? file.linkPath : file.fullPath;
             }
             if (navigator.userAgent.includes(OS.windows)) {
-                await main.openListContextMenu({ x: e.screenX, y: e.screenY }, itemPath);
+                await main.openListContextMenu({ x: e.screenX, y: e.screenY }, itemPath, e.shiftKey);
             } else {
-                await main.openListContextMenu({ x: e.clientX, y: e.clientY }, itemPath);
+                await main.openListContextMenu({ x: e.clientX, y: e.clientY }, itemPath, e.shiftKey);
             }
         }
     };
@@ -1076,7 +1076,10 @@
                 break;
 
             case "Terminal":
-                await main.openTerminal($listState.currentDir.fullPath);
+                await main.openTerminal($listState.currentDir.fullPath, false);
+                break;
+            case "AdminTerminal":
+                await main.openTerminal($listState.currentDir.fullPath, true);
                 break;
 
             default: {

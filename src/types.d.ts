@@ -66,6 +66,7 @@ declare global {
             Property: null;
             Settings: null;
             Terminal: null;
+            AdminTerminal: null;
         };
 
         type FavContextMenuSubTypeMap = {

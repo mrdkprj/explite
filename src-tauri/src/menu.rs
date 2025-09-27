@@ -30,7 +30,7 @@ pub struct Position {
     y: i32,
 }
 
-pub async fn popup_menu(window: &WebviewWindow, menu_name: &str, position: Position, full_path: Option<String>) {
+pub async fn popup_menu(window: &WebviewWindow, menu_name: &str, position: Position, full_path: Option<String>, show_admin_runas: bool) {
     let map = MENU_MAP.lock().await;
     let full_path = full_path.unwrap_or_default();
     let target_menu_name = if menu_name == LIST && full_path.is_empty() {
@@ -43,6 +43,11 @@ pub async fn popup_menu(window: &WebviewWindow, menu_name: &str, position: Posit
     if target_menu_name == LIST {
         update_open_with(menu, &full_path);
         toggle_app_items(menu, &full_path);
+    }
+
+    #[cfg(target_os = "windows")]
+    if let Some(mut terminal) = menu.get_menu_item_by_id("AdminTerminal") {
+        terminal.set_visible(show_admin_runas);
     }
 
     let result = menu.popup_at_async(position.x, position.y).await;
@@ -221,6 +226,7 @@ fn create_list_menu(window_handle: isize) {
     builder.text("Property", "Property", false);
 
     builder.separator();
+    builder.text_with_icon("AdminTerminal", "Open Terminal(Admin)", false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
     builder.text_with_icon("Terminal", "Open Terminal", false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
 
     let menu = builder.build().unwrap();
@@ -239,6 +245,7 @@ fn create_noitem_menu(window_handle: isize) {
     builder.text("CopyFullpath", "Copy Fullpath", false);
     builder.text("Property", "Property", false);
     builder.separator();
+    builder.text_with_icon("AdminTerminal", "Open Terminal(Admin)", false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
     builder.text_with_icon("Terminal", "Open Terminal", false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
 
     let menu = builder.build().unwrap();

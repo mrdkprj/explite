@@ -70,6 +70,12 @@ type OpenWithArg = {
 type ContextMenuArg = {
     position: Mp.Position;
     full_path: string;
+    show_admin_runas: boolean;
+};
+
+type TerminalArgs = {
+    path: string;
+    admin: boolean;
 };
 
 type DialogOptions = {
@@ -136,7 +142,7 @@ type TauriCommandMap = {
     watch: TauriCommand<WatchRequest, undefined>;
     unwatch: TauriCommand<string, undefined>;
     message: TauriCommand<DialogOptions, boolean>;
-    open_terminal: TauriCommand<string, undefined>;
+    open_terminal: TauriCommand<TerminalArgs, undefined>;
     launch_new: TauriCommand<undefined, undefined>;
     get_args: TauriCommand<undefined, InitArgs>;
     register_drop_target: TauriCommand<undefined, undefined>;

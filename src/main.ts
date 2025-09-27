@@ -344,8 +344,8 @@ class Main {
         await view.close();
     };
 
-    openListContextMenu = async (e: Mp.Position, fullPath: string) => {
-        await ipc.invoke("open_list_context_menu", { position: e, full_path: fullPath });
+    openListContextMenu = async (e: Mp.Position, fullPath: string, showAdminRunAs: boolean) => {
+        await ipc.invoke("open_list_context_menu", { position: e, full_path: fullPath, show_admin_runas: showAdminRunAs });
     };
 
     openFavContextMenu = async (e: Mp.Position) => {
@@ -437,8 +437,8 @@ class Main {
         this.settings.data.favorites = favorites;
     };
 
-    openTerminal = async (dir: string) => {
-        await ipc.invoke("open_terminal", dir);
+    openTerminal = async (dir: string, admin: boolean) => {
+        await ipc.invoke("open_terminal", { path: dir, admin });
     };
 
     launchNew = async () => {

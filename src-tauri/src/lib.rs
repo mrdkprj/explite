@@ -103,7 +103,7 @@ fn delete(payload: Vec<String>) -> Result<(), String> {
 
 #[tauri::command]
 fn undelete(payload: Vec<String>) -> Result<(), String> {
-    fs::undelete(payload)
+    fs::undelete(payload.as_slice())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -269,12 +269,13 @@ fn create_symlink(payload: SymlinkRequest) -> Result<(), String> {
 struct ContextMenuArg {
     position: menu::Position,
     full_path: String,
+    show_admin_runas: bool,
 }
 #[tauri::command]
 async fn open_list_context_menu(window: WebviewWindow, payload: ContextMenuArg) {
     #[cfg(target_os = "windows")]
     {
-        menu::popup_menu(&window, menu::LIST, payload.position, Some(payload.full_path)).await;
+        menu::popup_menu(&window, menu::LIST, payload.position, Some(payload.full_path), payload.show_admin_runas).await;
     }
     #[cfg(target_os = "linux")]
     {
@@ -282,7 +283,7 @@ async fn open_list_context_menu(window: WebviewWindow, payload: ContextMenuArg) 
         window
             .run_on_main_thread(move || {
                 gtk::glib::spawn_future_local(async move {
-                    menu::popup_menu(&gtk_window, menu::LIST, payload.position, Some(payload.full_path)).await;
+                    menu::popup_menu(&gtk_window, menu::LIST, payload.position, Some(payload.full_path), payload.show_admin_runas).await;
                 });
             })
             .unwrap();
@@ -293,7 +294,7 @@ async fn open_list_context_menu(window: WebviewWindow, payload: ContextMenuArg) 
 async fn open_fav_context_menu(window: WebviewWindow, payload: menu::Position) {
     #[cfg(target_os = "windows")]
     {
-        menu::popup_menu(&window, menu::FAV, payload, None).await;
+        menu::popup_menu(&window, menu::FAV, payload, None, false).await;
     }
     #[cfg(target_os = "linux")]
     {
@@ -301,7 +302,7 @@ async fn open_fav_context_menu(window: WebviewWindow, payload: menu::Position) {
         window
             .run_on_main_thread(move || {
                 gtk::glib::spawn_future_local(async move {
-                    menu::popup_menu(&gtk_window, menu::FAV, payload, None).await;
+                    menu::popup_menu(&gtk_window, menu::FAV, payload, None, false).await;
                 });
             })
             .unwrap();
@@ -328,13 +329,22 @@ async fn message(payload: DialogOptions) -> bool {
     dialog::show(payload).await
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct TerminalArgs {
+    path: String,
+    admin: bool,
+}
 #[tauri::command]
-fn open_terminal(payload: String) -> Result<(), String> {
+fn open_terminal(payload: TerminalArgs) -> Result<(), String> {
     if cfg!(windows) {
-        let arg = format!("wt.exe -d '{}'", payload);
-        zouni::shell::execute(arg, "powershell")
+        let arg = format!("wt.exe -d '{}'", payload.path);
+        if payload.admin {
+            zouni::shell::execute_as(arg, "powershell")
+        } else {
+            zouni::shell::execute(arg, "powershell")
+        }
     } else {
-        let commandline_arg = format!("--working-directory={}", payload);
+        let commandline_arg = format!("--working-directory={}", payload.path);
         zouni::shell::execute(commandline_arg, "gnome-terminal")
     }
 }
