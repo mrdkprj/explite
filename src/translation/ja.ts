@@ -6,6 +6,8 @@ export const ja: Mp.Labels = {
     colModified: "更新日時",
     colCreated: "作成日時",
     colSize: "サイズ",
+    colDeleted: "削除日時",
+    colOrigPath: "元の場所",
     typeFolder: "ファイルフォルダー",
     typeShortcut: "ショートカット",
     newFile: "新しいファイル",

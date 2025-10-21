@@ -1,7 +1,7 @@
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
-import { Dirent, FileAttribute, IPCBase } from "./ipc";
+import { Dirent, FileAttribute, IPCBase, RecycleBinItem } from "./ipc";
 import { path } from "./path";
-import { ARCHIVE_EXT, LinuxUserRootDir, MIME_TYPE, OS, SEPARATOR, WIN_SPECIAL_FOLDERS, WinUserRootDir } from "./constants";
+import { ARCHIVE_EXT, LinuxUserRootDir, MIME_TYPE, OS, RECYCLE_BIN_ITEM, SEPARATOR, WIN_SPECIAL_FOLDERS, WinUserRootDir } from "./constants";
 import { t } from "./translation/useTranslation";
 
 const REGULAR_TYPES = [".ts", ".json", ".mjs", ".cjs"];
@@ -139,6 +139,35 @@ class Util {
             fileType,
             linkPath: attr.link_path,
             entityType,
+            ddate: 0,
+            originalPath: "",
+        };
+    }
+
+    toFileFromRecycleBinItem(dirent: RecycleBinItem): Mp.MediaFile {
+        const fullPath = dirent.original_path;
+        const attr = dirent.attributes;
+        const extension = this.getExtension(fullPath, attr);
+        const entityType = this.getEntityType(attr);
+        const fileType = this.getFileType(fullPath, attr, dirent.mime_type, extension);
+        const name = this.getName(fullPath);
+
+        return {
+            id: encodeURIComponent(fullPath),
+            fullPath: RECYCLE_BIN_ITEM,
+            dir: path.dirname(fullPath),
+            uuid: crypto.randomUUID(),
+            name,
+            mdate: attr.mtime_ms,
+            cdate: attr.birthtime_ms,
+            size: Math.ceil(attr.size / 1024),
+            isFile: attr.is_file,
+            extension,
+            fileType,
+            linkPath: attr.link_path,
+            entityType,
+            ddate: dirent.deleted_date_ms,
+            originalPath: fullPath,
         };
     }
 
@@ -167,6 +196,8 @@ class Util {
             entityType,
             fileType,
             linkPath: attr.link_path,
+            ddate: 0,
+            originalPath: "",
         };
     }
 
@@ -185,6 +216,8 @@ class Util {
             entityType: "Folder",
             fileType: "Folder",
             linkPath: "",
+            ddate: 0,
+            originalPath: "",
         };
     }
 
@@ -210,9 +243,12 @@ class Util {
                 return a.mdate - b.mdate || a.name.replace(path.extname(a.name), "").localeCompare(b.name.replace(path.extname(b.name), ""));
             case "cdate":
                 return a.cdate - b.cdate || a.name.replace(path.extname(a.name), "").localeCompare(b.name.replace(path.extname(b.name), ""));
+            case "ddate":
+                return a.cdate - b.cdate || a.name.replace(path.extname(a.name), "").localeCompare(b.name.replace(path.extname(b.name), ""));
             case "size":
                 return a.size - b.size || a.name.replace(path.extname(a.name), "").localeCompare(b.name.replace(path.extname(b.name), ""));
             case "directory":
+            case "orig_path":
                 return a.dir.localeCompare(b.dir);
         }
     }

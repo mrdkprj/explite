@@ -1,11 +1,9 @@
-import type { ClipboardOperation } from "movefile-node/lib";
 declare global {
     interface Window {
         lang: Mp.LocaleName;
     }
 
     type RendererName = "View";
-    type Renderer = { [key in RendererName]: Electron.BrowserWindow | null };
 
     type MainChannelEventMap = {
         minimize: Mp.AnyEvent;
@@ -50,7 +48,7 @@ declare global {
     };
 
     namespace Mp {
-        type SortKey = "name" | "extension" | "cdate" | "mdate" | "size" | "directory";
+        type SortKey = "name" | "extension" | "cdate" | "mdate" | "size" | "directory" | "ddate" | "orig_path";
         type Theme = "dark" | "light" | "system";
 
         type MainContextMenuSubTypeMap = {
@@ -60,13 +58,17 @@ declare global {
             Copy: null;
             Cut: null;
             Paste: null;
-            Delete: null;
+            Trash: null;
             AddToFavorite: null;
             CopyFullpath: null;
             Property: null;
             Settings: null;
             Terminal: null;
             AdminTerminal: null;
+            Delete: null;
+            Undelete: null;
+            EmptyRecycleBin: null;
+            DeleteFromRecycleBin: null;
         };
 
         type FavContextMenuSubTypeMap = {
@@ -133,6 +135,8 @@ declare global {
             entityType: Mp.EntityType;
             fileType: Mp.LinkFileType;
             linkPath: string;
+            ddate: number;
+            originalPath: string;
         };
 
         type LoadEvent = {
@@ -209,6 +213,17 @@ declare global {
 
         type TrashItemRequest = {
             files: Mp.MediaFile[];
+        };
+
+        type UndeleteItemRequest = {
+            undeleteSpecific: boolean;
+            fullPaths?: string[];
+            items?: UndeleteItem[];
+        };
+
+        type UndeleteItem = {
+            fullPath: string;
+            deletedDate: number;
         };
 
         type MarkItemRequest = {
@@ -329,6 +344,8 @@ declare global {
             colModified: string;
             colCreated: string;
             colSize: string;
+            colDeleted: string;
+            colOrigPath: string;
             typeFolder: string;
             typeShortcut: string;
             newFile: string;

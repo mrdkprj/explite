@@ -1,7 +1,7 @@
 import { appDataDir, join } from "@tauri-apps/api/path";
-import { DEFAULT_LABLES } from "./constants";
+import { DEFAULT_LABLES, DEFAULT_SORTKEY_ORDER } from "./constants";
 import { IPC } from "./ipc";
-
+import { t } from "./translation/useTranslation";
 const ipc = new IPC("View");
 const SETTING_FILE_NAME = "explite.settings.json";
 const EXCEPTION_KEYS = ["headerHistory"];
@@ -58,12 +58,56 @@ export default class Settings {
                         config[key][valueKey] = value[valueKey];
                     }
                 });
+            } else if (key == "headerLabels") {
+                const defaultLabels: { [key: string]: Mp.HeaderLabel } = {};
+                DEFAULT_LABLES.forEach((label) => (defaultLabels[label.sortKey] = label));
+                const currentLabels: { [key: string]: Mp.HeaderLabel } = {};
+                value.forEach((label: Mp.HeaderLabel) => (currentLabels[label.sortKey] = label));
+                const labels: Mp.HeaderLabel[] = [];
+                Object.entries(defaultLabels).forEach(([sortKey, defaultLabel]) => {
+                    const label = sortKey in currentLabels ? currentLabels[sortKey] : defaultLabel;
+                    label.label = this.getLabel(sortKey as Mp.SortKey);
+                    labels.push(label);
+                });
+                // const tx = structuredClone(labels);
+                labels.sort((a, b) => DEFAULT_SORTKEY_ORDER.indexOf(a.sortKey) - DEFAULT_SORTKEY_ORDER.indexOf(b.sortKey));
+                console.log(labels);
+                config[key] = labels;
             } else {
                 config[key] = value;
             }
         });
 
         return config;
+    }
+
+    private getLabel(sortKey: Mp.SortKey) {
+        switch (sortKey) {
+            case "cdate":
+                return t("colCreated");
+
+            case "ddate":
+                return t("colDeleted");
+
+            case "directory":
+                return t("colDirectory");
+
+            case "extension":
+                return t("colExtension");
+
+            case "mdate":
+                return t("colModified");
+
+            case "name":
+                return t("colName");
+
+            case "orig_path":
+                return t("colOrigPath");
+
+            case "size":
+                return t("colSize");
+        }
+        return "";
     }
 
     getFilePath() {

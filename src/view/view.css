@@ -425,6 +425,10 @@
     padding: 20px 0px;
 }
 
+.recycle-bin {
+    padding: 10px 0px;
+}
+
 .fav {
     display: flex;
     flex-direction: row;

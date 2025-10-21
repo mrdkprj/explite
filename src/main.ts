@@ -1,8 +1,8 @@
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import Settings from "./settings";
 import util from "./util";
-import { DEFAULT_SORT_TYPE, HOME, OS } from "./constants";
-import { IPC } from "./ipc";
+import { DEFAULT_SORT_TYPE, HOME, OS, RECYCLE_BIN, RECYCLE_BIN_ITEM } from "./constants";
+import { DeleteUndeleteRequest, IPC } from "./ipc";
 import { path } from "./path";
 import { History } from "./history";
 import { t } from "./translation/useTranslation";
@@ -21,18 +21,21 @@ class Main {
     private history = new History();
 
     onMainReady = async (dropTagetId: string): Promise<Mp.ReadyEvent> => {
+        this.cleanHeaderHistory();
+
+        const drives = await util.getDriveInfo();
+
+        const args = await ipc.invoke("get_args", undefined);
+
+        const locale = args.locales.some((locale) => locale.toLowerCase().includes("ja")) ? "ja" : "en";
+        window.lang = locale;
+
         if (!this.initialized) {
             await this.settings.init();
             await ipc.invoke("prepare_menu", undefined);
             await ipc.invoke("listen_devices", undefined);
             await ipc.invoke("listen_file_drop", dropTagetId);
         }
-
-        this.cleanHeaderHistory();
-
-        const drives = await util.getDriveInfo();
-
-        const args = await ipc.invoke("get_args", undefined);
 
         let selectId;
         let initialDirectory = "";
@@ -47,8 +50,6 @@ class Main {
                 await this.readFiles(item.fullPath);
             }
         }
-
-        const locale = args.locales.some((locale) => locale.toLowerCase().includes("ja")) ? "ja" : "en";
 
         this.initialized = true;
 
@@ -79,6 +80,8 @@ class Main {
     };
 
     onSelect = async (e: Mp.SelectEvent): Promise<Mp.LoadEvent | null> => {
+        if (e.fullPath == RECYCLE_BIN_ITEM) return null;
+
         if (e.isFile) {
             this.openFile(e.fullPath);
             return null;
@@ -116,10 +119,13 @@ class Main {
         }
 
         const directory = fullPath;
-        const found = await util.exists(directory);
-        if (!found) {
-            await this.showErrorMessage(`"${directory}" does not exist.`);
-            return null;
+
+        if (fullPath != RECYCLE_BIN) {
+            const found = await util.exists(directory);
+            if (!found) {
+                await this.showErrorMessage(`"${directory}" does not exist.`);
+                return null;
+            }
         }
 
         this.validateHeaderHistory(directory);
@@ -173,22 +179,30 @@ class Main {
             };
         }
 
-        const found = await util.exists(directory);
-        if (!found) {
-            return {
-                done: false,
-                sortType: DEFAULT_SORT_TYPE,
-            };
+        const isRecycleBin = directory == RECYCLE_BIN;
+
+        if (!isRecycleBin) {
+            const found = await util.exists(directory);
+            if (!found) {
+                return {
+                    done: false,
+                    sortType: DEFAULT_SORT_TYPE,
+                };
+            }
         }
 
         try {
-            const allDirents = await ipc.invoke("readdir", { directory, recursive: false });
-
-            this.files = allDirents.filter((dirent) => !dirent.attributes.is_system).map((dirent) => util.toFile(dirent));
+            if (isRecycleBin) {
+                const allDirents = await ipc.invoke("read_recycle_bin", undefined);
+                this.files = allDirents.filter((dirent) => !dirent.attributes.is_system).map((dirent) => util.toFileFromRecycleBinItem(dirent));
+            } else {
+                const allDirents = await ipc.invoke("readdir", { directory, recursive: false });
+                this.files = allDirents.filter((dirent) => !dirent.attributes.is_system).map((dirent) => util.toFile(dirent));
+            }
 
             const sortType = this.sortFiles(directory, this.files);
 
-            if (this.currentDir != directory) {
+            if (this.currentDir != directory && !isRecycleBin) {
                 this.startWatch(false);
             }
 
@@ -344,8 +358,12 @@ class Main {
         await view.close();
     };
 
-    openListContextMenu = async (e: Mp.Position, fullPath: string, showAdminRunAs: boolean) => {
-        await ipc.invoke("open_list_context_menu", { position: e, full_path: fullPath, show_admin_runas: showAdminRunAs });
+    openListContextMenu = async (e: Mp.Position, fullPath: string, showAdminRunAs: boolean, inRecycleBin: boolean) => {
+        if (inRecycleBin) {
+            await ipc.invoke("open_recycle_context_menu", { position: e, full_path: fullPath, show_admin_runas: showAdminRunAs });
+        } else {
+            await ipc.invoke("open_list_context_menu", { position: e, full_path: fullPath, show_admin_runas: showAdminRunAs });
+        }
     };
 
     openFavContextMenu = async (e: Mp.Position) => {
@@ -532,6 +550,80 @@ class Main {
         } catch (ex: any) {
             this.showErrorMessage(ex);
         }
+    };
+
+    private toFilePath(fullPath: string) {
+        /* Inside recycle bin, shortcut does not end with .lnk */
+        return path.extname(fullPath) == ".lnk" ? fullPath.replace(new RegExp(".lnk$"), "") : fullPath;
+    }
+
+    undeleteItems = async (e: Mp.UndeleteItemRequest) => {
+        if (e.undeleteSpecific && !e.items) {
+            return this.showErrorMessage("Invalid undelete arguments");
+        }
+        if (!e.undeleteSpecific && !e.fullPaths) {
+            return this.showErrorMessage("Invalid undelete arguments");
+        }
+
+        try {
+            if (e.undeleteSpecific) {
+                const request: DeleteUndeleteRequest[] = e.items!.map((request) => {
+                    return {
+                        original_path: this.toFilePath(request.fullPath),
+                        deleted_time_ms: request.deletedDate,
+                    };
+                });
+                await ipc.invoke("undelete_by_time", request);
+            } else {
+                const fullPaths = e.fullPaths!.map((fullPath) => this.toFilePath(fullPath));
+                await ipc.invoke("undelete", fullPaths);
+            }
+        } catch (ex: any) {
+            this.showErrorMessage(ex);
+        }
+    };
+
+    deleteFromRecycleBin = async (e: Mp.UndeleteItemRequest) => {
+        if (e.undeleteSpecific && !e.items) {
+            return this.showErrorMessage("Invalid undelete arguments");
+        }
+
+        if (navigator.userAgent.includes(OS.linux)) {
+            const isOK = await ipc.invoke("message", {
+                title: "Recycle Bin",
+                dialog_type: "confirm",
+                message: "Are you sure to delete files?",
+                kind: "warning",
+            });
+
+            if (!isOK) {
+                return;
+            }
+        }
+
+        const request: DeleteUndeleteRequest[] = e.items!.map((request) => {
+            return {
+                original_path: this.toFilePath(request.fullPath),
+                deleted_time_ms: request.deletedDate,
+            };
+        });
+        await ipc.invoke("delete_from_recycle_bin", request);
+    };
+
+    emptyRecycleBin = async () => {
+        if (navigator.userAgent.includes(OS.linux)) {
+            const isOK = await ipc.invoke("message", {
+                title: "Recycle Bin",
+                dialog_type: "confirm",
+                message: "Are you sure to delete all files?",
+                kind: "warning",
+            });
+
+            if (!isOK) {
+                return;
+            }
+        }
+        await ipc.invoke("empty_recycle_bin", undefined);
     };
 
     private beforeMoveItems = async (directory: string, fullPaths: string[]) => {
@@ -721,9 +813,7 @@ class Main {
                     break;
 
                 case "Undelete":
-                    /* Inside recycle bin, shortcut does not end with .lnk */
-                    const targets = fileOperation.target.map((target) => (path.extname(target) == ".lnk" ? target.replace(new RegExp(".lnk$"), "") : target));
-                    await ipc.invoke("undelete", targets);
+                    await this.undeleteItems({ undeleteSpecific: false, fullPaths: fileOperation.target });
                     break;
 
                 case "Rename":

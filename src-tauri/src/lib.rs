@@ -103,7 +103,17 @@ fn delete(payload: Vec<String>) -> Result<(), String> {
 
 #[tauri::command]
 fn undelete(payload: Vec<String>) -> Result<(), String> {
-    fs::undelete(payload.as_slice())
+    fs::undelete(&payload)
+}
+
+#[tauri::command]
+fn undelete_by_time(payload: Vec<RecycleBinItem>) -> Result<(), String> {
+    fs::undelete_by_time(&payload)
+}
+
+#[tauri::command]
+fn delete_from_recycle_bin(payload: Vec<RecycleBinItem>) -> Result<(), String> {
+    fs::delete_from_recycle_bin(&payload)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -309,6 +319,25 @@ async fn open_fav_context_menu(window: WebviewWindow, payload: menu::Position) {
     }
 }
 
+#[tauri::command]
+async fn open_recycle_context_menu(window: WebviewWindow, payload: ContextMenuArg) {
+    #[cfg(target_os = "windows")]
+    {
+        menu::popup_menu(&window, menu::RECYCLE_BIN, payload.position, Some(payload.full_path), false).await;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let gtk_window = window.clone();
+        window
+            .run_on_main_thread(move || {
+                gtk::glib::spawn_future_local(async move {
+                    menu::popup_menu(&gtk_window, menu::RECYCLE_BIN, payload.position, Some(payload.full_path), false).await;
+                });
+            })
+            .unwrap();
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct WatchRequest {
     path: String,
@@ -442,6 +471,16 @@ fn unlisten_file_drop() {
     zouni::webview2::clear();
 }
 
+#[tauri::command]
+fn read_recycle_bin() -> Result<Vec<RecycleBinDirent>, String> {
+    zouni::fs::read_recycle_bin()
+}
+
+#[tauri::command]
+fn empty_recycle_bin() -> Result<(), String> {
+    zouni::fs::empty_recycle_bin(None)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -459,6 +498,7 @@ pub fn run() {
             prepare_menu,
             open_list_context_menu,
             open_fav_context_menu,
+            open_recycle_context_menu,
             exists,
             open_path,
             open_path_with,
@@ -473,6 +513,7 @@ pub fn run() {
             trash,
             delete,
             undelete,
+            undelete_by_time,
             copy,
             mv,
             is_uris_available,
@@ -501,6 +542,9 @@ pub fn run() {
             change_theme,
             show_file_folder_dialog,
             create_symlink,
+            read_recycle_bin,
+            empty_recycle_bin,
+            delete_from_recycle_bin,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,6 +1,7 @@
 <script lang="ts">
     import DriveSvg from "../svg/DriveSvg.svelte";
     import FolderSvg from "../svg/FolderSvg.svelte";
+    import RecycleSvg from "../svg/RecycleSvg.svelte";
     import DirDesktop from "../svg/DirDesktop.svelte";
     import DirDocuments from "../svg/DirDocuments.svelte";
     import DirDownloads from "../svg/DirDownloads.svelte";
@@ -9,7 +10,7 @@
     import DirVideo from "../svg/DirVideo.svelte";
     import { appState, dispatch } from "./appStateReducer";
     import { listState } from "./listStateReducer";
-    import { handleKeyEvent, HOME } from "../constants";
+    import { handleKeyEvent, HOME, RECYCLE_BIN } from "../constants";
     import main from "../main";
 
     let { requestLoad, changeFavorites }: { requestLoad: (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => void; changeFavorites: () => void } = $props();
@@ -120,6 +121,14 @@
                 <div class="name">{disk.name}({disk.label})</div>
             </div>
         {/each}
+    </div>
+    <div class="recycle-bin">
+        <div data-full-path={RECYCLE_BIN} class="disk" class:current={RECYCLE_BIN == $listState.currentDir.fullPath} onclick={onDriveClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+            <div class="icon">
+                <RecycleSvg />
+            </div>
+            <div class="name">Recycle Bin</div>
+        </div>
     </div>
     <div class="divider" onmousedown={onAreaSliderMousedown} onkeydown={handleKeyEvent} role="button" tabindex="-1">
         <div class="line"></div>

@@ -14,18 +14,6 @@
     import AppSvg from "../svg/AppSvg.svelte";
     import FolderSvg from "../svg/FolderSvg.svelte";
     import Zip from "../svg/Zip.svelte";
-
-    import VirtualList from "./VirtualList.svelte";
-    import Home from "./Home.svelte";
-    import Column from "./Column.svelte";
-    import { BROWSER_SHORTCUT_KEYS, DEFAULT_LABLES, DEFAULT_SORT_TYPE, HOME, OS, handleKeyEvent } from "../constants";
-    import { IPC } from "../ipc";
-    import main from "../main";
-    import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-    import util from "../util";
-    import { path } from "../path";
-    import Deferred from "../deferred";
-    import { t } from "../translation/useTranslation";
     import Symlink from "./Symlink.svelte";
     import DirDesktop from "../svg/DirDesktop.svelte";
     import DirDocuments from "../svg/DirDocuments.svelte";
@@ -33,6 +21,17 @@
     import DirMusic from "../svg/DirMusic.svelte";
     import DirImage from "../svg/DirImage.svelte";
     import DirVideo from "../svg/DirVideo.svelte";
+
+    import VirtualList from "./VirtualList.svelte";
+    import Home from "./Home.svelte";
+    import Column from "./Column.svelte";
+    import { BROWSER_SHORTCUT_KEYS, DEFAULT_SORT_TYPE, HOME, OS, RECYCLE_BIN, handleKeyEvent } from "../constants";
+    import { IPC } from "../ipc";
+    import main from "../main";
+    import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+    import util from "../util";
+    import { path } from "../path";
+    import Deferred from "../deferred";
 
     let fileListContainer = $state<HTMLDivElement>();
     let virtualList = $state<VirtualList<Mp.MediaFile>>();
@@ -70,9 +69,9 @@
                 itemPath = file.linkPath ? file.linkPath : file.fullPath;
             }
             if (navigator.userAgent.includes(OS.windows)) {
-                await main.openListContextMenu({ x: e.screenX, y: e.screenY }, itemPath, e.shiftKey);
+                await main.openListContextMenu({ x: e.screenX, y: e.screenY }, itemPath, e.shiftKey, $listState.currentDir.fullPath == RECYCLE_BIN);
             } else {
-                await main.openListContextMenu({ x: e.clientX, y: e.clientY }, itemPath, e.shiftKey);
+                await main.openListContextMenu({ x: e.clientX, y: e.clientY }, itemPath, e.shiftKey, $listState.currentDir.fullPath == RECYCLE_BIN);
             }
         }
     };
@@ -629,6 +628,32 @@
         await main.deleteItems({ files });
     };
 
+    const undeleteItem = async () => {
+        if (!$appState.selection.selectedIds.length) return;
+        const files = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+        const items = files.map((file) => {
+            return {
+                fullPath: file.originalPath,
+                deletedDate: file.ddate,
+            };
+        });
+        await main.undeleteItems({ undeleteSpecific: true, items });
+        await reload(false);
+    };
+
+    const deleteFromRecycleBin = async () => {
+        if (!$appState.selection.selectedIds.length) return;
+        const files = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+        const items = files.map((file) => {
+            return {
+                fullPath: file.originalPath,
+                deletedDate: file.ddate,
+            };
+        });
+        await main.deleteFromRecycleBin({ undeleteSpecific: true, items });
+        await reload(false);
+    };
+
     const writeFullPathToClipboard = async () => {
         const fullPaths = $appState.selection.selectedIds.length
             ? $listState.files
@@ -1023,10 +1048,28 @@
                 break;
             }
 
-            case "Delete": {
+            case "Trash": {
                 await trashItem();
                 break;
             }
+
+            case "Delete": {
+                await deleteItem();
+                break;
+            }
+
+            case "Undelete": {
+                await undeleteItem();
+                break;
+            }
+
+            case "DeleteFromRecycleBin":
+                await deleteFromRecycleBin();
+                break;
+
+            case "EmptyRecycleBin":
+                await main.emptyRecycleBin();
+                break;
 
             case "Paste": {
                 await pasteItems();
@@ -1351,40 +1394,11 @@
         await main.changeTheme(e.settings.theme);
         await main.changeAppMenuItems(e.settings.appMenuItems);
         dispatch({ type: "setPreference", value: { theme: e.settings.theme, appMenuItems: e.settings.appMenuItems, allowMoveColumn: e.settings.allowMoveColumn } });
-        window.lang = e.locale;
-
-        const headerLabels: Mp.HeaderLabel[] = DEFAULT_LABLES;
-        e.settings.headerLabels.forEach((header) => {
-            let label = "";
-            switch (header.sortKey) {
-                case "cdate":
-                    label = t("colCreated");
-                    break;
-                case "directory":
-                    label = t("colDirectory");
-                    break;
-                case "extension":
-                    label = t("colExtension");
-                    break;
-                case "mdate":
-                    label = t("colModified");
-                    break;
-                case "name":
-                    label = t("colName");
-                    break;
-                case "size":
-                    label = t("colSize");
-                    break;
-            }
-            header.label = label;
-            let target = e.settings.headerLabels.findIndex((label) => label.sortKey == header.sortKey);
-            headerLabels[target] = header;
-        });
-        dispatch({ type: "headerLabels", value: headerLabels });
-
+        dispatch({ type: "headerLabels", value: e.settings.headerLabels });
         dispatch({ type: "leftWidth", value: e.settings.leftAreaWidth });
         dispatch({ type: "sort", value: DEFAULT_SORT_TYPE });
         dispatch({ type: "changeFavorites", value: e.settings.favorites });
+
         await init(e.data);
         await tick();
         if (e.selectId) {
@@ -1564,6 +1578,20 @@
                                         {#if $appState.search.searching}
                                             <div class="col-detail" data-file-id={item.id} style="width: {label.width + HEADER_DIVIDER_WIDTh}px;">
                                                 <div class="draggable" title={item.dir} data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.dir}</div>
+                                            </div>
+                                        {/if}
+                                    {:else if label.sortKey == "orig_path"}
+                                        {#if $listState.currentDir.fullPath == RECYCLE_BIN}
+                                            <div class="col-detail" data-file-id={item.id} style="width: {label.width + HEADER_DIVIDER_WIDTh}px;">
+                                                <div class="draggable" title={item.originalPath} data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.dir}</div>
+                                            </div>
+                                        {/if}
+                                    {:else if label.sortKey == "ddate"}
+                                        {#if $listState.currentDir.fullPath == RECYCLE_BIN}
+                                            <div class="col-detail" data-file-id={item.id} style="width: {label.width + HEADER_DIVIDER_WIDTh}px;">
+                                                <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
+                                                    {new Date(item.ddate).toLocaleString("jp-JP", DATE_OPTION)}
+                                                </div>
                                             </div>
                                         {/if}
                                     {:else if label.sortKey == "extension"}

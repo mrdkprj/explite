@@ -15,6 +15,7 @@ static APP_MENU_ITEMS: Lazy<Mutex<Vec<AppMenuItem>>> = Lazy::new(|| Mutex::new(V
 pub const LIST: &str = "list";
 pub const FAV: &str = "fav";
 pub const NO_ITEM: &str = "noitem";
+pub const RECYCLE_BIN: &str = "recyclebin";
 const MENU_EVENT_NAME: &str = "contextmenu_event";
 const TARGET_FILE: &str = "File";
 const TARGET_FOLDER: &str = "Folder";
@@ -163,6 +164,7 @@ pub fn create(window_handle: isize) {
     create_list_menu(window_handle);
     create_fav_menu(window_handle);
     create_noitem_menu(window_handle);
+    create_recycle_bin_menu(window_handle);
 }
 
 pub fn change_app_menu_items(new_app_menu_items: Vec<AppMenuItem>) {
@@ -219,7 +221,7 @@ fn create_list_menu(window_handle: isize) {
     builder.text_with_accelerator("Copy", "Copy", false, "Ctrl+C");
     builder.text_with_accelerator("Cut", "Cut", false, "Ctrl+X");
     builder.text_with_accelerator("Paste", "Paste", false, "Ctrl+V");
-    builder.text_with_accelerator("Delete", "Delete", false, "Delete");
+    builder.text_with_accelerator("Trash", "Delete", false, "Delete");
     builder.separator();
     builder.text("AddToFavorite", "Add To Favorite", false);
     builder.text("CopyFullpath", "Copy Fullpath", false);
@@ -253,6 +255,22 @@ fn create_noitem_menu(window_handle: isize) {
     {
         let mut map = MENU_MAP.try_lock().unwrap();
         (*map).insert(NO_ITEM.to_string(), menu);
+    }
+}
+
+fn create_recycle_bin_menu(window_handle: isize) {
+    let config = get_menu_config(Theme::System);
+    let mut builder = MenuBuilder::new_from_config(window_handle, config);
+    builder.text("Undelete", "Undelete", false);
+    builder.separator();
+    builder.text("DeleteFromRecycleBin", "Delete", false);
+    builder.text("EmptyRecycleBin", "Empty Recycle Bin", false);
+
+    let menu = builder.build().unwrap();
+
+    {
+        let mut map = MENU_MAP.try_lock().unwrap();
+        (*map).insert(RECYCLE_BIN.to_string(), menu);
     }
 }
 

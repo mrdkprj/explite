@@ -2,12 +2,14 @@ export const handleKeyEvent = () => {
     /**/
 };
 
-export const HOME = "PC";
-
 export const OS = {
     windows: "Windows",
     linux: "Linux",
 };
+
+export const HOME = "PC";
+export const RECYCLE_BIN = "Recycle Bin";
+export const RECYCLE_BIN_ITEM = "Recycle Bin Item";
 
 export const SEPARATOR = navigator.userAgent.includes(OS.windows) ? "\\" : "/";
 
@@ -18,34 +20,46 @@ export const DEFAULT_SORT_TYPE: Mp.SortType = {
 
 export const BROWSER_SHORTCUT_KEYS = ["f", "p", "r", "+", "-", "u", "g", "j"];
 
+export const DEFAULT_SORTKEY_ORDER: Mp.SortKey[] = ["name", "directory", "orig_path", "ddate", "extension", "mdate", "cdate", "size"];
+
 export const DEFAULT_LABLES: Mp.HeaderLabel[] = [
     {
-        label: "名前",
+        label: "Name",
         width: 500,
         sortKey: "name",
     },
     {
-        label: "フォルダー",
+        label: "Directory",
         width: 400,
         sortKey: "directory",
     },
     {
-        label: "種類",
+        label: "Original Path",
+        width: 400,
+        sortKey: "orig_path",
+    },
+    {
+        label: "Deleted Date",
+        width: 200,
+        sortKey: "ddate",
+    },
+    {
+        label: "Type",
         width: 200,
         sortKey: "extension",
     },
     {
-        label: "更新日時",
+        label: "Modified Date",
         width: 200,
         sortKey: "mdate",
     },
     {
-        label: "作成日時",
+        label: "Created Date",
         width: 200,
         sortKey: "cdate",
     },
     {
-        label: "サイズ",
+        label: "Size",
         width: 400,
         sortKey: "size",
     },

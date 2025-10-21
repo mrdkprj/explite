@@ -10,7 +10,7 @@
     import Display from "../svg/Display.svelte";
     import { appState, dispatch } from "./appStateReducer";
     import { listState } from "./listStateReducer";
-    import { handleKeyEvent, HOME, SEPARATOR } from "../constants";
+    import { handleKeyEvent, HOME, RECYCLE_BIN, SEPARATOR } from "../constants";
 
     type Paths = {
         overflownPaths: string[];
@@ -109,7 +109,7 @@
     };
 
     const setPathInputFocus = (node: HTMLInputElement) => {
-        pathValue = $listState.currentDir.fullPath == HOME ? "" : $listState.currentDir.fullPath;
+        pathValue = $listState.currentDir.fullPath == HOME || $listState.currentDir.fullPath == RECYCLE_BIN ? "" : $listState.currentDir.fullPath;
         node.value = pathValue;
         node.focus();
         node.setSelectionRange(0, pathValue.length);

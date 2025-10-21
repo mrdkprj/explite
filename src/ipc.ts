@@ -108,10 +108,24 @@ type InitArgs = {
     locales: string[];
 };
 
+export type RecycleBinItem = {
+    name: string;
+    original_path: string;
+    deleted_date_ms: number;
+    mime_type: string;
+    attributes: FileAttribute;
+};
+
+export type DeleteUndeleteRequest = {
+    original_path: string;
+    deleted_time_ms: number;
+};
+
 type TauriCommandMap = {
     prepare_menu: TauriCommand<undefined, undefined>;
     open_list_context_menu: TauriCommand<ContextMenuArg, undefined>;
     open_fav_context_menu: TauriCommand<Mp.Position, undefined>;
+    open_recycle_context_menu: TauriCommand<ContextMenuArg, undefined>;
     exists: TauriCommand<string, boolean>;
     open_path: TauriCommand<string, undefined>;
     open_path_with: TauriCommand<OpenWithArg, undefined>;
@@ -127,6 +141,8 @@ type TauriCommandMap = {
     trash: TauriCommand<string[], undefined>;
     delete: TauriCommand<string[], undefined>;
     undelete: TauriCommand<string[], undefined>;
+    undelete_by_time: TauriCommand<DeleteUndeleteRequest[], undefined>;
+    delete_from_recycle_bin: TauriCommand<DeleteUndeleteRequest[], undefined>;
     copy: TauriCommand<CopyInfo, undefined>;
     mv: TauriCommand<CopyInfo, undefined>;
     is_uris_available: TauriCommand<undefined, boolean>;
@@ -154,6 +170,8 @@ type TauriCommandMap = {
     change_theme: TauriCommand<Mp.Theme, undefined>;
     show_file_folder_dialog: TauriCommand<OpenFileFolderOption, string | null>;
     create_symlink: TauriCommand<SymlinkRequest, undefined>;
+    read_recycle_bin: TauriCommand<undefined, RecycleBinItem[]>;
+    empty_recycle_bin: TauriCommand<undefined, undefined>;
 };
 
 export class IPCBase {

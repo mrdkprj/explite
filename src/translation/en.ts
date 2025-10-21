@@ -6,6 +6,8 @@ export const en: Mp.Labels = {
     colModified: "Modified Date",
     colCreated: "Created Date",
     colSize: "Size",
+    colDeleted: "Deleted Date",
+    colOrigPath: "Original Location",
     typeFolder: "FileFolder",
     typeShortcut: "Shortcut",
     newFile: "New File",
