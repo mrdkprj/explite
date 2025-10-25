@@ -79,6 +79,8 @@ class Main {
         }
     };
 
+    private isRecycleBin = (directory: string) => directory == RECYCLE_BIN;
+
     onSelect = async (e: Mp.SelectEvent): Promise<Mp.LoadEvent | null> => {
         if (e.fullPath == RECYCLE_BIN_ITEM) return null;
 
@@ -120,7 +122,7 @@ class Main {
 
         const directory = fullPath;
 
-        if (fullPath != RECYCLE_BIN) {
+        if (!this.isRecycleBin(fullPath)) {
             const found = await util.exists(directory);
             if (!found) {
                 await this.showErrorMessage(`"${directory}" does not exist.`);
@@ -155,6 +157,7 @@ class Main {
 
     startWatch = async (recursive: boolean) => {
         if (!this.currentDir) return;
+        if (this.isRecycleBin(this.currentDir)) return;
 
         await this.abortWatch();
         this.watchTarget = this.currentDir;
@@ -163,6 +166,7 @@ class Main {
 
     abortWatch = async () => {
         if (this.watchTarget == HOME) return;
+        if (this.isRecycleBin(this.currentDir)) return;
 
         await ipc.invoke("unwatch", this.watchTarget);
     };
@@ -179,9 +183,7 @@ class Main {
             };
         }
 
-        const isRecycleBin = directory == RECYCLE_BIN;
-
-        if (!isRecycleBin) {
+        if (!this.isRecycleBin(directory)) {
             const found = await util.exists(directory);
             if (!found) {
                 return {
@@ -192,7 +194,7 @@ class Main {
         }
 
         try {
-            if (isRecycleBin) {
+            if (this.isRecycleBin(directory)) {
                 const allDirents = await ipc.invoke("read_recycle_bin", undefined);
                 this.files = allDirents.filter((dirent) => !dirent.attributes.is_system).map((dirent) => util.toFileFromRecycleBinItem(dirent));
             } else {
@@ -202,7 +204,7 @@ class Main {
 
             const sortType = this.sortFiles(directory, this.files);
 
-            if (this.currentDir != directory && !isRecycleBin) {
+            if (this.currentDir != directory) {
                 this.startWatch(false);
             }
 
@@ -229,8 +231,10 @@ class Main {
     search = async (e: Mp.SearchRequest): Promise<Mp.SearchResult> => {
         if (!this.searchBackup.length) {
             this.searchBackup = structuredClone(this.files);
-            // In search, all items needs to be listed, so watch recursively
-            this.startWatch(true);
+            if (e.dir != RECYCLE_BIN) {
+                // In search, all items needs to be listed, so watch recursively
+                this.startWatch(true);
+            }
         }
 
         const key = e.key.toLocaleLowerCase();
@@ -240,10 +244,14 @@ class Main {
             return { files: this.files };
         }
 
-        const allDirents = await ipc.invoke("readdir", { directory: e.dir, recursive: true });
-        this.searchCache[e.dir] = allDirents.filter((direcnt) => !direcnt.attributes.is_system).map((dirent) => path.join(dirent.parent_path, dirent.name));
+        if (this.isRecycleBin(e.dir)) {
+            this.files = this.filterRecycleBin(key);
+        } else {
+            const allDirents = await ipc.invoke("readdir", { directory: e.dir, recursive: true });
+            this.searchCache[e.dir] = allDirents.filter((direcnt) => !direcnt.attributes.is_system).map((dirent) => path.join(dirent.parent_path, dirent.name));
+            this.files = await this.filterCache(e.dir, key);
+        }
 
-        this.files = await this.filterCache(e.dir, key);
         this.sortFiles(this.currentDir, this.files);
         return { files: this.files };
     };
@@ -251,6 +259,10 @@ class Main {
     private filterCache = async (dir: string, key: string) => {
         const fildtered = this.searchCache[dir].filter((fullPath) => this.isSearchFileFound(path.basename(fullPath), key));
         return await Promise.all(fildtered.map(async (fullPath) => await util.toFileFromPath(fullPath)));
+    };
+
+    private filterRecycleBin = (key: string) => {
+        return this.files.filter((file) => this.isSearchFileFound(file.name, key));
     };
 
     private isSearchFileFound = (value: string, key: string) => {
@@ -610,7 +622,7 @@ class Main {
         await ipc.invoke("delete_from_recycle_bin", request);
     };
 
-    emptyRecycleBin = async () => {
+    emptyRecycleBin = async (): Promise<boolean> => {
         if (navigator.userAgent.includes(OS.linux)) {
             const isOK = await ipc.invoke("message", {
                 title: "Recycle Bin",
@@ -620,10 +632,11 @@ class Main {
             });
 
             if (!isOK) {
-                return;
+                return false;
             }
         }
         await ipc.invoke("empty_recycle_bin", undefined);
+        return true;
     };
 
     private beforeMoveItems = async (directory: string, fullPaths: string[]) => {

@@ -16,6 +16,7 @@
         end = $bindable(0),
         viewport = $bindable<HTMLDivElement>(),
         onRefresh = undefined,
+        thumbnail = false,
     }: {
         id?: string;
         items: T[];
@@ -29,6 +30,7 @@
         end: number;
         viewport: HTMLDivElement | undefined;
         onRefresh?: ((nodes: HTMLElement[]) => void) | undefined;
+        thumbnail?: boolean;
     } = $props();
 
     let height_map: number[] = [];
@@ -176,8 +178,8 @@
     });
 </script>
 
-<svelte-virtual-list-viewport {id} bind:this={viewport} bind:offsetHeight={viewport_height} onscroll={handle_scroll} style="height: {height};">
-    <svelte-virtual-list-contents bind:this={contents} style="padding-top: {top}px; padding-bottom: {bottom}px;">
+<svelte-virtual-list-viewport {id} data-v-list bind:this={viewport} bind:offsetHeight={viewport_height} onscroll={handle_scroll} style="height: {height};">
+    <svelte-virtual-list-contents data-v-list bind:this={contents} style="padding-top: {top}px; padding-bottom: {bottom}px;" class:thumbnail>
         {#if header.length}
             {@render header()}
         {:else}
@@ -185,7 +187,7 @@
         {/if}
         {#if visible.length}
             {#each visible as row (row.index)}
-                <svelte-virtual-list-row>
+                <svelte-virtual-list-row class:thumbnail-row={thumbnail}>
                     {@render item(row.data)}
                 </svelte-virtual-list-row>
             {/each}
@@ -211,5 +213,17 @@
 
     svelte-virtual-list-row {
         overflow: hidden;
+    }
+
+    .thumbnail {
+        display: flex;
+        margin: 10px 0px;
+        row-gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .thumbnail-row {
+        display: flex;
+        flex-direction: row;
     }
 </style>

@@ -1,9 +1,11 @@
 <script lang="ts">
     import { appState, dispatch } from "./appStateReducer";
     import { listState } from "./listStateReducer";
-    import { handleKeyEvent, OS } from "../constants";
+    import { handleKeyEvent, HOME, OS, RECYCLE_BIN } from "../constants";
     import Launch from "../svg/Launch.svelte";
     import Pref from "../svg/Pref.svelte";
+    import List from "../svg/List.svelte";
+    import Tile from "../svg/Tile.svelte";
     import main from "../main";
     import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
@@ -25,6 +27,10 @@
 
     const displayPreference = () => {
         dispatch({ type: "togglePreference" });
+    };
+
+    const toggleViewMode = () => {
+        dispatch({ type: "toggleGridView", value: !$appState.isInGridView });
     };
 
     const close = async () => {
@@ -65,6 +71,27 @@
         <div class="button" onclick={launchNew} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <Launch />
         </div>
+        {#if $appState.isInGridView}
+            <div
+                class="button {$listState.currentDir.fullPath == HOME || $listState.currentDir.fullPath == RECYCLE_BIN ? 'disabled' : ''}"
+                onclick={toggleViewMode}
+                onkeydown={handleKeyEvent}
+                role="button"
+                tabindex="-1"
+            >
+                <List />
+            </div>
+        {:else}
+            <div
+                class="button {$listState.currentDir.fullPath == HOME || $listState.currentDir.fullPath == RECYCLE_BIN ? 'disabled' : ''}"
+                onclick={toggleViewMode}
+                onkeydown={handleKeyEvent}
+                role="button"
+                tabindex="-1"
+            >
+                <Tile />
+            </div>
+        {/if}
         <div class="file-count">{fileSize}</div>
     </div>
     <div class="title" data-tauri-drag-region={navigator.userAgent.includes(OS.linux) ? true : null}>

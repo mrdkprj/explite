@@ -89,6 +89,13 @@ declare global {
             y: number;
         };
 
+        type Rect = {
+            top: number;
+            left: number;
+            right: number;
+            bottom: number;
+        };
+
         type Settings = {
             bounds: Bounds;
             isMaximized: boolean;
@@ -137,6 +144,7 @@ declare global {
             linkPath: string;
             ddate: number;
             originalPath: string;
+            mimeType: string;
         };
 
         type LoadEvent = {
@@ -394,6 +402,10 @@ declare global {
         chrome: {
             webview: WebView;
         };
+    }
+
+    interface Uint8Array {
+        toBase64(): string;
     }
 }
 

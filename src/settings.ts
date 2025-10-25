@@ -69,9 +69,7 @@ export default class Settings {
                     label.label = this.getLabel(sortKey as Mp.SortKey);
                     labels.push(label);
                 });
-                // const tx = structuredClone(labels);
                 labels.sort((a, b) => DEFAULT_SORTKEY_ORDER.indexOf(a.sortKey) - DEFAULT_SORTKEY_ORDER.indexOf(b.sortKey));
-                console.log(labels);
                 config[key] = labels;
             } else {
                 config[key] = value;

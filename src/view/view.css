@@ -286,6 +286,22 @@
     -webkit-user-select: none;
 }
 
+.thumb-column{
+    z-index: 850;
+    position: relative;
+    display: flex;
+    margin-left: 5px;
+    margin-right: 5px;
+    align-items: center;
+    justify-content: flex-start;
+    width: fit-content;
+    outline: 1px solid transparent;
+    border-radius: 2px;
+    outline-offset: -1px;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
 .col-detail{
     line-height: 20px;
     white-space: nowrap;
@@ -297,6 +313,21 @@
     text-overflow: ellipsis;
     position: relative;
     z-index: 850;
+}
+
+.thumb-col-detail{
+    line-height: 20px;
+    white-space: nowrap;
+    font-family: var(--font);
+    font-size: var(--font-size);
+    padding: 5px 5px 5px 5px;
+    border-radius: 2px;
+    overflow-x: hidden;
+    text-overflow: ellipsis;
+    position: relative;
+    z-index: 850;
+    width: 100px;
+    height: 140px;
 }
 
 .draggable {
@@ -324,8 +355,23 @@
     max-width: fit-content;
 }
 
+.thumb-entry-name{
+    display: flex;
+    align-items: center;
+    justify-content: start;
+    position: relative;
+    z-index: 700;
+    max-width: fit-content;
+    flex-direction: column;
+}
+
 .entry-name svg {
     margin-right: 5px;
+}
+
+.thumb-entry-name svg{
+    width: 90px;
+    height: 90px;
 }
 
 .entry-name .icon {
@@ -335,6 +381,16 @@
     justify-content: center;
     position: relative;
     z-index: 700;
+}
+
+.thumb-entry-name .icon {
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 700;
+    height: 100px;
 }
 
 .symlink-icon {
@@ -399,8 +455,34 @@
     white-space: nowrap;
 }
 
-.entry-name .name::highlight(searched) {
+.thumb-entry-name .name {
+    pointer-events: none;
+    position: relative;
+    z-index: 700;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: pre-wrap;
+    word-break: break-all;
+    -webkit-line-clamp: 2;
+    line-clamp:2;
+    -webkit-box-orient: vertical;
+    display: -webkit-box;
+    text-align: center;
+    max-height: 40px;
+    font-size: 12px;
+    height: 40px;
+    width: 100px;
+}
+
+.entry-name .name::highlight(searched),
+.thumb-entry-name .name::highlight(searched)  {
     background-color: var(--search-highlight);
+}
+
+.thumbnail-img{
+    object-fit: contain;
+    width:100%;
+    height:100%;
 }
 
 .rename-hidden {

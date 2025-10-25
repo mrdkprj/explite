@@ -15,6 +15,8 @@ type Clip = {
     moved: boolean;
     clipAreaStyle: string;
     clipPosition: ClipPosition;
+    inverseX: boolean;
+    inverseY: boolean;
 };
 
 type ClipPosition = {
@@ -59,6 +61,8 @@ type AppState = {
     allowMoveColumn: boolean;
     appMenuItems: Mp.AppMenuItem[];
     symlinkVisible: boolean;
+    isInGridView: boolean;
+    scrolling: boolean;
 };
 
 export const initialAppState: AppState = {
@@ -99,6 +103,8 @@ export const initialAppState: AppState = {
             startY: 0,
         },
         moved: false,
+        inverseX: false,
+        inverseY: false,
     },
     incrementalKey: "",
     search: {
@@ -111,6 +117,8 @@ export const initialAppState: AppState = {
     allowMoveColumn: true,
     appMenuItems: [],
     symlinkVisible: false,
+    isInGridView: false,
+    scrolling: false,
 };
 
 type AppAction =
@@ -155,6 +163,8 @@ type AppAction =
     | { type: "setPreference"; value: { theme: Mp.Theme; appMenuItems: Mp.AppMenuItem[]; allowMoveColumn: boolean } }
     | { type: "togglePreference" }
     | { type: "toggleCreateSymlink" }
+    | { type: "toggleGridView"; value: boolean }
+    | { type: "scrolling"; value: boolean }
     | { type: "load"; value: { event: Mp.LoadEvent } };
 
 const updater = (state: AppState, action: AppAction): AppState => {
@@ -337,6 +347,8 @@ const updater = (state: AppState, action: AppAction): AppState => {
             const width = Math.abs(moveX);
             const height = Math.abs(moveY);
             const moved = Math.abs(moveX) > 10 || Math.abs(moveY) > 10;
+            const inverseX = scaleX > 0;
+            const inverseY = scaleY > 0;
             if (!state.clip.moved && moved) {
                 return {
                     ...state,
@@ -344,6 +356,8 @@ const updater = (state: AppState, action: AppAction): AppState => {
                         ...state.clip,
                         moved: true,
                         clipAreaStyle: `transform:scale(${scaleX}, ${scaleY}); width:${width}px; height:${height}px; top:${state.clip.clipPosition.startY}px; left:${state.clip.clipPosition.startX}px;`,
+                        inverseX,
+                        inverseY,
                     },
                 };
             }
@@ -353,6 +367,8 @@ const updater = (state: AppState, action: AppAction): AppState => {
                 clip: {
                     ...state.clip,
                     clipAreaStyle: `transform:scale(${scaleX}, ${scaleY}); width:${width}px; height:${height}px; top:${state.clip.clipPosition.startY}px; left:${state.clip.clipPosition.startX}px;`,
+                    inverseX,
+                    inverseY,
                 },
             };
         }
@@ -376,6 +392,12 @@ const updater = (state: AppState, action: AppAction): AppState => {
 
         case "toggleCreateSymlink":
             return { ...state, symlinkVisible: !state.symlinkVisible };
+
+        case "toggleGridView":
+            return { ...state, isInGridView: action.value };
+
+        case "scrolling":
+            return { ...state, scrolling: action.value };
 
         default:
             return state;

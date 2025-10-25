@@ -32,8 +32,10 @@
     import util from "../util";
     import { path } from "../path";
     import Deferred from "../deferred";
+    import { convertFileSrc } from "@tauri-apps/api/core";
 
     let fileListContainer = $state<HTMLDivElement>();
+    let clipRegion = $state<DOMRectReadOnly>();
     let virtualList = $state<VirtualList<Mp.MediaFile>>();
     let searchInterval = 0;
     let visibleStartIndex = $state(0);
@@ -47,7 +49,7 @@
 
     const ipc = new IPC("View");
     const HEADER_DIVIDER_WIDTh = 10;
-
+    const GRID_ITEM_WIDTH = 110 + 10 + 10;
     const DATE_OPTION: Intl.DateTimeFormatOptions = { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "numeric", second: "numeric" };
     const BACKWARD: Mp.NavigationHistory[] = [];
     const FORWARD: Mp.NavigationHistory[] = [];
@@ -69,9 +71,9 @@
                 itemPath = file.linkPath ? file.linkPath : file.fullPath;
             }
             if (navigator.userAgent.includes(OS.windows)) {
-                await main.openListContextMenu({ x: e.screenX, y: e.screenY }, itemPath, e.shiftKey, $listState.currentDir.fullPath == RECYCLE_BIN);
+                await main.openListContextMenu({ x: e.screenX, y: e.screenY }, itemPath, e.shiftKey, isRecycleBin());
             } else {
-                await main.openListContextMenu({ x: e.clientX, y: e.clientY }, itemPath, e.shiftKey, $listState.currentDir.fullPath == RECYCLE_BIN);
+                await main.openListContextMenu({ x: e.clientX, y: e.clientY }, itemPath, e.shiftKey, isRecycleBin());
             }
         }
     };
@@ -159,25 +161,38 @@
 
         if (!fileListContainer) return;
 
+        const alredyMoved = $appState.clip.moved;
         if ($appState.clip.clipping) {
             dispatch({ type: "moveClip", value: { x: e.clientX - fileListContainer.parentElement!.offsetLeft, y: e.clientY - fileListContainer.parentElement!.offsetTop } });
+            if (!alredyMoved && $appState.clip.moved) {
+                clearSelection();
+            }
         }
     };
 
     const shouldHandleMouseEvent = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return false;
+        if ($appState.scrolling) {
+            dispatch({ type: "scrolling", value: false });
+            return false;
+        }
         if (!fileListContainer) return false;
         if ($listState.rename.renaming) return false;
         if ($appState.dragHandler != "View") return false;
 
+        /* Clipping must handle event outside of view */
+        if ($appState.clip.clipping) return true;
+
         if (e.target.hasAttribute("data-path") || e.target.classList.contains("button")) return false;
 
         if (e.offsetX > e.target.clientWidth || e.offsetY > e.target.clientHeight) {
+            dispatch({ type: "scrolling", value: true });
             return false;
         }
 
         const containerRect = fileListContainer.getBoundingClientRect();
         if (containerRect.x > e.clientX || containerRect.y > e.clientY) {
+            dispatch({ type: "scrolling", value: true });
             return false;
         }
 
@@ -196,7 +211,7 @@
 
         if (!shouldHandleMouseEvent(e)) return;
 
-        if (!$appState.clip.moved && e.target.id == "list") {
+        if (!$appState.clip.moved && e.target.hasAttribute("data-v-list")) {
             clearSelection();
         }
 
@@ -305,41 +320,77 @@
         }
     };
 
+    const getClipRect = (e: MouseEvent): Mp.Rect => {
+        const inverseX = $appState.clip.inverseX;
+        const inverseY = $appState.clip.inverseY;
+        const left = e.clientX - fileListContainer!.parentElement!.offsetLeft;
+        const top = e.clientY - fileListContainer!.parentElement!.offsetTop;
+        const right = inverseX ? left - clipRegion!.width : left + clipRegion!.width;
+        const bottom = inverseY ? top - clipRegion!.height : top + clipRegion!.height;
+        return {
+            top: inverseY ? bottom : top,
+            left: inverseX ? right : left,
+            right: inverseX ? left : right,
+            bottom: inverseY ? top : bottom,
+        };
+    };
+
+    const getItemRect = (el: HTMLElement): Mp.Rect => {
+        const left = el.offsetLeft - fileListContainer!.scrollLeft;
+        const top = el.offsetTop - fileListContainer!.scrollTop;
+        const right = left + el.clientWidth;
+        const bottom = top + el.clientHeight;
+        return {
+            top,
+            left,
+            right,
+            bottom,
+        };
+    };
+
+    const isRectInRect = (rect: Mp.Rect, rect2: Mp.Rect) => {
+        return !(rect2.left >= rect.right || rect2.right <= rect.left || rect2.top >= rect.bottom || rect2.bottom <= rect.top);
+    };
+
     const clipMouseEnter = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
         if (!$appState.clip.clipping) return;
 
-        const id = e.target.getAttribute("data-file-id");
+        const rect = getClipRect(e);
 
-        if (id && !$appState.selection.selectedIds.includes(id)) {
-            dispatch({ type: "appendSelectedIds", value: [id] });
+        const selected: string[] = [];
+        document.querySelectorAll(".selectable").forEach((e) => {
+            const rect2 = getItemRect(e as HTMLElement);
+            const id = e.getAttribute("data-file-id");
+            if (!id) return;
+            if (isRectInRect(rect, rect2) && !$appState.selection.selectedIds.includes(id)) {
+                selected.push(id);
+            }
+        });
+
+        if (selected.length) {
+            dispatch({ type: "appendSelectedIds", value: selected });
         }
     };
 
     const clipMouseLeave = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
-        if (!e.relatedTarget || !(e.relatedTarget instanceof HTMLElement)) return;
         if (!$appState.clip.clipping) return;
 
-        if (e.relatedTarget.classList.contains("nofocus")) return;
+        const rect = getClipRect(e);
 
-        const id = e.target.getAttribute("data-file-id");
-        const enterId = e.relatedTarget.getAttribute("data-file-id");
+        const unselected: string[] = [];
+        document.querySelectorAll(".selectable").forEach((e) => {
+            const rect2 = getItemRect(e as HTMLElement);
+            const id = e.getAttribute("data-file-id");
+            if (!id) return;
+            if (!isRectInRect(rect, rect2) && $appState.selection.selectedIds.includes(id)) {
+                unselected.push(id);
+            }
+        });
 
-        if (id == enterId) return;
-
-        if ($appState.selection.selectedId == id) {
-            dispatch({ type: "setSelectedIds", value: [id] });
-        }
-
-        if (id && !enterId && !$appState.clip.startId) {
-            dispatch({ type: "removeSelectedIds", value: [id] });
-            return;
-        }
-
-        if (enterId && $appState.selection.selectedIds.includes(enterId)) {
-            const ids = $appState.selection.selectedIds.filter((sid) => sid != id);
-            dispatch({ type: "setSelectedIds", value: ids });
+        if (unselected.length) {
+            dispatch({ type: "removeSelectedIds", value: unselected });
         }
     };
 
@@ -510,6 +561,8 @@
 
     /* rename */
     const startEditFileName = () => {
+        if (isRecycleBin()) return;
+
         const file = $listState.files.find((file) => file.id == $appState.selection.selectedId);
 
         if (!file) return;
@@ -943,6 +996,18 @@
         await WebviewWindow.getCurrent().setTitle(title);
     };
 
+    const isRecycleBin = () => $listState.currentDir.fullPath == RECYCLE_BIN;
+
+    const shouldDisplayLabel = (key: Mp.SortKey) => {
+        if (key == "directory" && (!$appState.search.searching || isRecycleBin())) return false;
+
+        if (key == "ddate" && !isRecycleBin()) return false;
+
+        if (key == "orig_path" && !isRecycleBin()) return false;
+
+        return true;
+    };
+
     const navigate = (e: Mp.LoadEvent) => {
         if (e.navigation == "Reload") {
             dispatch({ type: "load", value: { event: e } });
@@ -980,6 +1045,9 @@
 
         if (!navigate(e)) return;
 
+        visibleStartIndex = 0;
+        visibleEndIndex = 0;
+        dispatch({ type: "toggleGridView", value: false });
         dispatch({ type: "headerLabels", value: e.headers });
         dispatch({ type: "history", value: { canGoBack: BACKWARD.length > 0, canGoForward: FORWARD.length > 0 } });
         dispatch({ type: "sort", value: e.sortType });
@@ -992,6 +1060,7 @@
         await setTitle();
 
         await tick();
+
         if (fileListContainer) {
             fileListContainer.scrollTop = 0;
             fileListContainer.scrollLeft = 0;
@@ -1068,7 +1137,10 @@
                 break;
 
             case "EmptyRecycleBin":
-                await main.emptyRecycleBin();
+                const emptied = await main.emptyRecycleBin();
+                if (emptied) {
+                    await reload(false);
+                }
                 break;
 
             case "Paste": {
@@ -1121,6 +1193,7 @@
             case "Terminal":
                 await main.openTerminal($listState.currentDir.fullPath, false);
                 break;
+
             case "AdminTerminal":
                 await main.openTerminal($listState.currentDir.fullPath, true);
                 break;
@@ -1328,6 +1401,18 @@
         await main.createSymlink(path, linkPath);
     };
 
+    const toChunk = () => {
+        if (!fileListContainer) return [];
+        const chunks = [];
+        const files = structuredClone($listState.files);
+        const chunkSize = Math.floor(fileListContainer.clientWidth / GRID_ITEM_WIDTH);
+        for (let i = 0; i < files.length; i += chunkSize) {
+            const chunk = files.slice(i, i + chunkSize);
+            chunks.push(chunk);
+        }
+        return chunks;
+    };
+
     const onDeviceEvent = async (e: Mp.DeviceEvent) => {
         if (!e.name.includes("Disk") && !e.name.includes("Storage")) return;
 
@@ -1452,7 +1537,7 @@
                 tabindex="-1"
             >
                 {#if $appState.clip.moved}
-                    <div class="clip-area" style={$appState.clip.clipAreaStyle}></div>
+                    <div bind:contentRect={clipRegion} class="clip-area" style={$appState.clip.clipAreaStyle}></div>
                 {/if}
 
                 {#if $listState.rename.renaming}
@@ -1472,9 +1557,99 @@
 
                 {#if $listState.currentDir.fullPath == HOME}
                     <Home {requestLoad} />
+                {:else if $appState.isInGridView}
+                    <VirtualList
+                        items={toChunk()}
+                        bind:viewport={fileListContainer}
+                        bind:start={visibleStartIndex}
+                        bind:end={visibleEndIndex}
+                        itemHeight={140}
+                        headerHeight={0}
+                        onRefresh={searchHighlight}
+                        thumbnail={true}
+                    >
+                        {#snippet header()}{/snippet}
+                        {#snippet item(items)}
+                            {#each items as item (item.uuid)}
+                                <div
+                                    id={item.id}
+                                    class="thumb-column selectable"
+                                    draggable="true"
+                                    class:selected={$appState.selection.selectedIds.includes(item.id)}
+                                    class:being-selected={$appState.selection.selectedId == item.id}
+                                    class:cut={$appState.copyCutTargets.ids.includes(item.id) && $appState.copyCutTargets.op == "Move"}
+                                    class:drag-highlight={!item.isFile && $appState.dragTargetId == item.id}
+                                    onmouseover={clipMouseEnter}
+                                    onmouseout={clipMouseLeave}
+                                    onfocus={() => {}}
+                                    onblur={() => {}}
+                                    onclick={onRowClick}
+                                    ondblclick={onSelect}
+                                    onkeydown={handleKeyEvent}
+                                    data-file-id={item.id}
+                                    role="button"
+                                    tabindex="-1"
+                                >
+                                    <div class="thumb-col-detail" data-file-id={item.id}>
+                                        <div
+                                            class="thumb-entry-name draggable"
+                                            title={$appState.search.searching ? item.fullPath : item.name}
+                                            data-file-id={item.id}
+                                            onmousedown={colDetailMouseDown}
+                                            role="button"
+                                            tabindex="-1"
+                                        >
+                                            <div
+                                                class="icon"
+                                                class:folder={item.entityType == "Folder" || item.entityType == "SymlinkFolder"}
+                                                class:hidden-folder={item.fileType == "HiddenFolder"}
+                                                data-file-id={item.id}
+                                            >
+                                                {#if item.linkPath}
+                                                    <div class="symlink-icon"><div class="symlink-arrow"></div></div>
+                                                {/if}
+                                                {#if item.isFile}
+                                                    {#if item.fileType == "Audio"}
+                                                        <AudioSvg />
+                                                    {:else if item.fileType == "Video"}
+                                                        <VideoSvg />
+                                                    {:else if item.fileType == "Image"}
+                                                        <img src={convertFileSrc(item.fullPath)} class="thumbnail-img" alt="" loading="lazy" />
+                                                    {:else if item.fileType == "Zip"}
+                                                        <Zip />
+                                                    {:else if item.fileType == "App"}
+                                                        <AppSvg />
+                                                    {:else}
+                                                        <FileSvg />
+                                                    {/if}
+                                                {:else if item.fileType == "Desktop"}
+                                                    <DirDesktop />
+                                                {:else if item.fileType == "Documents"}
+                                                    <DirDocuments />
+                                                {:else if item.fileType == "Downloads"}
+                                                    <DirDownloads />
+                                                {:else if item.fileType == "Music"}
+                                                    <DirMusic />
+                                                {:else if item.fileType == "Pictures"}
+                                                    <DirImage />
+                                                {:else if item.fileType == "Videos"}
+                                                    <DirVideo />
+                                                {:else}
+                                                    <FolderSvg />
+                                                {/if}
+                                            </div>
+                                            <div class="name" id={item.uuid} data-file-id={item.id} class:rename-hidden={$listState.rename.targetUUID == item.uuid}>
+                                                {item.name}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {/each}
+                        {/snippet}
+                        {#snippet empty()}{/snippet}
+                    </VirtualList>
                 {:else}
                     <VirtualList
-                        id="list"
                         items={$listState.files}
                         bind:this={virtualList}
                         bind:viewport={fileListContainer}
@@ -1486,23 +1661,17 @@
                     >
                         {#snippet header()}
                             <div class="list-header nofocus" onclick={onColumnHeaderClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
-                                {#if $appState.search.searching}
-                                    {#each $appState.headerLabels as label}
+                                {#each $appState.headerLabels as label}
+                                    {#if shouldDisplayLabel(label.sortKey)}
                                         <Column {onColSliderMousedown} {label} columnHeaderChanged={onColumnHeaderChanged} />
-                                    {/each}
-                                {:else}
-                                    {#each $appState.headerLabels as label}
-                                        {#if label.sortKey != "directory"}
-                                            <Column {onColSliderMousedown} {label} columnHeaderChanged={onColumnHeaderChanged} />
-                                        {/if}
-                                    {/each}
-                                {/if}
+                                    {/if}
+                                {/each}
                             </div>
                         {/snippet}
                         {#snippet item(item)}
                             <div
                                 id={item.id}
-                                class="row"
+                                class="row selectable"
                                 draggable="true"
                                 class:selected={$appState.selection.selectedIds.includes(item.id)}
                                 class:being-selected={$appState.selection.selectedId == item.id}
@@ -1575,19 +1744,19 @@
                                             </div>
                                         </div>
                                     {:else if label.sortKey == "directory"}
-                                        {#if $appState.search.searching}
+                                        {#if $appState.search.searching && !isRecycleBin()}
                                             <div class="col-detail" data-file-id={item.id} style="width: {label.width + HEADER_DIVIDER_WIDTh}px;">
                                                 <div class="draggable" title={item.dir} data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.dir}</div>
                                             </div>
                                         {/if}
                                     {:else if label.sortKey == "orig_path"}
-                                        {#if $listState.currentDir.fullPath == RECYCLE_BIN}
+                                        {#if isRecycleBin()}
                                             <div class="col-detail" data-file-id={item.id} style="width: {label.width + HEADER_DIVIDER_WIDTh}px;">
                                                 <div class="draggable" title={item.originalPath} data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.dir}</div>
                                             </div>
                                         {/if}
                                     {:else if label.sortKey == "ddate"}
-                                        {#if $listState.currentDir.fullPath == RECYCLE_BIN}
+                                        {#if isRecycleBin()}
                                             <div class="col-detail" data-file-id={item.id} style="width: {label.width + HEADER_DIVIDER_WIDTh}px;">
                                                 <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
                                                     {new Date(item.ddate).toLocaleString("jp-JP", DATE_OPTION)}

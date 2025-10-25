@@ -141,6 +141,7 @@ class Util {
             entityType,
             ddate: 0,
             originalPath: "",
+            mimeType: dirent.mime_type,
         };
     }
 
@@ -168,6 +169,7 @@ class Util {
             entityType,
             ddate: dirent.deleted_date_ms,
             originalPath: fullPath,
+            mimeType: dirent.mime_type,
         };
     }
 
@@ -198,6 +200,7 @@ class Util {
             linkPath: attr.link_path,
             ddate: 0,
             originalPath: "",
+            mimeType,
         };
     }
 
@@ -218,6 +221,7 @@ class Util {
             linkPath: "",
             ddate: 0,
             originalPath: "",
+            mimeType: "",
         };
     }
 
