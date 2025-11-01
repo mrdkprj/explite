@@ -481,10 +481,36 @@ fn empty_recycle_bin() -> Result<(), String> {
     zouni::fs::empty_recycle_bin(None)
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ThumbnailArgs {
+    full_path: String,
+    width: u32,
+    height: u32,
+}
+#[tauri::command]
+async fn to_thumbnail(payload: ThumbnailArgs) -> Result<Vec<u8>, String> {
+    async_std::task::spawn(async move {
+        zouni::media::extract_video_thumbnail(
+            payload.full_path,
+            Some(Size {
+                width: payload.width,
+                height: payload.height,
+            }),
+        )
+    })
+    .await
+}
+
+#[tauri::command]
+async fn to_image_thumbnail(payload: String) -> Result<Vec<u8>, String> {
+    async_std::task::spawn(async move { rs_vips::VipsImage::new_from_file(payload).unwrap().thumbnail_image(100).unwrap().webpsave_buffer().map_err(|e| e.to_string()) }).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
+            rs_vips::Vips::init("name").unwrap();
             let mut urls = Vec::new();
             for arg in env::args().skip(1) {
                 urls.push(arg);
@@ -545,6 +571,8 @@ pub fn run() {
             read_recycle_bin,
             empty_recycle_bin,
             delete_from_recycle_bin,
+            to_thumbnail,
+            to_image_thumbnail,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

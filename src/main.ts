@@ -733,6 +733,20 @@ class Main {
         }
     };
 
+    toVideoThumbnail = async (fullPath: string) => {
+        const raw = await ipc.invoke("to_thumbnail", { full_path: fullPath, width: 100, height: 100 });
+        const uint8 = Uint8Array.from(raw);
+        const base64 = uint8.toBase64();
+        return `data:image/jpeg;base64,${base64}`;
+    };
+
+    toImageThumbnail = async (fullPath: string) => {
+        const raw = await ipc.invoke("to_image_thumbnail", fullPath);
+        const uint8 = Uint8Array.from(raw);
+        const base64 = uint8.toBase64();
+        return `data:image/jpeg;base64,${base64}`;
+    };
+
     onWatchEvent = async (e: Mp.WatchEvent) => {
         const hasSearchCache = this.currentDir in this.searchCache;
 

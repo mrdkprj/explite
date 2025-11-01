@@ -131,9 +131,9 @@ fn toggle_app_items(menu: &Menu, file_path: &str) {
             }
             TARGET_FOLDER => {
                 if is_dir {
-                    menu_item.set_visible(false);
-                } else {
                     menu_item.set_visible(true);
+                } else {
+                    menu_item.set_visible(false);
                 }
             }
             _ => menu_item.set_visible(true),

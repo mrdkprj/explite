@@ -121,6 +121,12 @@ export type DeleteUndeleteRequest = {
     deleted_time_ms: number;
 };
 
+export type ThumbnailArgs = {
+    full_path: string;
+    width: number;
+    height: number;
+};
+
 type TauriCommandMap = {
     prepare_menu: TauriCommand<undefined, undefined>;
     open_list_context_menu: TauriCommand<ContextMenuArg, undefined>;
@@ -172,6 +178,8 @@ type TauriCommandMap = {
     create_symlink: TauriCommand<SymlinkRequest, undefined>;
     read_recycle_bin: TauriCommand<undefined, RecycleBinItem[]>;
     empty_recycle_bin: TauriCommand<undefined, undefined>;
+    to_thumbnail: TauriCommand<ThumbnailArgs, number[]>;
+    to_image_thumbnail: TauriCommand<string, number[]>;
 };
 
 export class IPCBase {

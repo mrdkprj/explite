@@ -15,11 +15,6 @@
 
     let { requestLoad, changeFavorites }: { requestLoad: (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => void; changeFavorites: () => void } = $props();
 
-    const onAreaSliderMousedown = (e: MouseEvent) => {
-        e.preventDefault();
-        dispatch({ type: "startSlide", value: { target: "Area", startX: e.clientX } });
-    };
-
     const onFavoriteContextMenu = (e: MouseEvent) => {
         e.preventDefault();
         if (!e.target || !(e.target instanceof HTMLElement)) return;
@@ -129,8 +124,5 @@
             </div>
             <div class="name">Recycle Bin</div>
         </div>
-    </div>
-    <div class="divider" onmousedown={onAreaSliderMousedown} onkeydown={handleKeyEvent} role="button" tabindex="-1">
-        <div class="line"></div>
     </div>
 </div>

@@ -208,7 +208,7 @@
     svelte-virtual-list-contents,
     svelte-virtual-list-row {
         display: block;
-        width: fit-content;
+        /* width: fit-content; */
     }
 
     svelte-virtual-list-row {

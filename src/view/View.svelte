@@ -32,7 +32,6 @@
     import util from "../util";
     import { path } from "../path";
     import Deferred from "../deferred";
-    import { convertFileSrc } from "@tauri-apps/api/core";
 
     let fileListContainer = $state<HTMLDivElement>();
     let clipRegion = $state<DOMRectReadOnly>();
@@ -129,6 +128,11 @@
         e.preventDefault();
         e.stopPropagation();
         dispatch({ type: "startSlide", value: { target: key, startX: e.clientX } });
+    };
+
+    const onAreaSliderMousedown = (e: MouseEvent) => {
+        e.preventDefault();
+        dispatch({ type: "startSlide", value: { target: "Area", startX: e.clientX } });
     };
 
     const onMouseDown = (e: MouseEvent) => {
@@ -971,7 +975,7 @@
     };
 
     const requestLoad = async (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => {
-        if ($appState.search.searching) {
+        if (!isFile && $appState.search.searching) {
             await endSearch(false);
         }
 
@@ -1307,6 +1311,13 @@
             return redo();
         }
 
+        if (e.ctrlKey && e.key === "t") {
+            if ($listState.currentDir.fullPath != HOME && !isRecycleBin()) {
+                e.preventDefault();
+                return dispatch({ type: "toggleGridView", value: !$appState.isInGridView });
+            }
+        }
+
         if (e.key === "ArrowUp" || e.key === "ArrowDown") {
             e.preventDefault();
             return await moveSelection(e);
@@ -1525,6 +1536,9 @@
         <Header {requestLoad} {startSearch} {endSearch} {goBack} {goForward} {createItem} {reload} bind:this={header} />
         <div id="viewContent" class="body" ondragover={onDragOver} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <Left {requestLoad} {changeFavorites} />
+            <div class="area-divider" onmousedown={onAreaSliderMousedown} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+                <div class="line"></div>
+            </div>
             <div
                 class="main"
                 class:clipping={$appState.clip.clipping}
@@ -1612,9 +1626,21 @@
                                                     {#if item.fileType == "Audio"}
                                                         <AudioSvg />
                                                     {:else if item.fileType == "Video"}
-                                                        <VideoSvg />
+                                                        {#await main.toVideoThumbnail(item.fullPath)}
+                                                            <div style="width: 100px;height:90px;"></div>
+                                                        {:then data}
+                                                            <div class="cover">
+                                                                <div class="film"></div>
+                                                                <img src={data} class="thumbnail-video" alt="" loading="lazy" decoding="async" />
+                                                                <div class="film"></div>
+                                                            </div>
+                                                        {/await}
                                                     {:else if item.fileType == "Image"}
-                                                        <img src={convertFileSrc(item.fullPath)} class="thumbnail-img" alt="" loading="lazy" />
+                                                        {#await main.toImageThumbnail(item.fullPath)}
+                                                            <div style="width: 100px;height:90px;"></div>
+                                                        {:then data}
+                                                            <img src={data} class="thumbnail-img" alt="" loading="lazy" decoding="async" />
+                                                        {/await}
                                                     {:else if item.fileType == "Zip"}
                                                         <Zip />
                                                     {:else if item.fileType == "App"}
