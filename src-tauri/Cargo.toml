@@ -15,7 +15,7 @@ once_cell = "1.19.0"
 async-std = "1.13.0"
 notify = "8.0.0"
 wcpopup = { version = "0.7.3", features = ["webview"] }
-zouni = { version = "0.1.16", features = ["webview2", "ffmpeg"] }
+zouni = { version = "0.1.17", features = ["webview2", "ffmpeg"] }
 rs-vips = "0.2.2"
 
 [target.'cfg(target_os = "linux")'.dependencies.gtk]

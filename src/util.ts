@@ -6,9 +6,12 @@ import { t } from "./translation/useTranslation";
 
 const REGULAR_TYPES = [".ts", ".json", ".mjs", ".cjs"];
 const ipc = new IPCBase();
-const isWin = navigator.userAgent.includes(OS.windows);
 
 class Util {
+    isWin() {
+        return navigator.userAgent.includes(OS.windows);
+    }
+
     async exists(target: string | undefined | null, createIfNotFound = false) {
         if (!target) return false;
 
@@ -34,11 +37,11 @@ class Util {
     }
 
     private mayContainSpecialFolder(fullPath: string, attr: FileAttribute) {
-        if (isWin && fullPath.startsWith(WinUserRootDir) && attr.is_directory) {
+        if (this.isWin() && fullPath.startsWith(WinUserRootDir) && attr.is_directory) {
             return true;
         }
 
-        if (!isWin && fullPath.startsWith(LinuxUserRootDir) && attr.is_directory) {
+        if (!this.isWin() && fullPath.startsWith(LinuxUserRootDir) && attr.is_directory) {
             return true;
         }
 
@@ -46,7 +49,7 @@ class Util {
     }
 
     private getSpecialFolderType(fullPath: string) {
-        if (isWin) {
+        if (this.isWin()) {
             const matched = Object.entries(WIN_SPECIAL_FOLDERS).find(([_, reg]) => !!fullPath.match(reg));
             if (matched) {
                 return matched[0];

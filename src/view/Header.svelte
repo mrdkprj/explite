@@ -11,6 +11,7 @@
     import { appState, dispatch } from "./appStateReducer";
     import { listState } from "./listStateReducer";
     import { handleKeyEvent, HOME, RECYCLE_BIN, SEPARATOR } from "../constants";
+    import util from "../util";
 
     type Paths = {
         overflownPaths: string[];
@@ -131,9 +132,13 @@
         }
 
         const tempPath = $listState.currentDir.paths.slice(0, $listState.currentDir.paths.indexOf(path) + 1).join(SEPARATOR);
-        const targetPath = tempPath.endsWith(":") ? `${tempPath}${SEPARATOR}` : tempPath;
-
-        requestLoad(targetPath, false, "PathSelect");
+        if (util.isWin()) {
+            const targetPath = tempPath.endsWith(":") ? `${tempPath}${SEPARATOR}` : tempPath;
+            requestLoad(targetPath, false, "PathSelect");
+        } else {
+            const targetPath = tempPath.startsWith("/") ? tempPath : `${SEPARATOR}${tempPath}`;
+            requestLoad(targetPath, false, "PathSelect");
+        }
     };
 
     const onPathInputLeave = () => {

@@ -5771,9 +5771,9 @@ dependencies = [
 
 [[package]]
 name = "zouni"
-version = "0.1.16"
+version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5de564cc46069efee16f80aa97908c8f61697c311257ad28dcfdc9df12794576"
+checksum = "a7b75443f9d97d839fe8b5074c6b995fec1b2274d931fe2a3fe9f3d43dbe347b"
 dependencies = [
  "async-std",
  "ffmpeg-next",
