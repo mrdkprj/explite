@@ -1,6 +1,5 @@
 <script lang="ts">
-    import { appState, dispatch } from "./appStateReducer";
-    import { listState } from "./listStateReducer";
+    import { appState, dispatch } from "./appStateReducer.svelte";
     import { handleKeyEvent, HOME, OS, RECYCLE_BIN } from "../constants";
     import Launch from "../svg/Launch.svelte";
     import Pref from "../svg/Pref.svelte";
@@ -38,13 +37,13 @@
     };
 
     let fileSize = $derived.by(() => {
-        if (!$listState.files.length) return "";
+        if (!$appState.list.files.length) return "";
 
-        const fileCount = `${$appState.selection.selectedIds.length} / ${$listState.files.length}`;
+        const fileCount = `${$appState.selection.selectedIds.length} / ${$appState.list.files.length}`;
 
         if (!$appState.selection.selectedIds.length) return fileCount;
 
-        const size = $listState.files
+        const size = $appState.list.files
             .filter((file) => $appState.selection.selectedIds.includes(file.id) && file.isFile)
             .map((file) => file.size)
             .reduce((prev, current) => prev + current, 0);
@@ -64,16 +63,17 @@
 </script>
 
 <div class="title-bar" data-tauri-drag-region={navigator.userAgent.includes(OS.linux) ? true : null}>
-    <div class="icon-area">
-        <div class="button {$appState.symlinkVisible ? 'disabled' : ''}" onclick={displayPreference} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+    <div class="icon-area no-drag">
+        <div class="button no-drag" class:disabled={$appState.symlinkVisible} onclick={displayPreference} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <Pref />
         </div>
-        <div class="button" onclick={launchNew} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div class="button no-drag" onclick={launchNew} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <Launch />
         </div>
         {#if $appState.isInGridView}
             <div
-                class="button {$listState.currentDir.fullPath == HOME || $listState.currentDir.fullPath == RECYCLE_BIN ? 'disabled' : ''}"
+                class="button"
+                class:disabled={$appState.list.currentDir.fullPath == HOME || $appState.list.currentDir.fullPath == RECYCLE_BIN}
                 onclick={toggleViewMode}
                 onkeydown={handleKeyEvent}
                 role="button"
@@ -83,7 +83,8 @@
             </div>
         {:else}
             <div
-                class="button {$listState.currentDir.fullPath == HOME || $listState.currentDir.fullPath == RECYCLE_BIN ? 'disabled' : ''}"
+                class="button"
+                class:disabled={$appState.list.currentDir.fullPath == HOME || $appState.list.currentDir.fullPath == RECYCLE_BIN}
                 onclick={toggleViewMode}
                 onkeydown={handleKeyEvent}
                 role="button"
@@ -95,7 +96,7 @@
         <div class="file-count">{fileSize}</div>
     </div>
     <div class="title" data-tauri-drag-region={navigator.userAgent.includes(OS.linux) ? true : null}>
-        {$listState.currentDir.paths.length ? $listState.currentDir.paths[$listState.currentDir.paths.length - 1] : ""}
+        {$appState.list.currentDir.paths.length ? $appState.list.currentDir.paths[$appState.list.currentDir.paths.length - 1] : ""}
     </div>
     <div class="window-area">
         <div class="minimize" onclick={minimize} onkeydown={handleKeyEvent} role="button" tabindex="-1">&minus;</div>

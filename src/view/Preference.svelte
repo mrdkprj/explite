@@ -1,7 +1,7 @@
 <script lang="ts">
     import Json from "../svg/Json.svelte";
     import { handleKeyEvent } from "../constants";
-    import { appState, dispatch } from "./appStateReducer";
+    import { appState, dispatch } from "./appStateReducer.svelte";
 
     let {
         preferenceChanged,

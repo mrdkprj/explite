@@ -68,6 +68,7 @@ class Main {
                     : structuredClone(this.settings.data.headerLabels),
             },
             selectId,
+            restorePosition: args.restore_position,
         };
     };
 

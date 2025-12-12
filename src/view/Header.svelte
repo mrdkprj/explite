@@ -8,8 +8,7 @@
     import ClearSvg from "../svg/ClearSvg.svelte";
     import ThreeDots from "../svg/ThreeDots.svelte";
     import Display from "../svg/Display.svelte";
-    import { appState, dispatch } from "./appStateReducer";
-    import { listState } from "./listStateReducer";
+    import { appState, dispatch } from "./appStateReducer.svelte";
     import { handleKeyEvent, HOME, RECYCLE_BIN, SEPARATOR } from "../constants";
     import util from "../util";
 
@@ -53,7 +52,7 @@
         const context = _canvas.getContext("2d");
         if (!context) {
             return {
-                visiblePaths: $listState.currentDir.paths,
+                visiblePaths: $appState.list.currentDir.paths,
                 overflownPaths: [],
             };
         }
@@ -62,8 +61,8 @@
         const _visiblePaths: string[] = [];
         const _overflownPaths: string[] = [];
 
-        // Prevent listState update
-        const paths = $listState.currentDir.paths.slice();
+        // Prevent $appState.list update
+        const paths = $appState.list.currentDir.paths.slice();
         paths.reverse().forEach((path, index) => {
             const metrics = context.measureText(path);
             width += metrics.width + padding + separator;
@@ -101,7 +100,7 @@
             window.clearTimeout(searchInterval);
         }
         searchInterval = window.setTimeout(() => {
-            if ($appState.search.key) {
+            if ($appState.header.search.key) {
                 startSearch();
             } else {
                 endSearch(false);
@@ -110,7 +109,7 @@
     };
 
     const setPathInputFocus = (node: HTMLInputElement) => {
-        pathValue = $listState.currentDir.fullPath == HOME || $listState.currentDir.fullPath == RECYCLE_BIN ? "" : $listState.currentDir.fullPath;
+        pathValue = $appState.list.currentDir.fullPath == HOME || $appState.list.currentDir.fullPath == RECYCLE_BIN ? "" : $appState.list.currentDir.fullPath;
         node.value = pathValue;
         node.focus();
         node.setSelectionRange(0, pathValue.length);
@@ -131,7 +130,7 @@
             pendingPath = null;
         }
 
-        const tempPath = $listState.currentDir.paths.slice(0, $listState.currentDir.paths.indexOf(path) + 1).join(SEPARATOR);
+        const tempPath = $appState.list.currentDir.paths.slice(0, $appState.list.currentDir.paths.indexOf(path) + 1).join(SEPARATOR);
         if (util.isWin()) {
             const targetPath = tempPath.endsWith(":") ? `${tempPath}${SEPARATOR}` : tempPath;
             requestLoad(targetPath, false, "PathSelect");
@@ -154,7 +153,7 @@
     };
 
     const endPathEdit = () => {
-        if (pathValue && $listState.currentDir.fullPath != pathValue) {
+        if (pathValue && $appState.list.currentDir.fullPath != pathValue) {
             requestLoad(pathValue, false, "Direct");
         }
         dispatch({ type: "pathEditing", value: false });
@@ -233,17 +232,17 @@
 
 <div class="header">
     <div class="btns">
-        <div class="button {$appState.canGoBack ? '' : 'disabled'}" onclick={goBack} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div class="button {$appState.header.canGoBack ? '' : 'disabled'}" onclick={goBack} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <BackSvg />
         </div>
-        <div class="button {$appState.canGoForward ? '' : 'disabled'}" onclick={goForward} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div class="button {$appState.header.canGoForward ? '' : 'disabled'}" onclick={goForward} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <FowardSvg />
         </div>
-        <div class="button {$listState.currentDir.fullPath == HOME ? 'disabled' : ''}" onclick={() => reload(true)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div class="button {$appState.list.currentDir.fullPath == HOME ? 'disabled' : ''}" onclick={() => reload(true)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <ReloadSvg />
         </div>
         <div
-            class="button {$listState.currentDir.fullPath == HOME || $appState.search.searching ? 'disabled' : ''}"
+            class="button {$appState.list.currentDir.fullPath == HOME || $appState.header.search.searching ? 'disabled' : ''}"
             onclick={() => createItem(true)}
             onkeydown={handleKeyEvent}
             role="button"
@@ -252,7 +251,7 @@
             <NewFileSvg />
         </div>
         <div
-            class="button {$listState.currentDir.fullPath == HOME || $appState.search.searching ? 'disabled' : ''}"
+            class="button {$appState.list.currentDir.fullPath == HOME || $appState.header.search.searching ? 'disabled' : ''}"
             onclick={showCreateDirDialog}
             onkeydown={handleKeyEvent}
             role="button"
@@ -276,7 +275,7 @@
         </div>
     </div>
     <div class="path-area" bind:offsetWidth={pathWidth}>
-        {#if $appState.pathEditing}
+        {#if $appState.header.pathEditing}
             <input
                 class="path-input"
                 spellcheck="false"
@@ -331,19 +330,19 @@
     <div class="search-area">
         <input
             class="search-input"
-            class:without-clear={!$appState.search.searching}
+            class:without-clear={!$appState.header.search.searching}
             spellcheck="false"
             type="text"
             id="search"
             bind:this={searchInput}
             oninput={onSearchInput}
-            bind:value={$appState.search.key}
+            bind:value={$appState.header.search.key}
             onfocus={focusSearchInput}
             onkeydown={onSearchInputKeyDown}
-            disabled={$listState.currentDir.fullPath == HOME}
+            disabled={$appState.list.currentDir.fullPath == HOME}
             autocomplete="one-time-code"
         />
-        {#if $appState.search.searching}
+        {#if $appState.header.search.searching}
             <div class="clear-area">
                 <div class="clear" onclick={() => endSearch(false)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
                     <ClearSvg />

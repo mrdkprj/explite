@@ -106,6 +106,7 @@ type WatchRequest = {
 type InitArgs = {
     urls: string[];
     locales: string[];
+    restore_position: boolean;
 };
 
 export type RecycleBinItem = {

@@ -1,7 +1,6 @@
 <script lang="ts">
     import { handleKeyEvent } from "../constants";
-    import { dispatch } from "./appStateReducer";
-    import { listState } from "./listStateReducer";
+    import { appState, dispatch } from "./appStateReducer.svelte";
     import { path } from "../path";
     import util from "../util";
 
@@ -19,7 +18,7 @@
     let page = $state(0);
 
     const getSymlinkTarget = async (folder: boolean) => {
-        let item = await getSymlinkTargetItem($listState.currentDir.fullPath, folder);
+        let item = await getSymlinkTargetItem($appState.list.currentDir.fullPath, folder);
         if (item) {
             symlinkTarget = item;
         }
@@ -45,7 +44,7 @@
     };
 
     const create = async () => {
-        const fullPath = path.join($listState.currentDir.fullPath, symlinkName);
+        const fullPath = path.join($appState.list.currentDir.fullPath, symlinkName);
         await createSymlink(fullPath, symlinkTarget);
         close();
     };

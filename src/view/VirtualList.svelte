@@ -16,6 +16,7 @@
         end = $bindable(0),
         viewport = $bindable<HTMLDivElement>(),
         onRefresh = undefined,
+        onScroll = undefined,
         thumbnail = false,
     }: {
         id?: string;
@@ -30,6 +31,7 @@
         end: number;
         viewport: HTMLDivElement | undefined;
         onRefresh?: ((nodes: HTMLElement[]) => void) | undefined;
+        onScroll?: () => Promise<void>;
         thumbnail?: boolean;
     } = $props();
 
@@ -97,6 +99,10 @@
     }
 
     async function handle_scroll() {
+        if (onScroll) {
+            await onScroll();
+        }
+
         const { scrollTop } = viewport;
 
         for (let v = 0; v < rows.length; v += 1) {

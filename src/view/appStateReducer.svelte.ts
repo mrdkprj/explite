@@ -1,50 +1,27 @@
 import { writable } from "svelte/store";
-import { dispatchList } from "./listStateReducer";
+import { load, updateFiles, reset, listState, ListState } from "../states/listState.svelte";
 import { DEFAULT_LABLES } from "../constants";
-
-type SlideState = {
-    target: "Area" | Mp.SortKey;
-    initial: number;
-    startX: number;
-    sliding: boolean;
-};
-
-type Clip = {
-    startId: string;
-    clipping: boolean;
-    moved: boolean;
-    clipAreaStyle: string;
-    clipPosition: ClipPosition;
-    inverseX: boolean;
-    inverseY: boolean;
-};
-
-type ClipPosition = {
-    startX: number;
-    startY: number;
-};
-
-type SearchState = {
-    searching: boolean;
-    key: string;
-};
+import { endRename, RenameState, renameState, startRename } from "../states/renameState.svelte";
+import { ClipPosition, ClipState, clipState, endClip, moveClip, startClip } from "../states/clipState.svelte";
+import { DriveState, driveState, updateDrives } from "../states/driveState.svelte";
+import { edit, headerState, HeaderState, resetSearch, startSearch } from "../states/headerState.svelte";
+import { startSlide, SlideState, slideState, endSlide } from "../states/slideState.svelte";
 
 type DragHandlerType = "View" | "Column" | "Favorite";
 
 type AppState = {
-    drives: Mp.DriveInfo[];
+    list: ListState;
+    rename: RenameState;
+    drive: DriveState;
+    header: HeaderState;
+    clip: ClipState;
+    slide: SlideState;
     isMaximized: boolean;
     isFullScreen: boolean;
-    pathEditing: boolean;
     headerLabels: Mp.HeaderLabel[];
-    canGoBack: boolean;
-    canGoForward: boolean;
     sort: Mp.SortType;
     preventBlur: boolean;
     selection: Mp.ItemSelection;
-    favorites: Mp.MediaFile[];
-    leftWidth: number;
-    slideState: SlideState;
     copyCutTargets: {
         op: Mp.ClipboardOperation;
         ids: string[];
@@ -52,10 +29,7 @@ type AppState = {
     };
     dragTargetId: string;
     dragHandler: DragHandlerType;
-    clip: Clip;
     incrementalKey: string;
-    search: SearchState;
-    hoverFavoriteId: string;
     prefVisible: boolean;
     theme: Mp.Theme;
     allowMoveColumn: boolean;
@@ -66,27 +40,21 @@ type AppState = {
 };
 
 export const initialAppState: AppState = {
-    drives: [],
+    list: listState,
+    rename: renameState,
+    drive: driveState,
+    header: headerState,
+    clip: clipState,
+    slide: slideState,
     isMaximized: false,
     isFullScreen: false,
-    pathEditing: false,
     headerLabels: DEFAULT_LABLES,
-    canGoBack: false,
-    canGoForward: false,
     sort: {
         asc: true,
         key: "name",
     },
     preventBlur: false,
     selection: { selectedId: "", selectedIds: [] },
-    favorites: [],
-    leftWidth: 250,
-    slideState: {
-        target: "Area",
-        initial: 0,
-        sliding: false,
-        startX: 0,
-    },
     copyCutTargets: {
         op: "None",
         ids: [],
@@ -94,24 +62,7 @@ export const initialAppState: AppState = {
     },
     dragTargetId: "",
     dragHandler: "View",
-    clip: {
-        startId: "",
-        clipAreaStyle: "",
-        clipping: false,
-        clipPosition: {
-            startX: 0,
-            startY: 0,
-        },
-        moved: false,
-        inverseX: false,
-        inverseY: false,
-    },
     incrementalKey: "",
-    search: {
-        searching: false,
-        key: "",
-    },
-    hoverFavoriteId: "",
     prefVisible: false,
     theme: "system",
     allowMoveColumn: true,
@@ -132,8 +83,6 @@ type AppAction =
     | { type: "history"; value: { canGoBack: boolean; canGoForward: boolean } }
     | { type: "sort"; value: Mp.SortType }
     | { type: "updateFiles"; value: { files: Mp.MediaFile[] } }
-    | { type: "startRename"; value: { rect: Mp.PartialRect; oldName: string; fullPath: string; uuid: string } }
-    | { type: "endRename" }
     | { type: "preventBlur"; value: boolean }
     | { type: "selectedId"; value: string }
     | { type: "setSelectedIds"; value: string[] }
@@ -141,7 +90,6 @@ type AppAction =
     | { type: "clearSelection" }
     | { type: "appendSelectedIds"; value: string[] }
     | { type: "updateSelection"; value: Mp.ItemSelection }
-    | { type: "changeInputWidth"; value: number }
     | { type: "changeFavorites"; value: Mp.MediaFile[] }
     | { type: "leftWidth"; value: number }
     | { type: "startSlide"; value: { target: "Area" | Mp.SortKey; startX: number } }
@@ -160,6 +108,8 @@ type AppAction =
     | { type: "drives"; value: Mp.DriveInfo[] }
     | { type: "startDrag"; value: { id: string; type: DragHandlerType } }
     | { type: "endDrag" }
+    | { type: "startRename"; value: { rect: Mp.PartialRect; oldName: string; fullPath: string; uuid: string } }
+    | { type: "endRename" }
     | { type: "setPreference"; value: { theme: Mp.Theme; appMenuItems: Mp.AppMenuItem[]; allowMoveColumn: boolean } }
     | { type: "togglePreference" }
     | { type: "toggleCreateSymlink" }
@@ -170,11 +120,9 @@ type AppAction =
 const updater = (state: AppState, action: AppAction): AppState => {
     switch (action.type) {
         case "reset":
-            dispatchList({ type: "reset" });
-            return {
-                ...state,
-                pathEditing: false,
-            };
+            reset();
+            edit(false);
+            return state;
 
         case "setPreference":
             return { ...state, theme: action.value.theme, allowMoveColumn: action.value.allowMoveColumn, appMenuItems: action.value.appMenuItems };
@@ -186,18 +134,18 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return { ...state, isFullScreen: action.value };
 
         case "pathEditing": {
-            return { ...state, pathEditing: action.value };
+            edit(action.value);
+            return state;
         }
 
         case "load": {
-            dispatchList({ type: "load", value: action.value.event });
-
+            load(action.value.event);
+            edit(false);
+            updateDrives(action.value.event.drives);
+            resetSearch();
             if (action.value.event.navigation == "Reload") {
                 return {
                     ...state,
-                    pathEditing: false,
-                    drives: action.value.event.drives ?? state.drives,
-                    search: { ...state.search, searching: false, key: "" },
                     copyCutTargets: { op: "Copy", ids: [], files: [] },
                     selection: {
                         selectedId: "",
@@ -206,26 +154,24 @@ const updater = (state: AppState, action: AppAction): AppState => {
                 };
             }
 
-            return {
-                ...state,
-                pathEditing: false,
-                drives: action.value.event.drives ?? state.drives,
-                search: { ...state.search, searching: false, key: "" },
-            };
+            return state;
         }
 
         case "updateFiles":
-            dispatchList({ type: "updateFiles", value: action.value.files });
+            updateFiles(action.value.files);
             return state;
 
         case "drives":
-            return { ...state, drives: action.value };
+            updateDrives(action.value);
+            return state;
 
         case "startSearch":
-            return { ...state, search: { ...state.search, searching: true, key: state.search.key.trim() } };
+            startSearch();
+            return state;
 
         case "endSearch":
-            return { ...state, search: { ...state.search, searching: false, key: "" } };
+            resetSearch();
+            return state;
 
         case "incremental":
             return { ...state, incrementalKey: action.value };
@@ -237,7 +183,9 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return { ...state, headerLabels: action.value };
 
         case "history":
-            return { ...state, canGoBack: action.value.canGoBack, canGoForward: action.value.canGoForward };
+            headerState.canGoBack = action.value.canGoBack;
+            headerState.canGoForward = action.value.canGoForward;
+            return state;
 
         case "sort":
             return { ...state, sort: action.value };
@@ -261,57 +209,43 @@ const updater = (state: AppState, action: AppAction): AppState => {
         case "updateSelection":
             return { ...state, selection: { ...state.selection, selectedId: action.value.selectedId, selectedIds: action.value.selectedIds } };
 
-        case "startRename":
-            dispatchList({ type: "startRename", value: action.value });
-            return state;
-
-        case "changeInputWidth":
-            dispatchList({ type: "changeInputWidth", value: action.value });
-            return state;
-
-        case "endRename":
-            dispatchList({ type: "endRename" });
-            return state;
-
         case "preventBlur":
             return { ...state, preventBlur: action.value };
 
         case "changeFavorites":
-            return { ...state, favorites: action.value };
+            driveState.favorites = action.value;
+            return state;
 
         case "leftWidth":
-            return { ...state, leftWidth: action.value };
+            driveState.leftWidth = action.value;
+            return state;
 
         case "startSlide": {
-            if (action.value.target == "Area") {
-                return { ...state, slideState: { ...state.slideState, sliding: true, target: action.value.target, initial: state.leftWidth, startX: action.value.startX } };
-            }
-            const label = state.headerLabels.filter((label) => label.sortKey == action.value.target)[0];
-            return { ...state, slideState: { ...state.slideState, sliding: true, target: action.value.target, initial: label.width, startX: action.value.startX } };
+            startSlide(state.headerLabels, action.value.target, action.value.startX);
+            return state;
         }
-
         case "slide": {
-            if (state.slideState.target == "Area") {
-                return { ...state, leftWidth: state.slideState.initial + action.value };
+            if (state.slide.target == "Area") {
+                driveState.leftWidth = state.slide.initial + action.value;
+                return state;
             }
             const headerLabels = structuredClone(state.headerLabels);
-            const label = headerLabels.filter((label) => label.sortKey == state.slideState.target)[0];
-            const newWidth = state.slideState.initial + action.value;
+            const label = headerLabels.filter((label) => label.sortKey == state.slide.target)[0];
+            const newWidth = state.slide.initial + action.value;
             if (newWidth <= 50) {
                 return state;
             }
-            label.width = state.slideState.initial + action.value;
+            label.width = state.slide.initial + action.value;
             return { ...state, headerLabels };
         }
-
         case "endSlide": {
-            return { ...state, slideState: { ...state.slideState, sliding: false, target: "Area" } };
+            endSlide();
+            return state;
         }
 
         case "copyCut": {
             return { ...state, copyCutTargets: { op: action.value.operation, ids: action.value.ids, files: action.value.files } };
         }
-
         case "clearCopyCut": {
             return { ...state, copyCutTargets: { op: "Copy", ids: [], files: [] } };
         }
@@ -319,80 +253,46 @@ const updater = (state: AppState, action: AppAction): AppState => {
         case "dragEnter": {
             return { ...state, dragTargetId: action.value };
         }
-
         case "dragLeave": {
             return { ...state, dragTargetId: "" };
         }
-
-        case "startClip": {
-            return {
-                ...state,
-                selection: { ...state.selection, selectedId: action.value.startId },
-                clip: {
-                    ...state.clip,
-                    startId: action.value.startId,
-                    clipping: true,
-                    moved: false,
-                    clipPosition: { startY: action.value.position.startY, startX: action.value.position.startX },
-                    clipAreaStyle: `width:0px; height:0px; top:${action.value.position.startY}px; left:${action.value.position.startX}`,
-                },
-            };
-        }
-
-        case "moveClip": {
-            const moveX = action.value.x - state.clip.clipPosition.startX;
-            const moveY = action.value.y - state.clip.clipPosition.startY;
-            const scaleX = moveX >= 0 ? 1 : -1;
-            const scaleY = moveY >= 0 ? 1 : -1;
-            const width = Math.abs(moveX);
-            const height = Math.abs(moveY);
-            const moved = Math.abs(moveX) > 10 || Math.abs(moveY) > 10;
-            const inverseX = scaleX > 0;
-            const inverseY = scaleY > 0;
-            if (!state.clip.moved && moved) {
-                return {
-                    ...state,
-                    clip: {
-                        ...state.clip,
-                        moved: true,
-                        clipAreaStyle: `transform:scale(${scaleX}, ${scaleY}); width:${width}px; height:${height}px; top:${state.clip.clipPosition.startY}px; left:${state.clip.clipPosition.startX}px;`,
-                        inverseX,
-                        inverseY,
-                    },
-                };
-            }
-
-            return {
-                ...state,
-                clip: {
-                    ...state.clip,
-                    clipAreaStyle: `transform:scale(${scaleX}, ${scaleY}); width:${width}px; height:${height}px; top:${state.clip.clipPosition.startY}px; left:${state.clip.clipPosition.startX}px;`,
-                    inverseX,
-                    inverseY,
-                },
-            };
-        }
-
-        case "endClip": {
-            return { ...state, clip: { ...state.clip, clipping: false, moved: false, startId: "" } };
-        }
-
-        case "hoverFavoriteId": {
-            return { ...state, hoverFavoriteId: action.value };
-        }
-
         case "startDrag":
             return { ...state, dragTargetId: action.value.id, dragHandler: action.value.type };
-
         case "endDrag":
             return { ...state, dragTargetId: "", dragHandler: "View" };
 
+        case "startClip": {
+            startClip(action.value.startId, action.value.position);
+            return {
+                ...state,
+                selection: { ...state.selection, selectedId: action.value.startId },
+            };
+        }
+        case "moveClip": {
+            moveClip(action.value.x, action.value.y);
+            return state;
+        }
+        case "endClip": {
+            endClip();
+            return state;
+        }
+
+        case "hoverFavoriteId": {
+            driveState.hoverFavoriteId = action.value;
+            return state;
+        }
+
+        case "startRename":
+            startRename(action.value.rect, action.value.oldName, action.value.fullPath, action.value.uuid);
+            return state;
+        case "endRename":
+            endRename();
+            return state;
+
         case "togglePreference":
             return { ...state, prefVisible: !state.prefVisible };
-
         case "toggleCreateSymlink":
             return { ...state, symlinkVisible: !state.symlinkVisible };
-
         case "toggleGridView":
             return { ...state, isInGridView: action.value };
 

@@ -22,6 +22,8 @@ export const BROWSER_SHORTCUT_KEYS = ["f", "p", "r", "+", "-", "u", "g", "j"];
 
 export const DEFAULT_SORTKEY_ORDER: Mp.SortKey[] = ["name", "directory", "orig_path", "ddate", "extension", "mdate", "cdate", "size"];
 
+export const DATE_OPTION: Intl.DateTimeFormatOptions = { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "numeric", second: "numeric" };
+
 export const DEFAULT_LABLES: Mp.HeaderLabel[] = [
     {
         label: "Name",

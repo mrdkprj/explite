@@ -3,8 +3,12 @@ use serde::{Deserialize, Serialize};
 use std::{env, path::PathBuf};
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 use zouni::*;
+
+use crate::session::Session;
 mod dialog;
+mod helper;
 mod menu;
+mod session;
 mod watcher;
 
 #[cfg(target_os = "linux")]
@@ -405,6 +409,7 @@ fn open_in_new_window(app: AppHandle, payload: String) -> Result<(), String> {
 struct InitArgs {
     urls: Vec<String>,
     locales: Vec<String>,
+    restore_position: bool,
 }
 #[tauri::command]
 fn get_args(app: AppHandle) -> InitArgs {
@@ -412,12 +417,14 @@ fn get_args(app: AppHandle) -> InitArgs {
         return InitArgs {
             urls: urls.inner().clone(),
             locales: vec![zouni::shell::get_locale()],
+            restore_position: app.try_state::<Session>().is_some(),
         };
     }
 
     InitArgs {
         urls: Vec::new(),
         locales: Vec::new(),
+        restore_position: app.try_state::<Session>().is_some(),
     }
 }
 
@@ -511,14 +518,13 @@ pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             rs_vips::Vips::init("name").unwrap();
-            let mut urls = Vec::new();
-            for arg in env::args().skip(1) {
-                urls.push(arg);
-            }
-
-            app.manage(urls);
-
+            helper::setup(app);
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::Destroyed = event {
+                helper::exit(window.app_handle());
+            }
         })
         .invoke_handler(tauri::generate_handler![
             prepare_menu,

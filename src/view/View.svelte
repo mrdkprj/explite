@@ -1,30 +1,17 @@
 <script lang="ts">
     import { onMount, tick } from "svelte";
-    import { appState, dispatch } from "./appStateReducer";
-    import { listState } from "./listStateReducer";
+    import { appState, dispatch } from "./appStateReducer.svelte";
     import Bar from "./Bar.svelte";
     import Header from "./Header.svelte";
     import Left from "./Left.svelte";
     import Preference from "./Preference.svelte";
-
-    import FileSvg from "../svg/FileSvg.svelte";
-    import ImageSvg from "../svg/ImageSvg.svelte";
-    import VideoSvg from "../svg/VideoSvg.svelte";
-    import AudioSvg from "../svg/AudioSvg.svelte";
-    import AppSvg from "../svg/AppSvg.svelte";
-    import FolderSvg from "../svg/FolderSvg.svelte";
-    import Zip from "../svg/Zip.svelte";
     import Symlink from "./Symlink.svelte";
-    import DirDesktop from "../svg/DirDesktop.svelte";
-    import DirDocuments from "../svg/DirDocuments.svelte";
-    import DirDownloads from "../svg/DirDownloads.svelte";
-    import DirMusic from "../svg/DirMusic.svelte";
-    import DirImage from "../svg/DirImage.svelte";
-    import DirVideo from "../svg/DirVideo.svelte";
-
     import VirtualList from "./VirtualList.svelte";
     import Home from "./Home.svelte";
-    import Column from "./Column.svelte";
+    import GridView from "./GridView.svelte";
+    import ListView from "./ListView.svelte";
+    import Rename from "./Rename.svelte";
+
     import { BROWSER_SHORTCUT_KEYS, DEFAULT_SORT_TYPE, HOME, OS, RECYCLE_BIN, handleKeyEvent } from "../constants";
     import { IPC } from "../ipc";
     import main from "../main";
@@ -35,21 +22,18 @@
 
     let fileListContainer = $state<HTMLDivElement>();
     let clipRegion = $state<DOMRectReadOnly>();
-    let virtualList = $state<VirtualList<Mp.MediaFile>>();
+    let virtualList = $state<VirtualList<Mp.MediaFile> | VirtualList<Mp.MediaFile[]>>();
     let searchInterval = 0;
     let visibleStartIndex = $state(0);
     let visibleEndIndex = $state(0);
 
     let header: Header;
-    let canvas: HTMLCanvasElement;
+
     let folderUpdatePromise: Deferred<number> | null;
     // Linux only
     let handleKeyUp = false;
 
     const ipc = new IPC("View");
-    const HEADER_DIVIDER_WIDTh = 10;
-    const GRID_ITEM_WIDTH = 110 + 10 + 10;
-    const DATE_OPTION: Intl.DateTimeFormatOptions = { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "numeric", second: "numeric" };
     const BACKWARD: Mp.NavigationHistory[] = [];
     const FORWARD: Mp.NavigationHistory[] = [];
 
@@ -60,11 +44,11 @@
     const onListContextMenu = async (e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        if ($listState.rename.renaming) return;
+        if ($appState.rename.renaming) return;
 
-        if ($listState.currentDir.fullPath != HOME) {
+        if ($appState.list.currentDir.fullPath != HOME) {
             onRowClick(e);
-            const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+            const file = $appState.list.files.find((file) => file.id == $appState.selection.selectedIds[0]);
             let itemPath = "";
             if (file) {
                 itemPath = file.linkPath ? file.linkPath : file.fullPath;
@@ -93,7 +77,7 @@
     };
 
     const getChildIndex = (id: string | null | undefined) => {
-        return $listState.files.findIndex((file) => file.id == id);
+        return $appState.list.files.findIndex((file) => file.id == id);
     };
 
     const scrollToElement = async (id: string) => {
@@ -103,7 +87,7 @@
         const element = document.getElementById(id);
 
         if (!element) {
-            const index = $listState.files.findIndex((file) => file.id == id);
+            const index = $appState.list.files.findIndex((file) => file.id == id);
             if (index <= visibleStartIndex) {
                 await virtualList.scrollToIndex(index, { behavior: "instant" }, false);
             } else {
@@ -143,6 +127,10 @@
         startClip(e);
     };
 
+    const onScroll = async () => {
+        await endEditFileName();
+    };
+
     /* Column item is selected on mousedown. Row is selected on click */
     const colDetailMouseDown = async (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
@@ -157,8 +145,8 @@
     const onMouseMove = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
-        if ($appState.slideState.sliding) {
-            const dist = e.clientX - $appState.slideState.startX;
+        if ($appState.slide.sliding) {
+            const dist = e.clientX - $appState.slide.startX;
             dispatch({ type: "slide", value: dist });
             return;
         }
@@ -180,8 +168,9 @@
             dispatch({ type: "scrolling", value: false });
             return false;
         }
+
         if (!fileListContainer) return false;
-        if ($listState.rename.renaming) return false;
+        if ($appState.rename.renaming) return false;
         if ($appState.dragHandler != "View") return false;
 
         /* Clipping must handle event outside of view */
@@ -206,8 +195,8 @@
     const onMouseUp = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
-        if ($appState.slideState.sliding) {
-            const dist = e.clientX - $appState.slideState.startX;
+        if ($appState.slide.sliding) {
+            const dist = e.clientX - $appState.slide.startX;
             dispatch({ type: "slide", value: dist });
             dispatch({ type: "endSlide" });
             onColumnHeaderChanged();
@@ -223,7 +212,7 @@
     };
 
     const onColumnHeaderChanged = () => {
-        main.onColumnHeaderChanged({ leftWidth: $appState.leftWidth, labels: $appState.headerLabels });
+        main.onColumnHeaderChanged({ leftWidth: $appState.drive.leftWidth, labels: $appState.headerLabels });
     };
 
     const startDrag = async (e: DragEvent) => {
@@ -237,7 +226,7 @@
         const id = e.target.getAttribute("data-file-id") ?? "";
         if (!$appState.selection.selectedIds.includes(id)) return;
 
-        const paths = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id)).map((file) => file.fullPath);
+        const paths = $appState.list.files.filter((file) => $appState.selection.selectedIds.includes(file.id)).map((file) => file.fullPath);
         if (!paths.length) return;
 
         await ipc.invoke("register_drop_target", undefined);
@@ -280,7 +269,7 @@
 
         dispatch({ type: "dragLeave" });
 
-        if ($listState.currentDir.fullPath == HOME || !e.paths) return;
+        if ($appState.list.currentDir.fullPath == HOME || !e.paths) return;
 
         const destPath = getDropTarget(dragTargetId);
 
@@ -294,11 +283,11 @@
     };
 
     const getDropTarget = (dragTargetId: string): string => {
-        const defaultTarget = $listState.currentDir.fullPath;
+        const defaultTarget = $appState.list.currentDir.fullPath;
 
         if (!dragTargetId) return defaultTarget;
 
-        const destinationFile = $listState.files.find((file) => file.id == dragTargetId);
+        const destinationFile = $appState.list.files.find((file) => file.id == dragTargetId);
 
         if (!destinationFile) return defaultTarget;
 
@@ -416,7 +405,7 @@
                 asc,
             };
             dispatch({ type: "sort", value: type });
-            const result = main.sort({ files: $listState.files, type });
+            const result = main.sort({ files: $appState.list.files, type });
             onSorted(result);
         }
     };
@@ -485,7 +474,7 @@
 
         const ids: string[] = [];
         for (let i = range[0]; i <= range[1]; i++) {
-            ids.push($listState.files[i].id);
+            ids.push($appState.list.files[i].id);
         }
 
         dispatch({ type: "setSelectedIds", value: ids });
@@ -503,21 +492,21 @@
     const selectAll = () => {
         clearSelection();
 
-        const ids = $listState.files.map((file) => file.id);
+        const ids = $appState.list.files.map((file) => file.id);
 
         dispatch({ type: "appendSelectedIds", value: ids });
     };
 
     const moveSelectionByShit = async (key: string) => {
         if (!$appState.selection.selectedIds.length) {
-            await select($listState.files[0].id);
+            await select($appState.list.files[0].id);
         }
 
         const downward = $appState.selection.selectedId == $appState.selection.selectedIds[0];
 
         const currentId = downward ? $appState.selection.selectedIds[$appState.selection.selectedIds.length - 1] : $appState.selection.selectedIds[0];
         const currentIndex = getChildIndex(currentId);
-        const nextId = key === "ArrowDown" ? $listState.files[currentIndex + 1]?.id : $listState.files[currentIndex - 1]?.id;
+        const nextId = key === "ArrowDown" ? $appState.list.files[currentIndex + 1]?.id : $appState.list.files[currentIndex - 1]?.id;
 
         if (!nextId) return;
 
@@ -525,15 +514,15 @@
     };
 
     const moveSelection = async (e: KeyboardEvent) => {
-        if (!$listState.files.length) return;
+        if (!$appState.list.files.length) return;
 
         if (e.shiftKey) {
             return await moveSelectionByShit(e.key);
         }
 
-        const currentId = $appState.selection.selectedId ? $appState.selection.selectedId : $listState.files[0].id;
+        const currentId = $appState.selection.selectedId ? $appState.selection.selectedId : $appState.list.files[0].id;
         const currentIndex = getChildIndex(currentId);
-        const nextId = e.key === "ArrowDown" ? $listState.files[currentIndex + 1]?.id : $listState.files[currentIndex - 1]?.id;
+        const nextId = e.key === "ArrowDown" ? $appState.list.files[currentIndex + 1]?.id : $appState.list.files[currentIndex - 1]?.id;
 
         if (!nextId) return;
 
@@ -542,20 +531,20 @@
     };
 
     const selectUpto = async (e: KeyboardEvent) => {
-        if (!$listState.files.length) return;
+        if (!$appState.list.files.length) return;
         if (e.key == "Home") {
-            await select($listState.files[0].id);
+            await select($appState.list.files[0].id);
         } else {
-            await select($listState.files[$listState.files.length - 1].id);
+            await select($appState.list.files[$appState.list.files.length - 1].id);
         }
     };
 
     const moveSelectionUpto = async (e: KeyboardEvent) => {
-        if (!$listState.files.length) return;
+        if (!$appState.list.files.length) return;
 
         e.preventDefault();
 
-        const targetId = e.key === HOME ? $listState.files[0].id : $listState.files[$listState.files.length - 1].id;
+        const targetId = e.key === HOME ? $appState.list.files[0].id : $appState.list.files[$appState.list.files.length - 1].id;
 
         if (!targetId) return;
 
@@ -567,7 +556,7 @@
     const startEditFileName = () => {
         if (isRecycleBin()) return;
 
-        const file = $listState.files.find((file) => file.id == $appState.selection.selectedId);
+        const file = $appState.list.files.find((file) => file.id == $appState.selection.selectedId);
 
         if (!file) return;
 
@@ -577,15 +566,17 @@
 
         const rect = selectedElement.getBoundingClientRect();
 
+        const partialRect = {
+            top: $appState.isInGridView ? rect.top : rect.top - 2,
+            left: $appState.isInGridView ? rect.left - 4 : rect.left - 2,
+            width: $appState.isInGridView ? rect.width + 8 : rect.width,
+            height: rect.height,
+        };
+
         dispatch({
             type: "startRename",
             value: {
-                rect: {
-                    top: rect.top - 2,
-                    left: rect.left - 2,
-                    width: rect.width,
-                    height: rect.height,
-                },
+                rect: partialRect,
                 oldName: path.basename(file.fullPath),
                 fullPath: file.fullPath,
                 uuid: file.uuid,
@@ -599,64 +590,30 @@
         dispatch({ type: "endRename" });
     };
 
-    const endEditFileName = () => {
-        if (!$listState.rename.renaming) return;
+    const endEditFileName = async () => {
+        if (!$appState.rename.renaming) return;
 
-        if ($listState.rename.oldName === $listState.rename.newName) {
+        if ($appState.rename.oldName === $appState.rename.newName) {
             endRename();
         } else {
-            requestRename();
+            await requestRename();
         }
     };
 
     const requestRename = async () => {
         dispatch({ type: "preventBlur", value: true });
         folderUpdatePromise = new Deferred();
-        const result = await main.renameItem($listState.rename.fullPath, $listState.rename.newName);
+        const result = await main.renameItem($appState.rename.fullPath, $appState.rename.newName);
         endRename();
         if (!result.done) {
             folderUpdatePromise = null;
-            const files = $listState.files.filter((file) => file.fullPath == $listState.rename.fullPath);
+            const files = $appState.list.files.filter((file) => file.fullPath == $appState.rename.fullPath);
             select(files[0].id);
             return;
         }
 
         await safePromise();
         select(result.newId);
-    };
-
-    const setFocusAndSelect = (node: HTMLInputElement) => {
-        node.focus();
-        node.setSelectionRange(0, node.value.lastIndexOf("."));
-    };
-
-    const onRenameInputKeyDown = (e: KeyboardEvent) => {
-        if (!e.target || !(e.target instanceof HTMLInputElement)) return;
-
-        if (e.key === "Enter") {
-            e.stopPropagation();
-            e.preventDefault();
-            endEditFileName();
-            return;
-        }
-    };
-
-    const onRenameInput = (e: Event) => {
-        if (!e.target || !(e.target instanceof HTMLInputElement)) return;
-
-        const _canvas = canvas || (canvas = document.createElement("canvas"));
-        const context = _canvas.getContext("2d");
-        if (!context) {
-            return {
-                visiblePaths: $listState.currentDir.paths,
-                overflownPaths: [],
-            };
-        }
-        context.font = 'normal 12px "Segoe UI"';
-        let width = 5;
-        const metrics = context.measureText($listState.rename.newName);
-        width += metrics.width;
-        dispatch({ type: "changeInputWidth", value: Math.ceil(width) });
     };
 
     const createItem = async (isFile: boolean) => {
@@ -674,20 +631,20 @@
 
     const trashItem = async () => {
         if (!$appState.selection.selectedIds.length) return;
-        const files = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+        const files = $appState.list.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
         await main.trashItems({ files });
     };
 
     const deleteItem = async () => {
         if (!$appState.selection.selectedIds.length) return;
 
-        const files = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+        const files = $appState.list.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
         await main.deleteItems({ files });
     };
 
     const undeleteItem = async () => {
         if (!$appState.selection.selectedIds.length) return;
-        const files = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+        const files = $appState.list.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
         const items = files.map((file) => {
             return {
                 fullPath: file.originalPath,
@@ -700,7 +657,7 @@
 
     const deleteFromRecycleBin = async () => {
         if (!$appState.selection.selectedIds.length) return;
-        const files = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+        const files = $appState.list.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
         const items = files.map((file) => {
             return {
                 fullPath: file.originalPath,
@@ -713,16 +670,16 @@
 
     const writeFullPathToClipboard = async () => {
         const fullPaths = $appState.selection.selectedIds.length
-            ? $listState.files
+            ? $appState.list.files
                   .filter((file) => $appState.selection.selectedIds.includes(file.id))
                   .map((file) => file.fullPath)
                   .join("\r\n")
-            : $listState.currentDir.fullPath;
+            : $appState.list.currentDir.fullPath;
         await main.writeFullpathToClipboard(fullPaths);
     };
 
     const markCopyCut = async (copy: boolean) => {
-        const files = $listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+        const files = $appState.list.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
         dispatch({ type: "copyCut", value: { operation: copy ? "Copy" : "Move", ids: $appState.selection.selectedIds, files } });
         await main.writeClipboard({ files, operation: copy ? "Copy" : "Move" });
     };
@@ -747,20 +704,20 @@
     };
 
     const onPasteEnd = async (e: Mp.MoveItemResult) => {
-        const ids = $listState.files.filter((file) => e.fullPaths.includes(file.fullPath)).map((file) => file.id);
+        const ids = $appState.list.files.filter((file) => e.fullPaths.includes(file.fullPath)).map((file) => file.id);
         await selectMultiple(ids);
     };
 
     const sendRemovingFavorite = () => {
-        if ($appState.hoverFavoriteId) {
-            const result = main.removeFavorite($appState.hoverFavoriteId);
+        if ($appState.drive.hoverFavoriteId) {
+            const result = main.removeFavorite($appState.drive.hoverFavoriteId);
             onFavoriteChanged(result);
             dispatch({ type: "hoverFavoriteId", value: "" });
         }
     };
 
     const reload = async (includeDrive: boolean) => {
-        if ($appState.search.searching) {
+        if ($appState.header.search.searching) {
             await endSearch(true);
         } else {
             const result = await main.reload(includeDrive);
@@ -773,9 +730,9 @@
     const searchNext = (key: string) => {
         if ($appState.selection.selectedIds.length) {
             const selectedId = $appState.selection.selectedIds[0];
-            const current = $listState.files.findIndex((file) => file.id == selectedId);
+            const current = $appState.list.files.findIndex((file) => file.id == selectedId);
             const indexes: number[] = [];
-            $listState.files.forEach((file, index) => {
+            $appState.list.files.forEach((file, index) => {
                 if (file.name.toLowerCase().startsWith(key) && file.id != selectedId) {
                     indexes.push(index);
                 }
@@ -787,19 +744,19 @@
 
             const next = indexes.filter((i) => i > current);
             if (next.length) {
-                return $listState.files[next[0]];
+                return $appState.list.files[next[0]];
             } else {
-                return $listState.files[indexes[0]];
+                return $appState.list.files[indexes[0]];
             }
         } else {
-            return $listState.files.find((file) => file.name.toLowerCase().startsWith(key));
+            return $appState.list.files.find((file) => file.name.toLowerCase().startsWith(key));
         }
     };
 
     const startSearch = async () => {
         dispatch({ type: "clearCopyCut" });
         dispatch({ type: "startSearch" });
-        const result = await main.search({ dir: $listState.currentDir.fullPath, key: $appState.search.key, refresh: false });
+        const result = await main.search({ dir: $appState.list.currentDir.fullPath, key: $appState.header.search.key, refresh: false });
         onSearched(result);
     };
 
@@ -816,7 +773,7 @@
 
         if (refresh) {
             await main.onSearchEnd(true);
-            const result = await main.search({ dir: $listState.currentDir.fullPath, key: $appState.search.key, refresh: false });
+            const result = await main.search({ dir: $appState.list.currentDir.fullPath, key: $appState.header.search.key, refresh: false });
             onSearched(result);
         } else {
             dispatch({ type: "endSearch" });
@@ -836,7 +793,7 @@
             incrementalKey = ($appState.incrementalKey + value).toLowerCase();
 
             if (incrementalKey != $appState.incrementalKey) {
-                file = $listState.files.find((file) => file.name.toLowerCase().startsWith(incrementalKey));
+                file = $appState.list.files.find((file) => file.name.toLowerCase().startsWith(incrementalKey));
             } else {
                 file = searchNext(incrementalKey);
             }
@@ -849,7 +806,7 @@
     };
 
     const searchHighlight = (nodes: HTMLElement[]) => {
-        if (!$appState.search.key || !$listState.files.length) {
+        if (!$appState.header.search.key || !$appState.list.files.length) {
             clearSearchHighlight();
             return;
         }
@@ -872,8 +829,8 @@
     };
 
     const highlightName = (text: string, nameNode: Element, searchTextHighlight: Highlight) => {
-        const start = text.toLocaleLowerCase().indexOf($appState.search.key.toLocaleLowerCase());
-        const end = $appState.search.key.length;
+        const start = text.toLocaleLowerCase().indexOf($appState.header.search.key.toLocaleLowerCase());
+        const end = $appState.header.search.key.length;
 
         const range = new Range();
         range.setStart(nameNode.childNodes[0], start);
@@ -883,7 +840,7 @@
 
     const highlightNameOneByOne = (text: string, nameNode: Element, searchTextHighlight: Highlight) => {
         const texts = text.toLocaleLowerCase().split("");
-        const keys = $appState.search.key.toLocaleLowerCase().split("");
+        const keys = $appState.header.search.key.toLocaleLowerCase().split("");
 
         texts.forEach((text, i) => {
             if (keys.length - 1 < i) {
@@ -920,7 +877,7 @@
     };
 
     const changeFavorites = () => {
-        main.changeFavorites($appState.favorites);
+        main.changeFavorites($appState.drive.favorites);
     };
 
     const undo = async () => {
@@ -943,7 +900,7 @@
             return;
         }
 
-        const file = $listState.files.find((file) => file.id == id);
+        const file = $appState.list.files.find((file) => file.id == id);
 
         if (file) {
             requestLoad(file.linkPath ? file.linkPath : file.fullPath, file.isFile, "Direct");
@@ -953,9 +910,9 @@
     };
 
     const goBack = async () => {
-        if (!$appState.canGoBack) return;
+        if (!$appState.header.canGoBack) return;
 
-        if ($appState.search.searching) {
+        if ($appState.header.search.searching) {
             return await endSearch(false);
         }
 
@@ -964,9 +921,9 @@
     };
 
     const goForward = async () => {
-        if (!$appState.canGoForward) return;
+        if (!$appState.header.canGoForward) return;
 
-        if ($appState.search.searching) {
+        if ($appState.header.search.searching) {
             return await endSearch(false);
         }
 
@@ -975,11 +932,11 @@
     };
 
     const requestLoad = async (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => {
-        if (!isFile && $appState.search.searching) {
+        if (!isFile && $appState.header.search.searching) {
             await endSearch(false);
         }
 
-        if (fullPath != $listState.currentDir.fullPath) {
+        if (fullPath != $appState.list.currentDir.fullPath) {
             const result = await main.onSelect({ fullPath, isFile, navigation });
             if (result) {
                 load(result);
@@ -996,21 +953,11 @@
     };
 
     const setTitle = async () => {
-        const title = $listState.currentDir.paths.length ? $listState.currentDir.paths[$listState.currentDir.paths.length - 1] : HOME;
+        const title = $appState.list.currentDir.paths.length ? $appState.list.currentDir.paths[$appState.list.currentDir.paths.length - 1] : HOME;
         await WebviewWindow.getCurrent().setTitle(title);
     };
 
-    const isRecycleBin = () => $listState.currentDir.fullPath == RECYCLE_BIN;
-
-    const shouldDisplayLabel = (key: Mp.SortKey) => {
-        if (key == "directory" && (!$appState.search.searching || isRecycleBin())) return false;
-
-        if (key == "ddate" && !isRecycleBin()) return false;
-
-        if (key == "orig_path" && !isRecycleBin()) return false;
-
-        return true;
-    };
+    const isRecycleBin = () => $appState.list.currentDir.fullPath == RECYCLE_BIN;
 
     const navigate = (e: Mp.LoadEvent) => {
         if (e.navigation == "Reload") {
@@ -1019,13 +966,13 @@
         }
 
         if (e.navigation == "Back") {
-            FORWARD.push({ fullPath: $listState.currentDir.fullPath, selection: $appState.selection });
+            FORWARD.push({ fullPath: $appState.list.currentDir.fullPath, selection: $appState.selection });
             const navigationHistory = BACKWARD.pop();
             restoreSelection(navigationHistory);
         }
 
         if (e.navigation == "Forward") {
-            BACKWARD.push({ fullPath: $listState.currentDir.fullPath, selection: $appState.selection });
+            BACKWARD.push({ fullPath: $appState.list.currentDir.fullPath, selection: $appState.selection });
             const navigationHistory = FORWARD.pop();
             restoreSelection(navigationHistory);
         }
@@ -1033,7 +980,7 @@
         if (e.navigation == "Direct" || e.navigation == "PathSelect") {
             dispatch({ type: "endSearch" });
             FORWARD.pop();
-            BACKWARD.push({ fullPath: $listState.currentDir.fullPath, selection: $appState.selection });
+            BACKWARD.push({ fullPath: $appState.list.currentDir.fullPath, selection: $appState.selection });
 
             if (e.navigation == "PathSelect") {
                 const navigationHistory = BACKWARD.find((navhistory) => navhistory.fullPath == e.directory);
@@ -1088,7 +1035,7 @@
     const handleContextMenuEvent = async (e: keyof Mp.MainContextMenuSubTypeMap | keyof Mp.FavContextMenuSubTypeMap) => {
         switch (e) {
             case "Open": {
-                const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                const file = $appState.list.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (!file) return;
                 const result = await main.onSelect({ fullPath: file.fullPath, isFile: file.isFile, navigation: "Direct" });
                 if (result) {
@@ -1098,14 +1045,14 @@
             }
 
             case "OpenInNewWindow": {
-                const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                const file = $appState.list.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (!file) return;
                 await main.openInNewWindow(file.fullPath);
                 break;
             }
 
             case "SelectApp": {
-                const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                const file = $appState.list.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (!file) return;
                 await main.showAppSelector(file.fullPath);
                 break;
@@ -1158,20 +1105,20 @@
             }
 
             case "Property": {
-                if ($appState.hoverFavoriteId) {
-                    await main.openPropertyDielog($appState.hoverFavoriteId);
+                if ($appState.drive.hoverFavoriteId) {
+                    await main.openPropertyDielog($appState.drive.hoverFavoriteId);
                     dispatch({ type: "hoverFavoriteId", value: "" });
                     break;
                 }
 
-                const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
-                await main.openPropertyDielog(file ?? util.toFolder($listState.currentDir.fullPath));
+                const file = $appState.list.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                await main.openPropertyDielog(file ?? util.toFolder($appState.list.currentDir.fullPath));
 
                 break;
             }
 
             case "AddToFavorite": {
-                const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                const file = $appState.list.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (!file) return;
 
                 if (!file.isFile) {
@@ -1195,15 +1142,15 @@
                 break;
 
             case "Terminal":
-                await main.openTerminal($listState.currentDir.fullPath, false);
+                await main.openTerminal($appState.list.currentDir.fullPath, false);
                 break;
 
             case "AdminTerminal":
-                await main.openTerminal($listState.currentDir.fullPath, true);
+                await main.openTerminal($appState.list.currentDir.fullPath, true);
                 break;
 
             default: {
-                const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                const file = $appState.list.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (!file) return;
                 await main.openFileWith(file.fullPath, e as string);
             }
@@ -1262,8 +1209,14 @@
             e.preventDefault();
         }
 
-        if ($listState.rename.renaming) return;
-        if ($appState.pathEditing) return;
+        if (e.key == "Escape") {
+            if ($appState.rename.renaming) {
+                endEditFileName();
+            }
+        }
+
+        if ($appState.rename.renaming) return;
+        if ($appState.header.pathEditing) return;
         if ($appState.prefVisible) return;
         if ($appState.symlinkVisible) return;
         if (header.hasSearchInputFocus()) return;
@@ -1274,9 +1227,14 @@
             return;
         }
 
+        if (e.ctrlKey && e.key == "e") {
+            await main.launchNew();
+            return;
+        }
+
         if (e.key == "Enter") {
             if ($appState.selection.selectedIds.length == 1) {
-                const file = $listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                const file = $appState.list.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (file) {
                     e.preventDefault();
                     requestLoad(file.linkPath ? file.linkPath : file.fullPath, file.isFile, "Direct");
@@ -1312,7 +1270,7 @@
         }
 
         if (e.ctrlKey && e.key === "t") {
-            if ($listState.currentDir.fullPath != HOME && !isRecycleBin()) {
+            if ($appState.list.currentDir.fullPath != HOME && !isRecycleBin()) {
                 e.preventDefault();
                 return dispatch({ type: "toggleGridView", value: !$appState.isInGridView });
             }
@@ -1375,7 +1333,7 @@
         }
 
         if (!e.altKey && !e.ctrlKey && !e.shiftKey) {
-            if (e.key.length == 1 && $listState.files.length) {
+            if (e.key.length == 1 && $appState.list.files.length) {
                 if (searchInterval) {
                     window.clearTimeout(searchInterval);
                 }
@@ -1412,18 +1370,6 @@
         await main.createSymlink(path, linkPath);
     };
 
-    const toChunk = () => {
-        if (!fileListContainer) return [];
-        const chunks = [];
-        const files = structuredClone($listState.files);
-        const chunkSize = Math.floor(fileListContainer.clientWidth / GRID_ITEM_WIDTH);
-        for (let i = 0; i < files.length; i += chunkSize) {
-            const chunk = files.slice(i, i + chunkSize);
-            chunks.push(chunk);
-        }
-        return chunks;
-    };
-
     const onDeviceEvent = async (e: Mp.DeviceEvent) => {
         if (!e.name.includes("Disk") && !e.name.includes("Storage")) return;
 
@@ -1431,8 +1377,8 @@
 
         if (e.event == "Removed") {
             const newMountPoints = drives.map((info) => info.path);
-            const removedMountPoints = $appState.drives.filter((info) => !newMountPoints.includes(info.path)).map((info) => info.path);
-            const currentDirRoot = util.getRootDirectory($listState.currentDir.fullPath);
+            const removedMountPoints = $appState.drive.drives.filter((info) => !newMountPoints.includes(info.path)).map((info) => info.path);
+            const currentDirRoot = util.getRootDirectory($appState.list.currentDir.fullPath);
 
             if (removedMountPoints.includes(currentDirRoot)) {
                 await requestLoad(HOME, false, "Direct");
@@ -1502,14 +1448,15 @@
         }
         const webview = WebviewWindow.getCurrent();
         await webview.setSize(util.toPhysicalSize(e.settings.bounds));
-        await webview.setPosition(util.toPhysicalPosition(e.settings.bounds));
+        if (e.restorePosition) {
+            await webview.setPosition(util.toPhysicalPosition(e.settings.bounds));
+        }
         await webview.show();
     };
 
     onMount(() => {
         prepare();
         ipc.receiveTauri("tauri://resize", onWindowSizeChanged);
-        // ipc.receiveTauri("tauri://theme-changed", (e) => console.log(e));
         ipc.receive("contextmenu_event", handleContextMenuEvent);
         ipc.receive("watch_event", onWatchEvent);
         ipc.receive("device_event", onDeviceEvent);
@@ -1524,7 +1471,7 @@
 <svelte:window oncontextmenu={(e) => e.preventDefault()} />
 <svelte:document {onkeydown} {onkeyup} onmousemove={onMouseMove} onmousedown={onMouseDown} onmouseup={onMouseUp} ondragover={onDragOver} ondragenter={onDragEnter} ondragleave={onDragLeave} />
 
-<div class="viewport" class:full-screen={$appState.isFullScreen} class:sliding={$appState.slideState.sliding}>
+<div class="viewport" class:full-screen={$appState.isFullScreen} class:sliding={$appState.slide.sliding}>
     <Bar />
     <div class="view">
         {#if $appState.prefVisible}
@@ -1532,6 +1479,9 @@
         {/if}
         {#if $appState.symlinkVisible}
             <Symlink {showErrorMessage} {getSymlinkTargetItem} {createSymlink} />
+        {/if}
+        {#if $appState.rename.renaming}
+            <Rename {endEditFileName} />
         {/if}
         <Header {requestLoad} {startSearch} {endSearch} {goBack} {goForward} {createItem} {reload} bind:this={header} />
         <div id="viewContent" class="body" ondragover={onDragOver} onkeydown={handleKeyEvent} role="button" tabindex="-1">
@@ -1542,7 +1492,6 @@
             <div
                 class="main"
                 class:clipping={$appState.clip.clipping}
-                class:searched={$appState.search.searching}
                 oncontextmenu={onListContextMenu}
                 onkeydown={handleKeyEvent}
                 onscroll={endEditFileName}
@@ -1554,271 +1503,41 @@
                     <div bind:contentRect={clipRegion} class="clip-area" style={$appState.clip.clipAreaStyle}></div>
                 {/if}
 
-                {#if $listState.rename.renaming}
-                    <input
-                        type="text"
-                        class="input rename"
-                        style="top:{$listState.rename.rect.top}px; left:{$listState.rename.rect.left}px; width:{$listState.rename.rect.width}px; height:{$listState.rename.rect.height}px"
-                        spellCheck="false"
-                        onblur={$appState.preventBlur ? undefined : endEditFileName}
-                        onkeydown={onRenameInputKeyDown}
-                        oninput={onRenameInput}
-                        bind:value={$listState.rename.newName}
-                        use:setFocusAndSelect
-                        autocomplete="one-time-code"
-                    />
-                {/if}
-
-                {#if $listState.currentDir.fullPath == HOME}
+                {#if $appState.list.currentDir.fullPath == HOME}
                     <Home {requestLoad} />
                 {:else if $appState.isInGridView}
-                    <VirtualList
-                        items={toChunk()}
-                        bind:viewport={fileListContainer}
-                        bind:start={visibleStartIndex}
-                        bind:end={visibleEndIndex}
-                        itemHeight={140}
-                        headerHeight={0}
-                        onRefresh={searchHighlight}
-                        thumbnail={true}
-                    >
-                        {#snippet header()}{/snippet}
-                        {#snippet item(items)}
-                            {#each items as item (item.uuid)}
-                                <div
-                                    id={item.id}
-                                    class="thumb-column selectable"
-                                    draggable="true"
-                                    class:selected={$appState.selection.selectedIds.includes(item.id)}
-                                    class:being-selected={$appState.selection.selectedId == item.id}
-                                    class:cut={$appState.copyCutTargets.ids.includes(item.id) && $appState.copyCutTargets.op == "Move"}
-                                    class:drag-highlight={!item.isFile && $appState.dragTargetId == item.id}
-                                    onmouseover={clipMouseEnter}
-                                    onmouseout={clipMouseLeave}
-                                    onfocus={() => {}}
-                                    onblur={() => {}}
-                                    onclick={onRowClick}
-                                    ondblclick={onSelect}
-                                    onkeydown={handleKeyEvent}
-                                    data-file-id={item.id}
-                                    role="button"
-                                    tabindex="-1"
-                                >
-                                    <div class="thumb-col-detail" data-file-id={item.id}>
-                                        <div
-                                            class="thumb-entry-name draggable"
-                                            title={$appState.search.searching ? item.fullPath : item.name}
-                                            data-file-id={item.id}
-                                            onmousedown={colDetailMouseDown}
-                                            role="button"
-                                            tabindex="-1"
-                                        >
-                                            <div
-                                                class="icon"
-                                                class:folder={item.entityType == "Folder" || item.entityType == "SymlinkFolder"}
-                                                class:hidden-folder={item.fileType == "HiddenFolder"}
-                                                data-file-id={item.id}
-                                            >
-                                                {#if item.linkPath}
-                                                    <div class="symlink-icon"><div class="symlink-arrow"></div></div>
-                                                {/if}
-                                                {#if item.isFile}
-                                                    {#if item.fileType == "Audio"}
-                                                        <AudioSvg />
-                                                    {:else if item.fileType == "Video"}
-                                                        {#await main.toVideoThumbnail(item.fullPath)}
-                                                            <div style="width: 100px;height:90px;"></div>
-                                                        {:then data}
-                                                            <div class="cover">
-                                                                <div class="film"></div>
-                                                                <img src={data} class="thumbnail-video" alt="" loading="lazy" decoding="async" />
-                                                                <div class="film"></div>
-                                                            </div>
-                                                        {/await}
-                                                    {:else if item.fileType == "Image"}
-                                                        {#await main.toImageThumbnail(item.fullPath)}
-                                                            <div style="width: 100px;height:90px;"></div>
-                                                        {:then data}
-                                                            <img src={data} class="thumbnail-img" alt="" loading="lazy" decoding="async" />
-                                                        {/await}
-                                                    {:else if item.fileType == "Zip"}
-                                                        <Zip />
-                                                    {:else if item.fileType == "App"}
-                                                        <AppSvg />
-                                                    {:else}
-                                                        <FileSvg />
-                                                    {/if}
-                                                {:else if item.fileType == "Desktop"}
-                                                    <DirDesktop />
-                                                {:else if item.fileType == "Documents"}
-                                                    <DirDocuments />
-                                                {:else if item.fileType == "Downloads"}
-                                                    <DirDownloads />
-                                                {:else if item.fileType == "Music"}
-                                                    <DirMusic />
-                                                {:else if item.fileType == "Pictures"}
-                                                    <DirImage />
-                                                {:else if item.fileType == "Videos"}
-                                                    <DirVideo />
-                                                {:else}
-                                                    <FolderSvg />
-                                                {/if}
-                                            </div>
-                                            <div class="name" id={item.uuid} data-file-id={item.id} class:rename-hidden={$listState.rename.targetUUID == item.uuid}>
-                                                {item.name}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            {/each}
-                        {/snippet}
-                        {#snippet empty()}{/snippet}
-                    </VirtualList>
+                    <GridView
+                        {visibleStartIndex}
+                        {visibleEndIndex}
+                        bind:fileListContainer
+                        bind:virtualList
+                        {searchHighlight}
+                        {clipMouseEnter}
+                        {clipMouseLeave}
+                        {onRowClick}
+                        {onSelect}
+                        {colDetailMouseDown}
+                        toImageThumbnail={main.toImageThumbnail}
+                        toVideoThumbnail={main.toVideoThumbnail}
+                        {onScroll}
+                    />
                 {:else}
-                    <VirtualList
-                        items={$listState.files}
-                        bind:this={virtualList}
-                        bind:viewport={fileListContainer}
-                        bind:start={visibleStartIndex}
-                        bind:end={visibleEndIndex}
-                        itemHeight={30}
-                        headerHeight={30}
-                        onRefresh={searchHighlight}
-                    >
-                        {#snippet header()}
-                            <div class="list-header nofocus" onclick={onColumnHeaderClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
-                                {#each $appState.headerLabels as label}
-                                    {#if shouldDisplayLabel(label.sortKey)}
-                                        <Column {onColSliderMousedown} {label} columnHeaderChanged={onColumnHeaderChanged} />
-                                    {/if}
-                                {/each}
-                            </div>
-                        {/snippet}
-                        {#snippet item(item)}
-                            <div
-                                id={item.id}
-                                class="row selectable"
-                                draggable="true"
-                                class:selected={$appState.selection.selectedIds.includes(item.id)}
-                                class:being-selected={$appState.selection.selectedId == item.id}
-                                class:cut={$appState.copyCutTargets.ids.includes(item.id) && $appState.copyCutTargets.op == "Move"}
-                                class:drag-highlight={!item.isFile && $appState.dragTargetId == item.id}
-                                onmouseover={clipMouseEnter}
-                                onmouseout={clipMouseLeave}
-                                onfocus={() => {}}
-                                onblur={() => {}}
-                                onclick={onRowClick}
-                                ondblclick={onSelect}
-                                onkeydown={handleKeyEvent}
-                                data-file-id={item.id}
-                                role="button"
-                                tabindex="-1"
-                            >
-                                {#each $appState.headerLabels as label}
-                                    {#if label.sortKey == "name"}
-                                        <div class="col-detail" data-file-id={item.id} style="width: {label.width}px;">
-                                            <div
-                                                class="entry-name draggable"
-                                                title={$appState.search.searching ? item.fullPath : item.name}
-                                                data-file-id={item.id}
-                                                onmousedown={colDetailMouseDown}
-                                                role="button"
-                                                tabindex="-1"
-                                            >
-                                                <div
-                                                    class="icon"
-                                                    class:folder={item.entityType == "Folder" || item.entityType == "SymlinkFolder"}
-                                                    class:hidden-folder={item.fileType == "HiddenFolder"}
-                                                    data-file-id={item.id}
-                                                >
-                                                    {#if item.linkPath}
-                                                        <div class="symlink-icon"><div class="symlink-arrow"></div></div>
-                                                    {/if}
-                                                    {#if item.isFile}
-                                                        {#if item.fileType == "Audio"}
-                                                            <AudioSvg />
-                                                        {:else if item.fileType == "Video"}
-                                                            <VideoSvg />
-                                                        {:else if item.fileType == "Image"}
-                                                            <ImageSvg />
-                                                        {:else if item.fileType == "Zip"}
-                                                            <Zip />
-                                                        {:else if item.fileType == "App"}
-                                                            <AppSvg />
-                                                        {:else}
-                                                            <FileSvg />
-                                                        {/if}
-                                                    {:else if item.fileType == "Desktop"}
-                                                        <DirDesktop />
-                                                    {:else if item.fileType == "Documents"}
-                                                        <DirDocuments />
-                                                    {:else if item.fileType == "Downloads"}
-                                                        <DirDownloads />
-                                                    {:else if item.fileType == "Music"}
-                                                        <DirMusic />
-                                                    {:else if item.fileType == "Pictures"}
-                                                        <DirImage />
-                                                    {:else if item.fileType == "Videos"}
-                                                        <DirVideo />
-                                                    {:else}
-                                                        <FolderSvg />
-                                                    {/if}
-                                                </div>
-                                                <div class="name" id={item.uuid} data-file-id={item.id} class:rename-hidden={$listState.rename.targetUUID == item.uuid}>
-                                                    {item.name}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    {:else if label.sortKey == "directory"}
-                                        {#if $appState.search.searching && !isRecycleBin()}
-                                            <div class="col-detail" data-file-id={item.id} style="width: {label.width + HEADER_DIVIDER_WIDTh}px;">
-                                                <div class="draggable" title={item.dir} data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.dir}</div>
-                                            </div>
-                                        {/if}
-                                    {:else if label.sortKey == "orig_path"}
-                                        {#if isRecycleBin()}
-                                            <div class="col-detail" data-file-id={item.id} style="width: {label.width + HEADER_DIVIDER_WIDTh}px;">
-                                                <div class="draggable" title={item.originalPath} data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.dir}</div>
-                                            </div>
-                                        {/if}
-                                    {:else if label.sortKey == "ddate"}
-                                        {#if isRecycleBin()}
-                                            <div class="col-detail" data-file-id={item.id} style="width: {label.width + HEADER_DIVIDER_WIDTh}px;">
-                                                <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
-                                                    {new Date(item.ddate).toLocaleString("jp-JP", DATE_OPTION)}
-                                                </div>
-                                            </div>
-                                        {/if}
-                                    {:else if label.sortKey == "extension"}
-                                        <div class="col-detail" data-file-id={item.id} style="width: {label.width + HEADER_DIVIDER_WIDTh}px;">
-                                            <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.extension}</div>
-                                        </div>
-                                    {:else if label.sortKey == "mdate"}
-                                        <div class="col-detail" data-file-id={item.id} style="width: {label.width + HEADER_DIVIDER_WIDTh}px;">
-                                            <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
-                                                {new Date(item.mdate).toLocaleString("ja-JP", DATE_OPTION)}
-                                            </div>
-                                        </div>
-                                    {:else if label.sortKey == "cdate"}
-                                        <div class="col-detail" data-file-id={item.id} style="width: {label.width + HEADER_DIVIDER_WIDTh}px;">
-                                            <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
-                                                {new Date(item.cdate).toLocaleString("jp-JP", DATE_OPTION)}
-                                            </div>
-                                        </div>
-                                    {:else if label.sortKey == "size"}
-                                        <div class="col-detail size" data-file-id={item.id} style="width: {label.width + HEADER_DIVIDER_WIDTh}px;">
-                                            <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
-                                                {item.size > 0 || (item.size == 0 && item.isFile)
-                                                    ? `${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingPriority: "morePrecision" }).format(item.size)} KB`
-                                                    : ""}
-                                            </div>
-                                        </div>
-                                    {/if}
-                                {/each}
-                            </div>
-                        {/snippet}
-                        {#snippet empty()}{/snippet}
-                    </VirtualList>
+                    <ListView
+                        {visibleStartIndex}
+                        {visibleEndIndex}
+                        bind:fileListContainer
+                        bind:virtualList
+                        {searchHighlight}
+                        {clipMouseEnter}
+                        {clipMouseLeave}
+                        {onRowClick}
+                        {onSelect}
+                        {onColumnHeaderClick}
+                        {colDetailMouseDown}
+                        {onColSliderMousedown}
+                        columnHeaderChanged={onColumnHeaderChanged}
+                        {onScroll}
+                    />
                 {/if}
             </div>
         </div>

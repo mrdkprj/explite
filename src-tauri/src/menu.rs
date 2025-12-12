@@ -19,6 +19,7 @@ pub const RECYCLE_BIN: &str = "recyclebin";
 const MENU_EVENT_NAME: &str = "contextmenu_event";
 const TARGET_FILE: &str = "File";
 const TARGET_FOLDER: &str = "Folder";
+const APP_MENU_ITEM_PREFIX: &str = "app_menu_item:";
 const TERMINAL_SVG: &str = r#"
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
     <path d="M0 3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm9.5 5.5h-3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1m-6.354-.354a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708l-2-2a.5.5 0 1 0-.708.708L4.793 6.5z"/>
@@ -60,7 +61,11 @@ pub async fn popup_menu(window: &WebviewWindow, menu_name: &str, position: Posit
                     label: window.label().to_string(),
                 },
                 MENU_EVENT_NAME,
-                item.id,
+                if item.id.starts_with(APP_MENU_ITEM_PREFIX) {
+                    item.id.replace(APP_MENU_ITEM_PREFIX, "")
+                } else {
+                    item.id
+                },
             )
             .unwrap();
     };
@@ -116,11 +121,60 @@ fn update_open_with(menu: &Menu, file_path: &str) {
     }
 }
 
+pub fn change_app_menu_items(new_app_menu_items: Vec<AppMenuItem>) {
+    let mut map = MENU_MAP.try_lock().unwrap();
+    let menu = map.get_mut(LIST).unwrap();
+
+    let mut items = APP_MENU_ITEMS.try_lock().unwrap();
+
+    for old_item in &*items {
+        if let Some(item) = menu.get_menu_item_by_id(&old_item.path) {
+            #[cfg(target_os = "windows")]
+            menu.remove_at(item.index as _);
+            #[cfg(target_os = "linux")]
+            menu.remove(&item);
+        }
+    }
+
+    let terminal = menu.get_menu_item_by_id("Terminal").unwrap();
+
+    #[cfg(target_os = "windows")]
+    let start_index = terminal.index + 1;
+    #[cfg(target_os = "linux")]
+    let start_index = menu.items().iter().position(|item| item.uuid == terminal.uuid).unwrap() as u32 + 1;
+    for (i, new_item) in new_app_menu_items.iter().enumerate() {
+        let menu_id = app_menu_item_id(&new_item.path);
+        if let Ok(icon) = zouni::shell::extract_icon(&new_item.path) {
+            #[cfg(target_os = "windows")]
+            let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, Some(MenuIcon::from_rgba(icon.rgba, icon.width, icon.height)));
+            #[cfg(target_os = "linux")]
+            let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, Some(MenuIcon::new(icon)));
+            menu.insert(item, start_index + i as u32);
+        } else {
+            let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, None);
+            menu.insert(item, start_index + i as u32);
+        }
+    }
+    *items = new_app_menu_items;
+}
+
+pub fn change_menu_theme(theme: Theme) {
+    let map = MENU_MAP.try_lock().unwrap();
+    for menu in map.values() {
+        menu.set_theme(theme);
+    }
+}
+
+fn app_menu_item_id(app_path: &str) -> String {
+    format!("{}{}", APP_MENU_ITEM_PREFIX, app_path)
+}
+
 fn toggle_app_items(menu: &Menu, file_path: &str) {
     let is_dir = Path::new(file_path).is_dir();
     let app_items = APP_MENU_ITEMS.try_lock().unwrap();
     for app_item in &*app_items {
-        let mut menu_item = menu.get_menu_item_by_id(&app_item.path).unwrap();
+        let menu_id = app_menu_item_id(&app_item.path);
+        let mut menu_item = menu.get_menu_item_by_id(&menu_id).unwrap();
         match app_item.target.as_str() {
             TARGET_FILE => {
                 if is_dir {
@@ -165,49 +219,6 @@ pub fn create(window_handle: isize) {
     create_fav_menu(window_handle);
     create_noitem_menu(window_handle);
     create_recycle_bin_menu(window_handle);
-}
-
-pub fn change_app_menu_items(new_app_menu_items: Vec<AppMenuItem>) {
-    let mut map = MENU_MAP.try_lock().unwrap();
-    let menu = map.get_mut(LIST).unwrap();
-
-    let mut items = APP_MENU_ITEMS.try_lock().unwrap();
-
-    for old_item in &*items {
-        if let Some(item) = menu.get_menu_item_by_id(&old_item.path) {
-            #[cfg(target_os = "windows")]
-            menu.remove_at(item.index as _);
-            #[cfg(target_os = "linux")]
-            menu.remove(&item);
-        }
-    }
-
-    let terminal = menu.get_menu_item_by_id("Terminal").unwrap();
-
-    #[cfg(target_os = "windows")]
-    let start_index = terminal.index + 1;
-    #[cfg(target_os = "linux")]
-    let start_index = menu.items().iter().position(|item| item.uuid == terminal.uuid).unwrap() as u32 + 1;
-    for (i, new_item) in new_app_menu_items.iter().enumerate() {
-        if let Ok(icon) = zouni::shell::extract_icon(&new_item.path) {
-            #[cfg(target_os = "windows")]
-            let item = MenuItem::new_text_item(&new_item.path, &new_item.label, None, false, Some(MenuIcon::from_rgba(icon.rgba, icon.width, icon.height)));
-            #[cfg(target_os = "linux")]
-            let item = MenuItem::new_text_item(&new_item.path, &new_item.label, None, false, Some(MenuIcon::new(icon)));
-            menu.insert(item, start_index + i as u32);
-        } else {
-            let item = MenuItem::new_text_item(&new_item.path, &new_item.label, None, false, None);
-            menu.insert(item, start_index + i as u32);
-        }
-    }
-    *items = new_app_menu_items;
-}
-
-pub fn change_menu_theme(theme: Theme) {
-    let map = MENU_MAP.try_lock().unwrap();
-    for menu in map.values() {
-        menu.set_theme(theme);
-    }
 }
 
 fn create_list_menu(window_handle: isize) {

@@ -2,7 +2,7 @@
     import { handleKeyEvent } from "../constants";
     import AscSvg from "../svg/AscSvg.svelte";
     import DescSvg from "../svg/DescSvg.svelte";
-    import { appState, dispatch } from "./appStateReducer";
+    import { appState, dispatch } from "./appStateReducer.svelte";
 
     let { label, onColSliderMousedown, columnHeaderChanged }: { label: Mp.HeaderLabel; onColSliderMousedown: (e: MouseEvent, key: Mp.SortKey) => void; columnHeaderChanged: () => void } = $props();
 

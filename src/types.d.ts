@@ -271,6 +271,7 @@ declare global {
             data: Mp.LoadEvent;
             locale: Mp.LocaleName;
             selectId?: string;
+            restorePosition: boolean;
         };
 
         type SelectionChanged = {

@@ -1,6 +1,5 @@
 <script lang="ts">
-    import { appState } from "./appStateReducer";
-    import { listState } from "./listStateReducer";
+    import { appState } from "./appStateReducer.svelte";
     import LargeDriveSvg from "../svg/LargeDriveSvg.svelte";
     import { handleKeyEvent } from "../constants";
     import { t } from "../translation/useTranslation";
@@ -16,8 +15,8 @@
 </script>
 
 <div class="container">
-    {#each $appState.drives as disk}
-        <div data-full-path={disk.path} class="ldisk" class:current={disk.path == $listState.currentDir.fullPath} ondblclick={onDriveClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+    {#each $appState.drive.drives as disk}
+        <div data-full-path={disk.path} class="ldisk" class:current={disk.path == $appState.list.currentDir.fullPath} ondblclick={onDriveClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <div class="icon">
                 <LargeDriveSvg />
             </div>
