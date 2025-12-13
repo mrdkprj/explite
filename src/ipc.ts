@@ -181,6 +181,7 @@ type TauriCommandMap = {
     empty_recycle_bin: TauriCommand<undefined, undefined>;
     to_thumbnail: TauriCommand<ThumbnailArgs, number[]>;
     to_image_thumbnail: TauriCommand<string, number[]>;
+    is_file: TauriCommand<string, boolean>;
 };
 
 export class IPCBase {

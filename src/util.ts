@@ -24,6 +24,10 @@ class Util {
         return result;
     }
 
+    async isFile(target: string): Promise<boolean> {
+        return await ipc.invoke("is_file", target);
+    }
+
     toHash(value: string) {
         let hash = 0;
 

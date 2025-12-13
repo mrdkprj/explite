@@ -152,9 +152,10 @@
         }
     };
 
-    const endPathEdit = () => {
+    const endPathEdit = async () => {
         if (pathValue && $appState.list.currentDir.fullPath != pathValue) {
-            requestLoad(pathValue, false, "Direct");
+            const isFile = await util.isFile(pathValue);
+            requestLoad(pathValue, isFile, "Direct");
         }
         dispatch({ type: "pathEditing", value: false });
     };

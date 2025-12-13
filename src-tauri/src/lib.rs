@@ -513,6 +513,11 @@ async fn to_image_thumbnail(payload: String) -> Result<Vec<u8>, String> {
     async_std::task::spawn(async move { rs_vips::VipsImage::new_from_file(payload).unwrap().thumbnail_image(100).unwrap().webpsave_buffer().map_err(|e| e.to_string()) }).await
 }
 
+#[tauri::command]
+fn is_file(payload: String) -> bool {
+    PathBuf::from(payload).is_file()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -579,6 +584,7 @@ pub fn run() {
             delete_from_recycle_bin,
             to_thumbnail,
             to_image_thumbnail,
+            is_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
