@@ -1,17 +1,14 @@
 use crate::AppMenuItem;
-use async_std::sync::Mutex;
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::Path};
-use tauri::{Emitter, EventTarget, WebviewWindow};
+use tauri::async_runtime::Mutex;
+use tauri::{Emitter, EventTarget, Manager};
 use wcpopup::{
     config::{ColorScheme, Config, MenuSize, Theme, ThemeColor, DEFAULT_DARK_COLOR_SCHEME},
     Menu, MenuBuilder, MenuIcon, MenuItem, MenuItemType,
 };
 use zouni::AppInfo;
 
-static MENU_MAP: Lazy<Mutex<HashMap<String, Menu>>> = Lazy::new(|| Mutex::new(HashMap::new()));
-static APP_MENU_ITEMS: Lazy<Mutex<Vec<AppMenuItem>>> = Lazy::new(|| Mutex::new(Vec::new()));
 pub const LIST: &str = "list";
 pub const FAV: &str = "fav";
 pub const NO_ITEM: &str = "noitem";
@@ -32,19 +29,35 @@ pub struct Position {
     y: i32,
 }
 
-pub async fn popup_menu(window: &WebviewWindow, menu_name: &str, position: Position, full_path: Option<String>, show_admin_runas: bool) {
-    let map = MENU_MAP.lock().await;
+pub struct Menus(HashMap<String, Menu>);
+type MenusState = Mutex<Menus>;
+pub struct AppMenuItems(Vec<AppMenuItem>);
+type AppMenuItemsState = Mutex<AppMenuItems>;
+
+pub fn create(app_handle: &tauri::AppHandle, window_handle: isize) {
+    let list = create_list_menu(window_handle);
+    let fav = create_fav_menu(window_handle);
+    let no_item = create_noitem_menu(window_handle);
+    let recycle_bin = create_recycle_bin_menu(window_handle);
+    let menus = Menus(HashMap::from([(LIST.to_string(), list), (FAV.to_string(), fav), (NO_ITEM.to_string(), no_item), (RECYCLE_BIN.to_string(), recycle_bin)]));
+    app_handle.manage(Mutex::new(menus));
+    app_handle.manage(Mutex::new(AppMenuItems(Vec::new())));
+}
+
+pub async fn popup_menu(app_handle: &tauri::AppHandle, window_label: &str, menu_name: &str, position: Position, full_path: Option<String>, show_admin_runas: bool) {
     let full_path = full_path.unwrap_or_default();
     let target_menu_name = if menu_name == LIST && full_path.is_empty() {
         NO_ITEM
     } else {
         menu_name
     };
-    let menu = map.get(target_menu_name).unwrap();
+    let state = app_handle.state::<MenusState>();
+    let menus = state.try_lock().unwrap();
+    let menu = menus.0.get(target_menu_name).unwrap();
 
     if target_menu_name == LIST {
         update_open_with(menu, &full_path);
-        toggle_app_items(menu, &full_path);
+        toggle_app_items(app_handle, menu, &full_path);
     }
 
     #[cfg(target_os = "windows")]
@@ -55,10 +68,10 @@ pub async fn popup_menu(window: &WebviewWindow, menu_name: &str, position: Posit
     let result = menu.popup_at_async(position.x, position.y).await;
 
     if let Some(item) = result {
-        window
+        app_handle
             .emit_to(
                 EventTarget::WebviewWindow {
-                    label: window.label().to_string(),
+                    label: window_label.to_string(),
                 },
                 MENU_EVENT_NAME,
                 if item.id.starts_with(APP_MENU_ITEM_PREFIX) {
@@ -121,13 +134,15 @@ fn update_open_with(menu: &Menu, file_path: &str) {
     }
 }
 
-pub fn change_app_menu_items(new_app_menu_items: Vec<AppMenuItem>) {
-    let mut map = MENU_MAP.try_lock().unwrap();
-    let menu = map.get_mut(LIST).unwrap();
+pub fn change_app_menu_items(app_handle: &tauri::AppHandle, new_app_menu_items: Vec<AppMenuItem>) {
+    let state = app_handle.state::<MenusState>();
+    let mut menus = state.try_lock().unwrap();
+    let menu = menus.0.get_mut(LIST).unwrap();
 
-    let mut items = APP_MENU_ITEMS.try_lock().unwrap();
+    let app_item_state = app_handle.state::<AppMenuItemsState>();
+    let mut items = app_item_state.try_lock().unwrap();
 
-    for old_item in &*items {
+    for old_item in &items.0 {
         if let Some(item) = menu.get_menu_item_by_id(&old_item.path) {
             #[cfg(target_os = "windows")]
             menu.remove_at(item.index as _);
@@ -155,12 +170,14 @@ pub fn change_app_menu_items(new_app_menu_items: Vec<AppMenuItem>) {
             menu.insert(item, start_index + i as u32);
         }
     }
-    *items = new_app_menu_items;
+    items.0 = new_app_menu_items;
 }
 
-pub fn change_menu_theme(theme: Theme) {
-    let map = MENU_MAP.try_lock().unwrap();
-    for menu in map.values() {
+pub fn change_menu_theme(app_handle: &tauri::AppHandle, theme: Theme) {
+    let state = app_handle.state::<MenusState>();
+    let menus = state.try_lock().unwrap();
+
+    for menu in menus.0.values() {
         menu.set_theme(theme);
     }
 }
@@ -169,10 +186,11 @@ fn app_menu_item_id(app_path: &str) -> String {
     format!("{}{}", APP_MENU_ITEM_PREFIX, app_path)
 }
 
-fn toggle_app_items(menu: &Menu, file_path: &str) {
+fn toggle_app_items(app_handle: &tauri::AppHandle, menu: &Menu, file_path: &str) {
     let is_dir = Path::new(file_path).is_dir();
-    let app_items = APP_MENU_ITEMS.try_lock().unwrap();
-    for app_item in &*app_items {
+    let state = app_handle.state::<AppMenuItemsState>();
+    let app_items = state.try_lock().unwrap();
+    for app_item in &app_items.0 {
         let menu_id = app_menu_item_id(&app_item.path);
         let mut menu_item = menu.get_menu_item_by_id(&menu_id).unwrap();
         match app_item.target.as_str() {
@@ -214,14 +232,7 @@ fn get_menu_config(theme: Theme) -> Config {
     }
 }
 
-pub fn create(window_handle: isize) {
-    create_list_menu(window_handle);
-    create_fav_menu(window_handle);
-    create_noitem_menu(window_handle);
-    create_recycle_bin_menu(window_handle);
-}
-
-fn create_list_menu(window_handle: isize) {
+fn create_list_menu(window_handle: isize) -> Menu {
     let config = get_menu_config(Theme::System);
     let mut builder = MenuBuilder::new_from_config(window_handle, config);
     builder.text("Open", "Open", false);
@@ -242,17 +253,10 @@ fn create_list_menu(window_handle: isize) {
     builder.text_with_icon("AdminTerminal", "Open Terminal(Admin)", false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
     builder.text_with_icon("Terminal", "Open Terminal", false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
 
-    let menu = builder.build().unwrap();
-
-    {
-        let mut map = MENU_MAP.try_lock().unwrap();
-        (*map).insert(LIST.to_string(), menu);
-    }
-
-    create_noitem_menu(window_handle);
+    builder.build().unwrap()
 }
 
-fn create_noitem_menu(window_handle: isize) {
+fn create_noitem_menu(window_handle: isize) -> Menu {
     let config = get_menu_config(Theme::System);
     let mut builder = MenuBuilder::new_from_config(window_handle, config);
     builder.text("CopyFullpath", "Copy Fullpath", false);
@@ -261,15 +265,10 @@ fn create_noitem_menu(window_handle: isize) {
     builder.text_with_icon("AdminTerminal", "Open Terminal(Admin)", false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
     builder.text_with_icon("Terminal", "Open Terminal", false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
 
-    let menu = builder.build().unwrap();
-
-    {
-        let mut map = MENU_MAP.try_lock().unwrap();
-        (*map).insert(NO_ITEM.to_string(), menu);
-    }
+    builder.build().unwrap()
 }
 
-fn create_recycle_bin_menu(window_handle: isize) {
+fn create_recycle_bin_menu(window_handle: isize) -> Menu {
     let config = get_menu_config(Theme::System);
     let mut builder = MenuBuilder::new_from_config(window_handle, config);
     builder.text("Undelete", "Undelete", false);
@@ -277,15 +276,10 @@ fn create_recycle_bin_menu(window_handle: isize) {
     builder.text("DeleteFromRecycleBin", "Delete", false);
     builder.text("EmptyRecycleBin", "Empty Recycle Bin", false);
 
-    let menu = builder.build().unwrap();
-
-    {
-        let mut map = MENU_MAP.try_lock().unwrap();
-        (*map).insert(RECYCLE_BIN.to_string(), menu);
-    }
+    builder.build().unwrap()
 }
 
-fn create_fav_menu(window_handle: isize) {
+fn create_fav_menu(window_handle: isize) -> Menu {
     let config = get_menu_config(Theme::System);
     let mut builder = MenuBuilder::new_from_config(window_handle, config);
     builder.text("RemoveFromFavorite", "Remove From Favorite", false);
@@ -293,10 +287,5 @@ fn create_fav_menu(window_handle: isize) {
     builder.separator();
     builder.text("Refresh", "Refresh", false);
 
-    let menu = builder.build().unwrap();
-
-    {
-        let mut map = MENU_MAP.try_lock().unwrap();
-        (*map).insert(FAV.to_string(), menu);
-    }
+    builder.build().unwrap()
 }

@@ -156,19 +156,25 @@ class Main {
         await ipc.invoke("open_property_dielog", file.fullPath);
     };
 
-    startWatch = async (recursive: boolean) => {
-        if (!this.currentDir) return;
-        if (this.isRecycleBin(this.currentDir)) return;
+    isWatchable = () => {
+        if (!this.watchTarget) return false;
+        if (this.watchTarget == HOME) return false;
+        if (this.isRecycleBin(this.watchTarget)) return false;
 
+        return true;
+    };
+
+    startWatch = async (recursive: boolean) => {
         await this.abortWatch();
         this.watchTarget = this.currentDir;
-        await ipc.invoke("watch", { path: this.watchTarget, recursive });
+
+        if (this.isWatchable()) {
+            await ipc.invoke("watch", { path: this.watchTarget, recursive });
+        }
     };
 
     abortWatch = async () => {
-        if (this.watchTarget == HOME) return;
-        if (this.isRecycleBin(this.currentDir)) return;
-
+        if (!this.isWatchable()) return;
         await ipc.invoke("unwatch", this.watchTarget);
     };
 
@@ -225,7 +231,7 @@ class Main {
     };
 
     sort = (e: Mp.SortRequest): Mp.SortResult => {
-        this.sortFiles(this.currentDir, e.files, { asc: e.type.asc, key: e.type.key });
+        this.sortFiles(this.currentDir, this.files, { asc: e.type.asc, key: e.type.key });
         return { files: this.files, type: e.type };
     };
 
@@ -555,8 +561,8 @@ class Main {
 
     deleteItems = async (e: Mp.TrashItemRequest) => {
         try {
-            const confimed = await ipc.invoke("message", { dialog_type: "confirm", kind: "info", message: t("deleteConfirm"), ok_label: t("yes"), cancel_label: t("no") });
-            if (!confimed) return;
+            const result = await ipc.invoke("message", { dialog_type: "confirm", kind: "info", message: t("deleteConfirm"), ok_label: t("yes"), cancel_label: t("no") });
+            if (result.button != t("yes") || result.cancelled) return;
 
             const fullPaths = e.files.map((file) => file.fullPath);
             await ipc.invoke("delete", fullPaths);
@@ -602,14 +608,14 @@ class Main {
         }
 
         if (navigator.userAgent.includes(OS.linux)) {
-            const isOK = await ipc.invoke("message", {
+            const result = await ipc.invoke("message", {
                 title: "Recycle Bin",
                 dialog_type: "confirm",
                 message: "Are you sure to delete files?",
                 kind: "warning",
             });
 
-            if (!isOK) {
+            if (result.button != "Yes" || result.cancelled) {
                 return;
             }
         }
@@ -625,14 +631,14 @@ class Main {
 
     emptyRecycleBin = async (): Promise<boolean> => {
         if (navigator.userAgent.includes(OS.linux)) {
-            const isOK = await ipc.invoke("message", {
+            const result = await ipc.invoke("message", {
                 title: "Recycle Bin",
                 dialog_type: "confirm",
                 message: "Are you sure to delete all files?",
                 kind: "warning",
             });
 
-            if (!isOK) {
+            if (result.button != "Yes" || result.cancelled) {
                 return false;
             }
         }
@@ -653,7 +659,7 @@ class Main {
 
                 const found = await util.exists(dist);
                 if (found) {
-                    const isOK = await ipc.invoke("message", {
+                    const result = await ipc.invoke("message", {
                         dialog_type: "confirm",
                         message: t("destExistsConfirm").replace("{}", path.basename(fullPath)),
                         kind: "warning",
@@ -661,7 +667,7 @@ class Main {
                         cancel_label: t("destExistsCancelLabel"),
                     });
 
-                    if (!isOK) {
+                    if (result.button != t("destExistsOkLabel") || result.cancelled) {
                         cancelAll = true;
                         return null;
                     }

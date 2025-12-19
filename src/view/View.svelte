@@ -604,8 +604,9 @@
         dispatch({ type: "preventBlur", value: true });
         folderUpdatePromise = new Deferred();
         const result = await main.renameItem($appState.rename.fullPath, $appState.rename.newName);
-        endRename();
+
         if (!result.done) {
+            endRename();
             folderUpdatePromise = null;
             const files = $appState.list.files.filter((file) => file.fullPath == $appState.rename.fullPath);
             select(files[0].id);
@@ -613,6 +614,7 @@
         }
 
         await safePromise();
+        endRename();
         select(result.newId);
     };
 

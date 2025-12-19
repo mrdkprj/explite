@@ -164,7 +164,7 @@ type TauriCommandMap = {
     write_text_file: TauriCommand<WriteFileInfo, undefined>;
     watch: TauriCommand<WatchRequest, undefined>;
     unwatch: TauriCommand<string, undefined>;
-    message: TauriCommand<DialogOptions, boolean>;
+    message: TauriCommand<DialogOptions, Mp.MessageResult>;
     open_terminal: TauriCommand<TerminalArgs, undefined>;
     launch_new: TauriCommand<undefined, undefined>;
     get_args: TauriCommand<undefined, InitArgs>;

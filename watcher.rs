@@ -1,4 +1,3 @@
-use crossbeam_channel::{bounded, Receiver, Sender};
 use notify_debouncer_full::{
     new_debouncer,
     notify::{
@@ -10,6 +9,7 @@ use notify_debouncer_full::{
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tauri::Emitter;
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 const WATCH_EVENT_NAME: &str = "watch_event";
 const CREATE: &str = "Create";
@@ -30,33 +30,32 @@ pub enum WatcherCommand {
     Unwatch(String),
 }
 
-pub fn spwan_watcher(app_handle: &tauri::AppHandle, cmd_rx: Receiver<WatcherCommand>) -> Result<(), String> {
-    let (tx, rx) = bounded(1);
+pub fn spwan_watcher(app_handle: &tauri::AppHandle, mut cmd_rx: Receiver<WatcherCommand>) -> Result<(), String> {
+    let (tx, mut rx) = channel(1);
 
-    let mut watcher = new_debouncer(Duration::from_millis(100), None, move |res| tauri::async_runtime::block_on(async { tx.send(res).unwrap_or_default() })).map_err(|e| e.to_string())?;
+    let mut watcher = new_debouncer(Duration::from_millis(100), None, move |res| tauri::async_runtime::block_on(async { tx.send(res).await.unwrap_or_default() })).map_err(|e| e.to_string())?;
     let app_handle = app_handle.clone();
 
     tauri::async_runtime::spawn(async move {
         loop {
-            crossbeam_channel::select! {
-                recv(cmd_rx) -> cmd => {
-                    if let Ok(cmd) = cmd {
-                        match cmd {
-                            WatcherCommand::Watch(path, recursive) => {
-                                let _ = watcher.watch(path, if recursive { RecursiveMode::Recursive} else {RecursiveMode::NonRecursive});
-                            },
-                            WatcherCommand::Unwatch(path) => {
-                                let _ = watcher.unwatch(path);
-                            },
+            tokio::select! {
+                cmd = cmd_rx.recv() => {
+                    match cmd {
+                        Some(WatcherCommand::Watch(path, recursive)) => {
+                            let _ = watcher.watch(path, if recursive { RecursiveMode::Recursive} else {RecursiveMode::NonRecursive});
+                        },
+                        Some(WatcherCommand::Unwatch(path)) => {
+                            let _ = watcher.unwatch(path);
+                        },
+                        None => {
+                            println!("Command channel closed. Shutting down watcher.");
+                            break;
                         }
-                    }else{
-                        println!("Command channel closed. Shutting down watcher.");
-                        break;
                     }
                 }
 
-                recv(rx) -> event_result  => {
-                    if let Ok(event_result) = event_result {
+                event_result = rx.recv() => {
+                    if let Some(event_result) = event_result {
                         match event_result {
                             Ok(events) => {
                                   println!("events:{:?}", events);

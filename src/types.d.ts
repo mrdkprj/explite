@@ -339,6 +339,11 @@ declare global {
             isFile: boolean;
         };
 
+        type MessageResult = {
+            button: string;
+            cancelled: boolean;
+        };
+
         type AnyEvent = {
             args?: any;
         };

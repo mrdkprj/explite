@@ -1,15 +1,15 @@
+use crate::{session::Session, watcher::WatcherCommand};
 use dialog::DialogOptions;
 use serde::{Deserialize, Serialize};
 use std::{env, path::PathBuf};
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
-use zouni::*;
-
-use crate::session::Session;
+use zouni::{dialog::MessageResult, *};
 mod dialog;
 mod helper;
 mod menu;
 mod session;
 mod watcher;
+use watcher::WatchTx;
 
 #[cfg(target_os = "linux")]
 fn get_window_handel(window: &WebviewWindow) -> isize {
@@ -229,7 +229,7 @@ fn write_text_file(payload: WriteFileInfo) -> Result<(), String> {
 #[tauri::command]
 fn prepare_menu(window: WebviewWindow) {
     let window_handle = get_window_handel(&window);
-    menu::create(window_handle);
+    menu::create(window.app_handle(), window_handle);
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -239,8 +239,8 @@ pub struct AppMenuItem {
     target: String,
 }
 #[tauri::command]
-fn change_app_menu_items(payload: Vec<AppMenuItem>) {
-    menu::change_app_menu_items(payload);
+fn change_app_menu_items(window: WebviewWindow, payload: Vec<AppMenuItem>) {
+    menu::change_app_menu_items(window.app_handle(), payload);
 }
 
 #[tauri::command]
@@ -251,7 +251,7 @@ fn change_theme(window: WebviewWindow, payload: String) {
         _ => (tauri::Theme::Light, wcpopup::config::Theme::System),
     };
     let _ = window.set_theme(Some(tauri_them));
-    menu::change_menu_theme(menu_theme);
+    menu::change_menu_theme(window.app_handle(), menu_theme);
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -289,15 +289,14 @@ struct ContextMenuArg {
 async fn open_list_context_menu(window: WebviewWindow, payload: ContextMenuArg) {
     #[cfg(target_os = "windows")]
     {
-        menu::popup_menu(&window, menu::LIST, payload.position, Some(payload.full_path), payload.show_admin_runas).await;
+        menu::popup_menu(window.app_handle(), window.label(), menu::LIST, payload.position, Some(payload.full_path), payload.show_admin_runas).await;
     }
     #[cfg(target_os = "linux")]
     {
-        let gtk_window = window.clone();
         window
             .run_on_main_thread(move || {
                 gtk::glib::spawn_future_local(async move {
-                    menu::popup_menu(&gtk_window, menu::LIST, payload.position, Some(payload.full_path), payload.show_admin_runas).await;
+                    menu::popup_menu(window.app_handle(), window.label(), menu::LIST, payload.position, Some(payload.full_path), payload.show_admin_runas).await;
                 });
             })
             .unwrap();
@@ -308,15 +307,14 @@ async fn open_list_context_menu(window: WebviewWindow, payload: ContextMenuArg) 
 async fn open_fav_context_menu(window: WebviewWindow, payload: menu::Position) {
     #[cfg(target_os = "windows")]
     {
-        menu::popup_menu(&window, menu::FAV, payload, None, false).await;
+        menu::popup_menu(window.app_handle(), window.label(), menu::FAV, payload, None, false).await;
     }
     #[cfg(target_os = "linux")]
     {
-        let gtk_window = window.clone();
         window
             .run_on_main_thread(move || {
                 gtk::glib::spawn_future_local(async move {
-                    menu::popup_menu(&gtk_window, menu::FAV, payload, None, false).await;
+                    menu::popup_menu(window.app_handle(), window.label(), menu::FAV, payload, None, false).await;
                 });
             })
             .unwrap();
@@ -327,15 +325,14 @@ async fn open_fav_context_menu(window: WebviewWindow, payload: menu::Position) {
 async fn open_recycle_context_menu(window: WebviewWindow, payload: ContextMenuArg) {
     #[cfg(target_os = "windows")]
     {
-        menu::popup_menu(&window, menu::RECYCLE_BIN, payload.position, Some(payload.full_path), false).await;
+        menu::popup_menu(window.app_handle(), window.label(), menu::RECYCLE_BIN, payload.position, Some(payload.full_path), false).await;
     }
     #[cfg(target_os = "linux")]
     {
-        let gtk_window = window.clone();
         window
             .run_on_main_thread(move || {
                 gtk::glib::spawn_future_local(async move {
-                    menu::popup_menu(&gtk_window, menu::RECYCLE_BIN, payload.position, Some(payload.full_path), false).await;
+                    menu::popup_menu(window.app_handle(), window.label(), menu::RECYCLE_BIN, payload.position, Some(payload.full_path), false).await;
                 });
             })
             .unwrap();
@@ -348,17 +345,25 @@ struct WatchRequest {
     recursive: bool,
 }
 #[tauri::command]
-async fn watch(window: WebviewWindow, payload: WatchRequest) {
-    let _ = watcher::watch(&window, payload.path, payload.recursive).await;
+fn watch(app: AppHandle, payload: WatchRequest) -> Result<(), String> {
+    if let Some(tx) = app.try_state::<WatchTx>() {
+        tx.inner().0.send(WatcherCommand::Watch(payload.path, payload.recursive)).map_err(|e| e.to_string())
+    } else {
+        Ok(())
+    }
 }
 
 #[tauri::command]
-fn unwatch(payload: String) {
-    watcher::unwatch(payload);
+fn unwatch(app: AppHandle, payload: String) -> Result<(), String> {
+    if let Some(tx) = app.try_state::<WatchTx>() {
+        tx.inner().0.send(WatcherCommand::Unwatch(payload)).map_err(|e| e.to_string())
+    } else {
+        Ok(())
+    }
 }
 
 #[tauri::command]
-async fn message(payload: DialogOptions) -> bool {
+async fn message(payload: DialogOptions) -> MessageResult {
     dialog::show(payload).await
 }
 
@@ -496,7 +501,7 @@ struct ThumbnailArgs {
 }
 #[tauri::command]
 async fn to_thumbnail(payload: ThumbnailArgs) -> Result<Vec<u8>, String> {
-    async_std::task::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         zouni::media::extract_video_thumbnail(
             payload.full_path,
             Some(Size {
@@ -506,11 +511,14 @@ async fn to_thumbnail(payload: ThumbnailArgs) -> Result<Vec<u8>, String> {
         )
     })
     .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
 async fn to_image_thumbnail(payload: String) -> Result<Vec<u8>, String> {
-    async_std::task::spawn(async move { rs_vips::VipsImage::new_from_file(payload).unwrap().thumbnail_image(100).unwrap().webpsave_buffer().map_err(|e| e.to_string()) }).await
+    tauri::async_runtime::spawn(async move { rs_vips::VipsImage::new_from_file(payload).unwrap().thumbnail_image(100).unwrap().webpsave_buffer().map_err(|e| e.to_string()) })
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

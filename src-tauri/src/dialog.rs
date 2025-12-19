@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use zouni::dialog::{message, open, MessageDialogKind, MessageDialogOptions, OpenDialogOptions, OpenProperty};
+use zouni::dialog::{message, open, MessageDialogKind, MessageDialogOptions, MessageResult, OpenDialogOptions, OpenProperty};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DialogOptions {
@@ -11,11 +11,11 @@ pub struct DialogOptions {
     message: String,
 }
 
-pub async fn show(info: DialogOptions) -> bool {
+pub async fn show(info: DialogOptions) -> MessageResult {
     match info.dialog_type.as_str() {
         "message" => show_message(info).await,
         "confirm" => show_confirm(info).await,
-        _ => false,
+        _ => MessageResult::default(),
     }
 }
 
@@ -32,7 +32,7 @@ fn get_level(kind: &Option<String>) -> MessageDialogKind {
     }
 }
 
-async fn show_message(info: DialogOptions) -> bool {
+async fn show_message(info: DialogOptions) -> MessageResult {
     let options = MessageDialogOptions {
         title: info.title,
         kind: Some(get_level(&info.kind)),
@@ -43,7 +43,7 @@ async fn show_message(info: DialogOptions) -> bool {
     message(options).await
 }
 
-async fn show_confirm(info: DialogOptions) -> bool {
+async fn show_confirm(info: DialogOptions) -> MessageResult {
     let options = MessageDialogOptions {
         title: info.title,
         kind: Some(get_level(&info.kind)),
