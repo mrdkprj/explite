@@ -686,3 +686,7 @@
 .cut{
     color: var(--cut-color);
 }
+
+.header .button svg {
+    pointer-events: none;
+}

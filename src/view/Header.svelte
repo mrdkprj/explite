@@ -11,10 +11,12 @@
     import { appState, dispatch } from "./appStateReducer.svelte";
     import { handleKeyEvent, HOME, RECYCLE_BIN, SEPARATOR } from "../constants";
     import util from "../util";
+    import { path } from "../path";
 
     type Paths = {
         overflownPaths: string[];
         visiblePaths: string[];
+        overflown: string;
     };
 
     let {
@@ -42,7 +44,7 @@
 
     let pathValue = $state("");
     let pathWidth = $state(0);
-    let dialogPosition = $state({ left: 0, top: 0 });
+    let dropdownPosition = $state({ left: 0, top: 0 });
     let showHiddenPaths = $state(false);
     let showCreateDir = $state(false);
     let paths: Paths = $derived.by(() => {
@@ -54,6 +56,7 @@
             return {
                 visiblePaths: $appState.list.currentDir.paths,
                 overflownPaths: [],
+                overflown: "",
             };
         }
         context.font = 'normal 14px "Segoe UI"';
@@ -73,9 +76,11 @@
             }
         });
 
+        const overflownPaths = _overflownPaths.reverse();
         return {
             visiblePaths: _visiblePaths.reverse(),
-            overflownPaths: _overflownPaths.reverse(),
+            overflownPaths,
+            overflown: overflownPaths.join(SEPARATOR),
         };
     });
 
@@ -130,14 +135,15 @@
             pendingPath = null;
         }
 
-        const tempPath = $appState.list.currentDir.paths.slice(0, $appState.list.currentDir.paths.indexOf(path) + 1).join(SEPARATOR);
-        if (util.isWin()) {
-            const targetPath = tempPath.endsWith(":") ? `${tempPath}${SEPARATOR}` : tempPath;
-            requestLoad(targetPath, false, "PathSelect");
-        } else {
-            const targetPath = tempPath.startsWith("/") ? tempPath : `${SEPARATOR}${tempPath}`;
-            requestLoad(targetPath, false, "PathSelect");
-        }
+        requestLoad(path, false, "PathSelect");
+        // const tempPath = $appState.list.currentDir.paths.slice(0, $appState.list.currentDir.paths.indexOf(path) + 1).join(SEPARATOR);
+        // if (util.isWin()) {
+        //     const targetPath = tempPath.endsWith(":") ? `${tempPath}${SEPARATOR}` : tempPath;
+        //     requestLoad(targetPath, false, "PathSelect");
+        // } else {
+        //     const targetPath = tempPath.startsWith("/") ? tempPath : `${SEPARATOR}${tempPath}`;
+        //     requestLoad(targetPath, false, "PathSelect");
+        // }
     };
 
     const onPathInputLeave = () => {
@@ -177,8 +183,8 @@
     };
 
     const showHiddenPathsDialog = (e: MouseEvent) => {
-        // extract half of header from clientY
-        dialogPosition = { left: e.clientX, top: e.clientY - 15 };
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+        dropdownPosition = { left: e.target.offsetLeft, top: e.target.offsetHeight + 15 };
         showHiddenPaths = true;
     };
 
@@ -197,8 +203,8 @@
     };
 
     const showCreateDirDialog = (e: MouseEvent) => {
-        // extract half of header from clientY
-        dialogPosition = { left: e.clientX, top: e.clientY - 15 };
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+        dropdownPosition = { left: e.target.offsetLeft, top: e.target.offsetHeight + 5 };
         showCreateDir = true;
     };
 
@@ -224,7 +230,6 @@
 
     const onkeydown = (e: KeyboardEvent) => {
         if (e.key == "Escape") {
-            console.log("yes hide");
             showHiddenPaths = false;
             showCreateDir = false;
         }
@@ -262,7 +267,7 @@
             {#if showCreateDir}
                 <div
                     class="header-dialog"
-                    style="top:{dialogPosition.top}px;left{dialogPosition.left};"
+                    style="top:{dropdownPosition.top}px;left:{dropdownPosition.left}px;"
                     use:setCreateDirDialogFocus
                     onblur={hideCreateDirDialog}
                     {onkeydown}
@@ -302,24 +307,39 @@
                         {#if showHiddenPaths}
                             <div
                                 class="header-dialog"
-                                style="top:{dialogPosition.top}px;left{dialogPosition.left};"
+                                style="top:{dropdownPosition.top}px;left:{dropdownPosition.left}px;"
                                 use:setPathDialogFocus
                                 onblur={toggleHiddenPathDialog}
                                 {onkeydown}
                                 tabindex="0"
                                 role="button"
                             >
-                                {#each paths.overflownPaths as path}
-                                    <div class="dialog-data" data-path={path} onclick={onPathClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
-                                        {path}
+                                {#each paths.overflownPaths as hiddenPath, index}
+                                    <div
+                                        class="dialog-data"
+                                        data-path={paths.overflownPaths.slice(0, index + 1).join(SEPARATOR)}
+                                        onclick={onPathClick}
+                                        onkeydown={handleKeyEvent}
+                                        role="button"
+                                        tabindex="-1"
+                                    >
+                                        {hiddenPath}
                                     </div>
                                 {/each}
                             </div>
                         {/if}
                     {/if}
-                    {#each paths.visiblePaths as path}
-                        <div class="path-data" data-path={path} onclick={onPathClick} onkeydown={handleKeyEvent} role="button" tabindex="-1" style="max-width:{pathWidth - MIN_COMPONENT_WIDTH}px">
-                            {path}
+                    {#each paths.visiblePaths as visiblePath, index}
+                        <div
+                            class="path-data"
+                            data-path={path.join(paths.overflown, paths.visiblePaths.slice(0, index + 1).join(SEPARATOR))}
+                            onclick={onPathClick}
+                            onkeydown={handleKeyEvent}
+                            role="button"
+                            tabindex="-1"
+                            style="max-width:{pathWidth - MIN_COMPONENT_WIDTH}px"
+                        >
+                            {visiblePath}
                         </div>
                         <PathDividerSvg />
                     {/each}
