@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { appState, dispatch } from "./appStateReducer.svelte";
+    import { appState, dispatch, listState } from "./appStateReducer.svelte";
     import { handleKeyEvent, HOME, OS, RECYCLE_BIN } from "../constants";
     import Launch from "../svg/Launch.svelte";
     import Pref from "../svg/Pref.svelte";
@@ -37,18 +37,17 @@
     };
 
     let fileSize = $derived.by(() => {
-        if (!$appState.list.files.length) return "";
+        if (!listState.files.length) return "";
 
-        const fileCount = `${$appState.selection.selectedIds.length} / ${$appState.list.files.length}`;
+        const fileCount = `${$appState.selection.selectedIds.length} / ${listState.files.length}`;
 
         if (!$appState.selection.selectedIds.length) return fileCount;
 
-        const size = $appState.list.files
-            .filter((file) => $appState.selection.selectedIds.includes(file.id) && file.isFile)
-            .map((file) => file.size)
-            .reduce((prev, current) => prev + current, 0);
+        const files = listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id) && file.isFile);
 
-        if (size == 0) return "";
+        if (!files.length) return "";
+
+        const size = files.map((file) => file.size).reduce((prev, current) => prev + current, 0);
 
         if (size >= GB) {
             return `${fileCount} ${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, maximumFractionDigits: 2, roundingPriority: "morePrecision" }).format(size / GB)} GB`;
@@ -73,7 +72,7 @@
         {#if $appState.isInGridView}
             <div
                 class="button"
-                class:disabled={$appState.list.currentDir.fullPath == HOME || $appState.list.currentDir.fullPath == RECYCLE_BIN}
+                class:disabled={listState.currentDir.fullPath == HOME || listState.currentDir.fullPath == RECYCLE_BIN}
                 onclick={toggleViewMode}
                 onkeydown={handleKeyEvent}
                 role="button"
@@ -84,7 +83,7 @@
         {:else}
             <div
                 class="button"
-                class:disabled={$appState.list.currentDir.fullPath == HOME || $appState.list.currentDir.fullPath == RECYCLE_BIN}
+                class:disabled={listState.currentDir.fullPath == HOME || listState.currentDir.fullPath == RECYCLE_BIN}
                 onclick={toggleViewMode}
                 onkeydown={handleKeyEvent}
                 role="button"
@@ -96,7 +95,7 @@
         <div class="file-count">{fileSize}</div>
     </div>
     <div class="title" data-tauri-drag-region={navigator.userAgent.includes(OS.linux) ? true : null}>
-        {$appState.list.currentDir.paths.length ? $appState.list.currentDir.paths[$appState.list.currentDir.paths.length - 1] : ""}
+        {listState.currentDir.paths.length ? listState.currentDir.paths[listState.currentDir.paths.length - 1] : ""}
     </div>
     <div class="window-area">
         <div class="minimize" onclick={minimize} onkeydown={handleKeyEvent} role="button" tabindex="-1">&minus;</div>

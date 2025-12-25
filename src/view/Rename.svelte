@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { appState } from "./appStateReducer.svelte";
+    import { appState, renameState } from "./appStateReducer.svelte";
 
     let { endEditFileName }: { endEditFileName: () => Promise<void> } = $props();
 
@@ -21,14 +21,14 @@
 </script>
 
 {#if $appState.isInGridView}
-    <div class="rename-textarea" style="width:{$appState.rename.rect.width}px;top:{$appState.rename.rect.top}px; left:{$appState.rename.rect.left}px;">
+    <div class="rename-textarea" style="width:{renameState.rect.width}px;top:{renameState.rect.top}px; left:{renameState.rect.left}px;">
         <textarea
             class="text rename"
-            style=" max-width:{$appState.rename.rect.width}px;"
+            style=" max-width:{renameState.rect.width}px;"
             spellCheck="false"
             onblur={$appState.preventBlur ? undefined : endEditFileName}
             onkeydown={onRenameInputKeyDown}
-            bind:value={$appState.rename.newName}
+            bind:value={renameState.newName}
             use:setFocusAndSelect
             autocomplete="one-time-code"
         ></textarea>
@@ -37,11 +37,11 @@
     <input
         type="text"
         class="input rename"
-        style="top:{$appState.rename.rect.top}px; left:{$appState.rename.rect.left}px; height:{$appState.rename.rect.height}px"
+        style="top:{renameState.rect.top}px; left:{renameState.rect.left}px; height:{renameState.rect.height}px"
         spellCheck="false"
         onblur={$appState.preventBlur ? undefined : endEditFileName}
         onkeydown={onRenameInputKeyDown}
-        bind:value={$appState.rename.newName}
+        bind:value={renameState.newName}
         use:setFocusAndSelect
         autocomplete="one-time-code"
     />

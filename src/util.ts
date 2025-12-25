@@ -131,6 +131,7 @@ class Util {
         const entityType = this.getEntityType(attr);
         const fileType = this.getFileType(fullPath, attr, dirent.mime_type, extension);
         const name = this.getName(fullPath);
+        const actualExtension = attr.is_directory ? "" : attr.link_path ? path.extname(attr.link_path) : path.extname(fullPath);
 
         return {
             id: encodeURIComponent(fullPath),
@@ -149,6 +150,7 @@ class Util {
             ddate: 0,
             originalPath: "",
             mimeType: dirent.mime_type,
+            actualExtension,
         };
     }
 
@@ -159,6 +161,7 @@ class Util {
         const entityType = this.getEntityType(attr);
         const fileType = this.getFileType(fullPath, attr, dirent.mime_type, extension);
         const name = this.getName(fullPath);
+        const actualExtension = attr.is_directory ? "" : attr.link_path ? path.extname(attr.link_path) : path.extname(fullPath);
 
         return {
             id: encodeURIComponent(fullPath),
@@ -177,6 +180,7 @@ class Util {
             ddate: dirent.deleted_date_ms,
             originalPath: fullPath,
             mimeType: dirent.mime_type,
+            actualExtension,
         };
     }
 
@@ -190,6 +194,7 @@ class Util {
         const entityType = this.getEntityType(attr);
         const fileType = this.getFileType(fullPath, attr, mimeType, extension);
         const name = this.getName(fullPath);
+        const actualExtension = attr.is_directory ? "" : attr.link_path ? path.extname(attr.link_path) : path.extname(fullPath);
 
         return {
             id: encodeURIComponent(fullPath),
@@ -208,6 +213,7 @@ class Util {
             ddate: 0,
             originalPath: "",
             mimeType,
+            actualExtension,
         };
     }
 
@@ -229,6 +235,7 @@ class Util {
             ddate: 0,
             originalPath: "",
             mimeType: "",
+            actualExtension: "",
         };
     }
 

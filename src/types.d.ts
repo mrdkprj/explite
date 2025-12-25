@@ -106,12 +106,14 @@ declare global {
             theme: Mp.Theme;
             allowMoveColumn: boolean;
             appMenuItems: AppMenuItem[];
+            useOSIcon: boolean;
         };
 
         type Preference = {
             theme: Mp.Theme;
             allowMoveColumn: boolean;
             appMenuItems: AppMenuItem[];
+            useOSIcon: boolean;
         };
 
         type AppMenuItem = {
@@ -138,6 +140,7 @@ declare global {
             cdate: number;
             size: number;
             extension: string;
+            actualExtension: string;
             isFile: boolean;
             entityType: Mp.EntityType;
             fileType: Mp.LinkFileType;

@@ -1,21 +1,21 @@
 import { writable } from "svelte/store";
-import { load, updateFiles, reset, listState, ListState } from "../states/listState.svelte";
+import { load, updateFiles, reset } from "../states/listState.svelte";
 import { DEFAULT_LABLES } from "../constants";
-import { endRename, RenameState, renameState, startRename } from "../states/renameState.svelte";
-import { ClipPosition, ClipState, clipState, endClip, moveClip, startClip } from "../states/clipState.svelte";
-import { DriveState, driveState, updateDrives } from "../states/driveState.svelte";
-import { edit, headerState, HeaderState, resetSearch, startSearch } from "../states/headerState.svelte";
-import { startSlide, SlideState, slideState, endSlide } from "../states/slideState.svelte";
+import { endRename, startRename } from "../states/renameState.svelte";
+import { ClipPosition, endClip, moveClip, startClip } from "../states/clipState.svelte";
+import { driveState, updateDrives } from "../states/driveState.svelte";
+import { edit, headerState, resetSearch, startSearch } from "../states/headerState.svelte";
+import { startSlide, endSlide, slideState } from "../states/slideState.svelte";
+export { listState } from "../states/listState.svelte";
+export { renameState } from "../states/renameState.svelte";
+export { clipState } from "../states/clipState.svelte";
+export { driveState } from "../states/driveState.svelte";
+export { headerState } from "../states/headerState.svelte";
+export { slideState } from "../states/slideState.svelte";
 
 type DragHandlerType = "View" | "Column" | "Favorite";
 
 type AppState = {
-    list: ListState;
-    rename: RenameState;
-    drive: DriveState;
-    header: HeaderState;
-    clip: ClipState;
-    slide: SlideState;
     isMaximized: boolean;
     isFullScreen: boolean;
     headerLabels: Mp.HeaderLabel[];
@@ -37,15 +37,10 @@ type AppState = {
     symlinkVisible: boolean;
     isInGridView: boolean;
     scrolling: boolean;
+    useOSIcon: boolean;
 };
 
 export const initialAppState: AppState = {
-    list: listState,
-    rename: renameState,
-    drive: driveState,
-    header: headerState,
-    clip: clipState,
-    slide: slideState,
     isMaximized: false,
     isFullScreen: false,
     headerLabels: DEFAULT_LABLES,
@@ -70,6 +65,7 @@ export const initialAppState: AppState = {
     symlinkVisible: false,
     isInGridView: false,
     scrolling: false,
+    useOSIcon: false,
 };
 
 type AppAction =
@@ -110,7 +106,7 @@ type AppAction =
     | { type: "endDrag" }
     | { type: "startRename"; value: { rect: Mp.PartialRect; oldName: string; fullPath: string; uuid: string } }
     | { type: "endRename" }
-    | { type: "setPreference"; value: { theme: Mp.Theme; appMenuItems: Mp.AppMenuItem[]; allowMoveColumn: boolean } }
+    | { type: "setPreference"; value: { theme: Mp.Theme; appMenuItems: Mp.AppMenuItem[]; allowMoveColumn: boolean; useOSIcon: boolean } }
     | { type: "togglePreference" }
     | { type: "toggleCreateSymlink" }
     | { type: "toggleGridView"; value: boolean }
@@ -125,7 +121,7 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return state;
 
         case "setPreference":
-            return { ...state, theme: action.value.theme, allowMoveColumn: action.value.allowMoveColumn, appMenuItems: action.value.appMenuItems };
+            return { ...state, theme: action.value.theme, allowMoveColumn: action.value.allowMoveColumn, appMenuItems: action.value.appMenuItems, useOSIcon: action.value.useOSIcon };
 
         case "isMaximized":
             return { ...state, isMaximized: action.value };
@@ -225,17 +221,17 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return state;
         }
         case "slide": {
-            if (state.slide.target == "Area") {
-                driveState.leftWidth = state.slide.initial + action.value;
+            if (slideState.target == "Area") {
+                driveState.leftWidth = slideState.initial + action.value;
                 return state;
             }
             const headerLabels = structuredClone(state.headerLabels);
-            const label = headerLabels.filter((label) => label.sortKey == state.slide.target)[0];
-            const newWidth = state.slide.initial + action.value;
+            const label = headerLabels.filter((label) => label.sortKey == slideState.target)[0];
+            const newWidth = slideState.initial + action.value;
             if (newWidth <= 50) {
                 return state;
             }
-            label.width = state.slide.initial + action.value;
+            label.width = slideState.initial + action.value;
             return { ...state, headerLabels };
         }
         case "endSlide": {

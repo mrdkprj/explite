@@ -1,7 +1,7 @@
 use crate::{session::Session, watcher::WatcherCommand};
 use dialog::DialogOptions;
 use serde::{Deserialize, Serialize};
-use std::{env, path::PathBuf};
+use std::{collections::HashMap, env, path::PathBuf};
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 use zouni::{dialog::MessageResult, *};
 mod dialog;
@@ -293,7 +293,8 @@ async fn open_list_context_menu(window: WebviewWindow, payload: ContextMenuArg) 
     }
     #[cfg(target_os = "linux")]
     {
-        window
+        let app_handle = window.app_handle().clone();
+        app_handle
             .run_on_main_thread(move || {
                 gtk::glib::spawn_future_local(async move {
                     menu::popup_menu(window.app_handle(), window.label(), menu::LIST, payload.position, Some(payload.full_path), payload.show_admin_runas).await;
@@ -311,7 +312,8 @@ async fn open_fav_context_menu(window: WebviewWindow, payload: menu::Position) {
     }
     #[cfg(target_os = "linux")]
     {
-        window
+        let app_handle = window.app_handle().clone();
+        app_handle
             .run_on_main_thread(move || {
                 gtk::glib::spawn_future_local(async move {
                     menu::popup_menu(window.app_handle(), window.label(), menu::FAV, payload, None, false).await;
@@ -329,7 +331,8 @@ async fn open_recycle_context_menu(window: WebviewWindow, payload: ContextMenuAr
     }
     #[cfg(target_os = "linux")]
     {
-        window
+        let app_handle = window.app_handle().clone();
+        app_handle
             .run_on_main_thread(move || {
                 gtk::glib::spawn_future_local(async move {
                     menu::popup_menu(window.app_handle(), window.label(), menu::RECYCLE_BIN, payload.position, Some(payload.full_path), false).await;
@@ -526,6 +529,23 @@ fn is_file(payload: String) -> bool {
     PathBuf::from(payload).is_file()
 }
 
+#[tauri::command]
+fn assoc_icons(payload: Vec<String>) -> Result<HashMap<String, Vec<u8>>, String> {
+    let mut icons = HashMap::new();
+
+    for full_path in payload {
+        let icon = zouni::shell::extract_icon(
+            &full_path,
+            Size {
+                width: 16,
+                height: 16,
+            },
+        )?;
+        let _ = icons.insert(format!(".{}", PathBuf::from(&full_path).extension().unwrap().to_string_lossy()), icon.png);
+    }
+    Ok(icons)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -592,7 +612,8 @@ pub fn run() {
             delete_from_recycle_bin,
             to_thumbnail,
             to_image_thumbnail,
-            is_file
+            is_file,
+            assoc_icons
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

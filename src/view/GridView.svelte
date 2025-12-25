@@ -1,6 +1,5 @@
 <script lang="ts">
-    import { appState } from "./appStateReducer.svelte";
-    import { listState } from "../states/listState.svelte";
+    import { appState, listState, renameState, headerState } from "./appStateReducer.svelte";
 
     import { handleKeyEvent } from "../constants";
     import VirtualList from "./VirtualList.svelte";
@@ -15,7 +14,6 @@
     import DirImage from "../svg/DirImage.svelte";
     import DirVideo from "../svg/DirVideo.svelte";
     import FolderSvg from "../svg/FolderSvg.svelte";
-    // import { renameState } from "../states/renameState.svelte";
 
     let {
         visibleStartIndex = $bindable(0),
@@ -99,7 +97,7 @@
                 <div class="thumb-col-detail" data-file-id={item.id}>
                     <div
                         class="thumb-entry-name draggable"
-                        title={$appState.header.search.searching ? item.fullPath : item.name}
+                        title={headerState.search.searching ? item.fullPath : item.name}
                         data-file-id={item.id}
                         onmousedown={colDetailMouseDown}
                         role="button"
@@ -151,7 +149,7 @@
                                 <FolderSvg />
                             {/if}
                         </div>
-                        <div class="name" id={item.uuid} data-file-id={item.id} class:rename-hidden={$appState.rename.targetUUID == item.uuid}>
+                        <div class="name" id={item.uuid} data-file-id={item.id} class:rename-hidden={renameState.targetUUID == item.uuid}>
                             {item.name}
                         </div>
                     </div>

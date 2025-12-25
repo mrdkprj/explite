@@ -59,7 +59,6 @@ pub fn spwan_watcher(app_handle: &tauri::AppHandle, cmd_rx: Receiver<WatcherComm
                     if let Ok(event_result) = event_result {
                         match event_result {
                             Ok(events) => {
-                                  println!("events:{:?}", events);
                                 for event in events {
                                     handle_event(&app_handle, event);
                                 }

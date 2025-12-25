@@ -9,6 +9,8 @@ import { t } from "./translation/useTranslation";
 
 const ipc = new IPC("View");
 
+export const icons: { [key: string]: string } = {};
+
 class Main {
     private initialized = false;
     private settings = new Settings();
@@ -207,6 +209,19 @@ class Main {
             } else {
                 const allDirents = await ipc.invoke("readdir", { directory, recursive: false });
                 this.files = allDirents.filter((dirent) => !dirent.attributes.is_system).map((dirent) => util.toFile(dirent));
+            }
+
+            if (this.settings.data.useOSIcon) {
+                const fileMap: { [key: string]: string } = {};
+                this.files.filter((file) => file.isFile && !(file.actualExtension in icons)).forEach((file) => (fileMap[file.actualExtension] = file.fullPath));
+                if (Object.keys(fileMap).length) {
+                    const rawfileIcons = await ipc.invoke("assoc_icons", Object.values(fileMap));
+                    Object.keys(rawfileIcons).forEach((key) => {
+                        const uint8 = Uint8Array.from(rawfileIcons[key]);
+                        const base64 = uint8.toBase64();
+                        icons[key] = `data:image/png;base64,${base64}`;
+                    });
+                }
             }
 
             const sortType = this.sortFiles(directory, this.files);
@@ -415,6 +430,7 @@ class Main {
         this.settings.data.theme = preference.theme;
         this.settings.data.appMenuItems = preference.appMenuItems;
         this.settings.data.allowMoveColumn = preference.allowMoveColumn;
+        this.settings.data.useOSIcon = preference.useOSIcon;
     };
 
     showFileFolderDialog = async (title: string, defaultPath: string, folder: boolean): Promise<string | null> => {

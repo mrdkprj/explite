@@ -1,21 +1,9 @@
 <script lang="ts">
-    import AudioSvg from "../svg/AudioSvg.svelte";
     import { DATE_OPTION, handleKeyEvent, RECYCLE_BIN } from "../constants";
     import Column from "./Column.svelte";
     import VirtualList from "./VirtualList.svelte";
-    import { appState } from "./appStateReducer.svelte";
-    import VideoSvg from "../svg/VideoSvg.svelte";
-    import ImageSvg from "../svg/ImageSvg.svelte";
-    import Zip from "../svg/Zip.svelte";
-    import AppSvg from "../svg/AppSvg.svelte";
-    import FileSvg from "../svg/FileSvg.svelte";
-    import DirDesktop from "../svg/DirDesktop.svelte";
-    import DirDocuments from "../svg/DirDocuments.svelte";
-    import DirDownloads from "../svg/DirDownloads.svelte";
-    import DirMusic from "../svg/DirMusic.svelte";
-    import DirImage from "../svg/DirImage.svelte";
-    import DirVideo from "../svg/DirVideo.svelte";
-    import FolderSvg from "../svg/FolderSvg.svelte";
+    import { appState, listState, headerState, renameState } from "./appStateReducer.svelte";
+    import FileIcon from "./FileIcon.svelte";
 
     let {
         visibleStartIndex = $bindable(0),
@@ -51,10 +39,10 @@
 
     const HEADER_DIVIDER_WIDTh = 10;
 
-    const isRecycleBin = () => $appState.list.currentDir.fullPath == RECYCLE_BIN;
+    const isRecycleBin = () => listState.currentDir.fullPath == RECYCLE_BIN;
 
     const shouldDisplayLabel = (key: Mp.SortKey) => {
-        if (key == "directory" && (!$appState.header.search.searching || isRecycleBin())) return false;
+        if (key == "directory" && (!headerState.search.searching || isRecycleBin())) return false;
 
         if (key == "ddate" && !isRecycleBin()) return false;
 
@@ -65,7 +53,7 @@
 </script>
 
 <VirtualList
-    items={$appState.list.files}
+    items={listState.files}
     bind:this={virtualList}
     bind:viewport={fileListContainer}
     bind:start={visibleStartIndex}
@@ -109,7 +97,7 @@
                     <div class="col-detail" data-file-id={item.id} style="width: {label.width}px;">
                         <div
                             class="entry-name draggable"
-                            title={$appState.header.search.searching ? item.fullPath : item.name}
+                            title={headerState.search.searching ? item.fullPath : item.name}
                             data-file-id={item.id}
                             onmousedown={colDetailMouseDown}
                             role="button"
@@ -124,43 +112,15 @@
                                 {#if item.linkPath}
                                     <div class="symlink-icon"><div class="symlink-arrow"></div></div>
                                 {/if}
-                                {#if item.isFile}
-                                    {#if item.fileType == "Audio"}
-                                        <AudioSvg />
-                                    {:else if item.fileType == "Video"}
-                                        <VideoSvg />
-                                    {:else if item.fileType == "Image"}
-                                        <ImageSvg />
-                                    {:else if item.fileType == "Zip"}
-                                        <Zip />
-                                    {:else if item.fileType == "App"}
-                                        <AppSvg />
-                                    {:else}
-                                        <FileSvg />
-                                    {/if}
-                                {:else if item.fileType == "Desktop"}
-                                    <DirDesktop />
-                                {:else if item.fileType == "Documents"}
-                                    <DirDocuments />
-                                {:else if item.fileType == "Downloads"}
-                                    <DirDownloads />
-                                {:else if item.fileType == "Music"}
-                                    <DirMusic />
-                                {:else if item.fileType == "Pictures"}
-                                    <DirImage />
-                                {:else if item.fileType == "Videos"}
-                                    <DirVideo />
-                                {:else}
-                                    <FolderSvg />
-                                {/if}
+                                <FileIcon {item} />
                             </div>
-                            <div class="name" id={item.uuid} data-file-id={item.id} class:rename-hidden={$appState.rename.targetUUID == item.uuid}>
+                            <div class="name" id={item.uuid} data-file-id={item.id} class:rename-hidden={renameState.targetUUID == item.uuid}>
                                 {item.name}
                             </div>
                         </div>
                     </div>
                 {:else if label.sortKey == "directory"}
-                    {#if $appState.header.search.searching && !isRecycleBin()}
+                    {#if headerState.search.searching && !isRecycleBin()}
                         <div class="col-detail" data-file-id={item.id} style="width: {label.width + HEADER_DIVIDER_WIDTh}px;">
                             <div class="draggable" title={item.dir} data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.dir}</div>
                         </div>

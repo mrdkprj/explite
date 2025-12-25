@@ -8,7 +8,7 @@
     import ClearSvg from "../svg/ClearSvg.svelte";
     import ThreeDots from "../svg/ThreeDots.svelte";
     import Display from "../svg/Display.svelte";
-    import { appState, dispatch } from "./appStateReducer.svelte";
+    import { dispatch, listState, headerState } from "./appStateReducer.svelte";
     import { handleKeyEvent, HOME, RECYCLE_BIN, SEPARATOR } from "../constants";
     import util from "../util";
     import { path } from "../path";
@@ -54,7 +54,7 @@
         const context = _canvas.getContext("2d");
         if (!context) {
             return {
-                visiblePaths: $appState.list.currentDir.paths,
+                visiblePaths: listState.currentDir.paths,
                 overflownPaths: [],
                 overflown: "",
             };
@@ -64,8 +64,8 @@
         const _visiblePaths: string[] = [];
         const _overflownPaths: string[] = [];
 
-        // Prevent $appState.list update
-        const paths = $appState.list.currentDir.paths.slice();
+        // Prevent listState update
+        const paths = listState.currentDir.paths.slice();
         paths.reverse().forEach((path, index) => {
             const metrics = context.measureText(path);
             width += metrics.width + padding + separator;
@@ -105,7 +105,7 @@
             window.clearTimeout(searchInterval);
         }
         searchInterval = window.setTimeout(() => {
-            if ($appState.header.search.key) {
+            if (headerState.search.key) {
                 startSearch();
             } else {
                 endSearch(false);
@@ -114,7 +114,7 @@
     };
 
     const setPathInputFocus = (node: HTMLInputElement) => {
-        pathValue = $appState.list.currentDir.fullPath == HOME || $appState.list.currentDir.fullPath == RECYCLE_BIN ? "" : $appState.list.currentDir.fullPath;
+        pathValue = listState.currentDir.fullPath == HOME || listState.currentDir.fullPath == RECYCLE_BIN ? "" : listState.currentDir.fullPath;
         node.value = pathValue;
         node.focus();
         node.setSelectionRange(0, pathValue.length);
@@ -136,14 +136,6 @@
         }
 
         requestLoad(path, false, "PathSelect");
-        // const tempPath = $appState.list.currentDir.paths.slice(0, $appState.list.currentDir.paths.indexOf(path) + 1).join(SEPARATOR);
-        // if (util.isWin()) {
-        //     const targetPath = tempPath.endsWith(":") ? `${tempPath}${SEPARATOR}` : tempPath;
-        //     requestLoad(targetPath, false, "PathSelect");
-        // } else {
-        //     const targetPath = tempPath.startsWith("/") ? tempPath : `${SEPARATOR}${tempPath}`;
-        //     requestLoad(targetPath, false, "PathSelect");
-        // }
     };
 
     const onPathInputLeave = () => {
@@ -159,7 +151,7 @@
     };
 
     const endPathEdit = async () => {
-        if (pathValue && $appState.list.currentDir.fullPath != pathValue) {
+        if (pathValue && listState.currentDir.fullPath != pathValue) {
             const isFile = await util.isFile(pathValue);
             requestLoad(pathValue, isFile, "Direct");
         }
@@ -238,17 +230,17 @@
 
 <div class="header">
     <div class="btns">
-        <div class="button {$appState.header.canGoBack ? '' : 'disabled'}" onclick={goBack} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div class="button {headerState.canGoBack ? '' : 'disabled'}" onclick={goBack} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <BackSvg />
         </div>
-        <div class="button {$appState.header.canGoForward ? '' : 'disabled'}" onclick={goForward} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div class="button {headerState.canGoForward ? '' : 'disabled'}" onclick={goForward} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <FowardSvg />
         </div>
-        <div class="button {$appState.list.currentDir.fullPath == HOME ? 'disabled' : ''}" onclick={() => reload(true)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div class="button {listState.currentDir.fullPath == HOME ? 'disabled' : ''}" onclick={() => reload(true)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <ReloadSvg />
         </div>
         <div
-            class="button {$appState.list.currentDir.fullPath == HOME || $appState.header.search.searching ? 'disabled' : ''}"
+            class="button {listState.currentDir.fullPath == HOME || headerState.search.searching ? 'disabled' : ''}"
             onclick={() => createItem(true)}
             onkeydown={handleKeyEvent}
             role="button"
@@ -257,7 +249,7 @@
             <NewFileSvg />
         </div>
         <div
-            class="button {$appState.list.currentDir.fullPath == HOME || $appState.header.search.searching ? 'disabled' : ''}"
+            class="button {listState.currentDir.fullPath == HOME || headerState.search.searching ? 'disabled' : ''}"
             onclick={showCreateDirDialog}
             onkeydown={handleKeyEvent}
             role="button"
@@ -281,7 +273,7 @@
         </div>
     </div>
     <div class="path-area" bind:offsetWidth={pathWidth}>
-        {#if $appState.header.pathEditing}
+        {#if headerState.pathEditing}
             <input
                 class="path-input"
                 spellcheck="false"
@@ -351,19 +343,19 @@
     <div class="search-area">
         <input
             class="search-input"
-            class:without-clear={!$appState.header.search.searching}
+            class:without-clear={!headerState.search.searching}
             spellcheck="false"
             type="text"
             id="search"
             bind:this={searchInput}
             oninput={onSearchInput}
-            bind:value={$appState.header.search.key}
+            bind:value={headerState.search.key}
             onfocus={focusSearchInput}
             onkeydown={onSearchInputKeyDown}
-            disabled={$appState.list.currentDir.fullPath == HOME}
+            disabled={listState.currentDir.fullPath == HOME}
             autocomplete="one-time-code"
         />
-        {#if $appState.header.search.searching}
+        {#if headerState.search.searching}
             <div class="clear-area">
                 <div class="clear" onclick={() => endSearch(false)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
                     <ClearSvg />

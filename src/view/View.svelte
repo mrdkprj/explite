@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount, tick } from "svelte";
-    import { appState, dispatch } from "./appStateReducer.svelte";
+    import { appState, dispatch, renameState, listState, slideState, clipState, driveState, headerState } from "./appStateReducer.svelte";
     import Bar from "./Bar.svelte";
     import Header from "./Header.svelte";
     import Left from "./Left.svelte";
@@ -44,11 +44,11 @@
     const onListContextMenu = async (e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        if ($appState.rename.renaming) return;
+        if (renameState.renaming) return;
 
-        if ($appState.list.currentDir.fullPath != HOME) {
+        if (listState.currentDir.fullPath != HOME) {
             onRowClick(e);
-            const file = $appState.list.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+            const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
             let itemPath = "";
             if (file) {
                 itemPath = file.linkPath ? file.linkPath : file.fullPath;
@@ -77,7 +77,7 @@
     };
 
     const getChildIndex = (id: string | null | undefined) => {
-        return $appState.list.files.findIndex((file) => file.id == id);
+        return listState.files.findIndex((file) => file.id == id);
     };
 
     const scrollToElement = async (id: string) => {
@@ -87,7 +87,7 @@
         const element = document.getElementById(id);
 
         if (!element) {
-            const index = $appState.list.files.findIndex((file) => file.id == id);
+            const index = listState.files.findIndex((file) => file.id == id);
             if (index <= visibleStartIndex) {
                 await virtualList.scrollToIndex(index, { behavior: "instant" }, false);
             } else {
@@ -145,18 +145,18 @@
     const onMouseMove = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
-        if ($appState.slide.sliding) {
-            const dist = e.clientX - $appState.slide.startX;
+        if (slideState.sliding) {
+            const dist = e.clientX - slideState.startX;
             dispatch({ type: "slide", value: dist });
             return;
         }
 
         if (!fileListContainer) return;
 
-        const alredyMoved = $appState.clip.moved;
-        if ($appState.clip.clipping) {
+        const alredyMoved = clipState.moved;
+        if (clipState.clipping) {
             dispatch({ type: "moveClip", value: { x: e.clientX - fileListContainer.parentElement!.offsetLeft, y: e.clientY - fileListContainer.parentElement!.offsetTop } });
-            if (!alredyMoved && $appState.clip.moved) {
+            if (!alredyMoved && clipState.moved) {
                 clearSelection();
             }
         }
@@ -170,11 +170,11 @@
         }
 
         if (!fileListContainer) return false;
-        if ($appState.rename.renaming) return false;
+        if (renameState.renaming) return false;
         if ($appState.dragHandler != "View") return false;
 
         /* Clipping must handle event outside of view */
-        if ($appState.clip.clipping) return true;
+        if (clipState.clipping) return true;
 
         if (e.target.hasAttribute("data-path") || e.target.classList.contains("button")) return false;
 
@@ -195,8 +195,8 @@
     const onMouseUp = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
-        if ($appState.slide.sliding) {
-            const dist = e.clientX - $appState.slide.startX;
+        if (slideState.sliding) {
+            const dist = e.clientX - slideState.startX;
             dispatch({ type: "slide", value: dist });
             dispatch({ type: "endSlide" });
             onColumnHeaderChanged();
@@ -204,7 +204,7 @@
 
         if (!shouldHandleMouseEvent(e)) return;
 
-        if (!$appState.clip.moved && e.target.hasAttribute("data-v-list")) {
+        if (!clipState.moved && e.target.hasAttribute("data-v-list")) {
             clearSelection();
         }
 
@@ -212,7 +212,7 @@
     };
 
     const onColumnHeaderChanged = () => {
-        main.onColumnHeaderChanged({ leftWidth: $appState.drive.leftWidth, labels: $appState.headerLabels });
+        main.onColumnHeaderChanged({ leftWidth: driveState.leftWidth, labels: $appState.headerLabels });
     };
 
     const startDrag = async (e: DragEvent) => {
@@ -220,13 +220,13 @@
 
         if (!e.target || !(e.target instanceof HTMLElement)) return;
         if (!$appState.selection.selectedIds.length) return;
-        if ($appState.clip.moved) return;
+        if (clipState.moved) return;
         if ($appState.dragHandler != "View") return;
 
         const id = e.target.getAttribute("data-file-id") ?? "";
         if (!$appState.selection.selectedIds.includes(id)) return;
 
-        const paths = $appState.list.files.filter((file) => $appState.selection.selectedIds.includes(file.id)).map((file) => file.fullPath);
+        const paths = listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id)).map((file) => file.fullPath);
         if (!paths.length) return;
 
         await ipc.invoke("register_drop_target", undefined);
@@ -269,7 +269,7 @@
 
         dispatch({ type: "dragLeave" });
 
-        if ($appState.list.currentDir.fullPath == HOME || !e.paths) return;
+        if (listState.currentDir.fullPath == HOME || !e.paths) return;
 
         const destPath = getDropTarget(dragTargetId);
 
@@ -283,11 +283,11 @@
     };
 
     const getDropTarget = (dragTargetId: string): string => {
-        const defaultTarget = $appState.list.currentDir.fullPath;
+        const defaultTarget = listState.currentDir.fullPath;
 
         if (!dragTargetId) return defaultTarget;
 
-        const destinationFile = $appState.list.files.find((file) => file.id == dragTargetId);
+        const destinationFile = listState.files.find((file) => file.id == dragTargetId);
 
         if (!destinationFile) return defaultTarget;
 
@@ -314,8 +314,8 @@
     };
 
     const getClipRect = (e: MouseEvent): Mp.Rect => {
-        const inverseX = $appState.clip.inverseX;
-        const inverseY = $appState.clip.inverseY;
+        const inverseX = clipState.inverseX;
+        const inverseY = clipState.inverseY;
         const left = e.clientX - fileListContainer!.parentElement!.offsetLeft;
         const top = e.clientY - fileListContainer!.parentElement!.offsetTop;
         const right = inverseX ? left - clipRegion!.width : left + clipRegion!.width;
@@ -347,7 +347,7 @@
 
     const clipMouseEnter = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
-        if (!$appState.clip.clipping) return;
+        if (!clipState.clipping) return;
 
         const rect = getClipRect(e);
 
@@ -368,7 +368,7 @@
 
     const clipMouseLeave = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
-        if (!$appState.clip.clipping) return;
+        if (!clipState.clipping) return;
 
         const rect = getClipRect(e);
 
@@ -388,7 +388,7 @@
     };
 
     const endClip = () => {
-        if ($appState.clip.clipping) {
+        if (clipState.clipping) {
             dispatch({ type: "endClip" });
         }
     };
@@ -405,7 +405,7 @@
                 asc,
             };
             dispatch({ type: "sort", value: type });
-            const result = main.sort({ files: $appState.list.files, type });
+            const result = main.sort({ files: listState.files, type });
             onSorted(result);
         }
     };
@@ -474,7 +474,7 @@
 
         const ids: string[] = [];
         for (let i = range[0]; i <= range[1]; i++) {
-            ids.push($appState.list.files[i].id);
+            ids.push(listState.files[i].id);
         }
 
         dispatch({ type: "setSelectedIds", value: ids });
@@ -492,21 +492,21 @@
     const selectAll = () => {
         clearSelection();
 
-        const ids = $appState.list.files.map((file) => file.id);
+        const ids = listState.files.map((file) => file.id);
 
         dispatch({ type: "appendSelectedIds", value: ids });
     };
 
     const moveSelectionByShit = async (key: string) => {
         if (!$appState.selection.selectedIds.length) {
-            await select($appState.list.files[0].id);
+            await select(listState.files[0].id);
         }
 
         const downward = $appState.selection.selectedId == $appState.selection.selectedIds[0];
 
         const currentId = downward ? $appState.selection.selectedIds[$appState.selection.selectedIds.length - 1] : $appState.selection.selectedIds[0];
         const currentIndex = getChildIndex(currentId);
-        const nextId = key === "ArrowDown" ? $appState.list.files[currentIndex + 1]?.id : $appState.list.files[currentIndex - 1]?.id;
+        const nextId = key === "ArrowDown" ? listState.files[currentIndex + 1]?.id : listState.files[currentIndex - 1]?.id;
 
         if (!nextId) return;
 
@@ -514,15 +514,15 @@
     };
 
     const moveSelection = async (e: KeyboardEvent) => {
-        if (!$appState.list.files.length) return;
+        if (!listState.files.length) return;
 
         if (e.shiftKey) {
             return await moveSelectionByShit(e.key);
         }
 
-        const currentId = $appState.selection.selectedId ? $appState.selection.selectedId : $appState.list.files[0].id;
+        const currentId = $appState.selection.selectedId ? $appState.selection.selectedId : listState.files[0].id;
         const currentIndex = getChildIndex(currentId);
-        const nextId = e.key === "ArrowDown" ? $appState.list.files[currentIndex + 1]?.id : $appState.list.files[currentIndex - 1]?.id;
+        const nextId = e.key === "ArrowDown" ? listState.files[currentIndex + 1]?.id : listState.files[currentIndex - 1]?.id;
 
         if (!nextId) return;
 
@@ -531,20 +531,20 @@
     };
 
     const selectUpto = async (e: KeyboardEvent) => {
-        if (!$appState.list.files.length) return;
+        if (!listState.files.length) return;
         if (e.key == "Home") {
-            await select($appState.list.files[0].id);
+            await select(listState.files[0].id);
         } else {
-            await select($appState.list.files[$appState.list.files.length - 1].id);
+            await select(listState.files[listState.files.length - 1].id);
         }
     };
 
     const moveSelectionUpto = async (e: KeyboardEvent) => {
-        if (!$appState.list.files.length) return;
+        if (!listState.files.length) return;
 
         e.preventDefault();
 
-        const targetId = e.key === HOME ? $appState.list.files[0].id : $appState.list.files[$appState.list.files.length - 1].id;
+        const targetId = e.key === HOME ? listState.files[0].id : listState.files[listState.files.length - 1].id;
 
         if (!targetId) return;
 
@@ -556,7 +556,7 @@
     const startEditFileName = () => {
         if (isRecycleBin()) return;
 
-        const file = $appState.list.files.find((file) => file.id == $appState.selection.selectedId);
+        const file = listState.files.find((file) => file.id == $appState.selection.selectedId);
 
         if (!file) return;
 
@@ -591,9 +591,9 @@
     };
 
     const endEditFileName = async () => {
-        if (!$appState.rename.renaming) return;
+        if (!renameState.renaming) return;
 
-        if ($appState.rename.oldName === $appState.rename.newName) {
+        if (renameState.oldName === renameState.newName) {
             endRename();
         } else {
             await requestRename();
@@ -603,12 +603,12 @@
     const requestRename = async () => {
         dispatch({ type: "preventBlur", value: true });
         folderUpdatePromise = new Deferred();
-        const result = await main.renameItem($appState.rename.fullPath, $appState.rename.newName);
+        const result = await main.renameItem(renameState.fullPath, renameState.newName);
 
         if (!result.done) {
             endRename();
             folderUpdatePromise = null;
-            const files = $appState.list.files.filter((file) => file.fullPath == $appState.rename.fullPath);
+            const files = listState.files.filter((file) => file.fullPath == renameState.fullPath);
             select(files[0].id);
             return;
         }
@@ -633,20 +633,20 @@
 
     const trashItem = async () => {
         if (!$appState.selection.selectedIds.length) return;
-        const files = $appState.list.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+        const files = listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
         await main.trashItems({ files });
     };
 
     const deleteItem = async () => {
         if (!$appState.selection.selectedIds.length) return;
 
-        const files = $appState.list.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+        const files = listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
         await main.deleteItems({ files });
     };
 
     const undeleteItem = async () => {
         if (!$appState.selection.selectedIds.length) return;
-        const files = $appState.list.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+        const files = listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
         const items = files.map((file) => {
             return {
                 fullPath: file.originalPath,
@@ -659,7 +659,7 @@
 
     const deleteFromRecycleBin = async () => {
         if (!$appState.selection.selectedIds.length) return;
-        const files = $appState.list.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+        const files = listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
         const items = files.map((file) => {
             return {
                 fullPath: file.originalPath,
@@ -672,16 +672,16 @@
 
     const writeFullPathToClipboard = async () => {
         const fullPaths = $appState.selection.selectedIds.length
-            ? $appState.list.files
+            ? listState.files
                   .filter((file) => $appState.selection.selectedIds.includes(file.id))
                   .map((file) => file.fullPath)
                   .join("\r\n")
-            : $appState.list.currentDir.fullPath;
+            : listState.currentDir.fullPath;
         await main.writeFullpathToClipboard(fullPaths);
     };
 
     const markCopyCut = async (copy: boolean) => {
-        const files = $appState.list.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+        const files = listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
         dispatch({ type: "copyCut", value: { operation: copy ? "Copy" : "Move", ids: $appState.selection.selectedIds, files } });
         await main.writeClipboard({ files, operation: copy ? "Copy" : "Move" });
     };
@@ -706,20 +706,20 @@
     };
 
     const onPasteEnd = async (e: Mp.MoveItemResult) => {
-        const ids = $appState.list.files.filter((file) => e.fullPaths.includes(file.fullPath)).map((file) => file.id);
+        const ids = listState.files.filter((file) => e.fullPaths.includes(file.fullPath)).map((file) => file.id);
         await selectMultiple(ids);
     };
 
     const sendRemovingFavorite = () => {
-        if ($appState.drive.hoverFavoriteId) {
-            const result = main.removeFavorite($appState.drive.hoverFavoriteId);
+        if (driveState.hoverFavoriteId) {
+            const result = main.removeFavorite(driveState.hoverFavoriteId);
             onFavoriteChanged(result);
             dispatch({ type: "hoverFavoriteId", value: "" });
         }
     };
 
     const reload = async (includeDrive: boolean) => {
-        if ($appState.header.search.searching) {
+        if (headerState.search.searching) {
             await endSearch(true);
         } else {
             const result = await main.reload(includeDrive);
@@ -732,9 +732,9 @@
     const searchNext = (key: string) => {
         if ($appState.selection.selectedIds.length) {
             const selectedId = $appState.selection.selectedIds[0];
-            const current = $appState.list.files.findIndex((file) => file.id == selectedId);
+            const current = listState.files.findIndex((file) => file.id == selectedId);
             const indexes: number[] = [];
-            $appState.list.files.forEach((file, index) => {
+            listState.files.forEach((file, index) => {
                 if (file.name.toLowerCase().startsWith(key) && file.id != selectedId) {
                     indexes.push(index);
                 }
@@ -746,24 +746,25 @@
 
             const next = indexes.filter((i) => i > current);
             if (next.length) {
-                return $appState.list.files[next[0]];
+                return listState.files[next[0]];
             } else {
-                return $appState.list.files[indexes[0]];
+                return listState.files[indexes[0]];
             }
         } else {
-            return $appState.list.files.find((file) => file.name.toLowerCase().startsWith(key));
+            return listState.files.find((file) => file.name.toLowerCase().startsWith(key));
         }
     };
 
     const startSearch = async () => {
         dispatch({ type: "clearCopyCut" });
         dispatch({ type: "startSearch" });
-        const result = await main.search({ dir: $appState.list.currentDir.fullPath, key: $appState.header.search.key, refresh: false });
-        onSearched(result);
+        const result = await main.search({ dir: listState.currentDir.fullPath, key: headerState.search.key, refresh: false });
+        await onSearched(result);
     };
 
-    const onSearched = (e: Mp.SearchResult) => {
+    const onSearched = async (e: Mp.SearchResult) => {
         dispatch({ type: "updateFiles", value: { files: e.files } });
+        await tick();
     };
 
     const clearSearchHighlight = () => {
@@ -775,12 +776,12 @@
 
         if (refresh) {
             await main.onSearchEnd(true);
-            const result = await main.search({ dir: $appState.list.currentDir.fullPath, key: $appState.header.search.key, refresh: false });
-            onSearched(result);
+            const result = await main.search({ dir: listState.currentDir.fullPath, key: headerState.search.key, refresh: false });
+            await onSearched(result);
         } else {
             dispatch({ type: "endSearch" });
             const result = await main.onSearchEnd(false);
-            onSearched(result);
+            await onSearched(result);
         }
     };
 
@@ -795,7 +796,7 @@
             incrementalKey = ($appState.incrementalKey + value).toLowerCase();
 
             if (incrementalKey != $appState.incrementalKey) {
-                file = $appState.list.files.find((file) => file.name.toLowerCase().startsWith(incrementalKey));
+                file = listState.files.find((file) => file.name.toLowerCase().startsWith(incrementalKey));
             } else {
                 file = searchNext(incrementalKey);
             }
@@ -808,7 +809,7 @@
     };
 
     const searchHighlight = (nodes: HTMLElement[]) => {
-        if (!$appState.header.search.key || !$appState.list.files.length) {
+        if (!headerState.search.key || !listState.files.length) {
             clearSearchHighlight();
             return;
         }
@@ -831,8 +832,8 @@
     };
 
     const highlightName = (text: string, nameNode: Element, searchTextHighlight: Highlight) => {
-        const start = text.toLocaleLowerCase().indexOf($appState.header.search.key.toLocaleLowerCase());
-        const end = $appState.header.search.key.length;
+        const start = text.toLocaleLowerCase().indexOf(headerState.search.key.toLocaleLowerCase());
+        const end = headerState.search.key.length;
 
         const range = new Range();
         range.setStart(nameNode.childNodes[0], start);
@@ -842,7 +843,7 @@
 
     const highlightNameOneByOne = (text: string, nameNode: Element, searchTextHighlight: Highlight) => {
         const texts = text.toLocaleLowerCase().split("");
-        const keys = $appState.header.search.key.toLocaleLowerCase().split("");
+        const keys = headerState.search.key.toLocaleLowerCase().split("");
 
         texts.forEach((text, i) => {
             if (keys.length - 1 < i) {
@@ -879,7 +880,7 @@
     };
 
     const changeFavorites = () => {
-        main.changeFavorites($appState.drive.favorites);
+        main.changeFavorites(driveState.favorites);
     };
 
     const undo = async () => {
@@ -902,7 +903,7 @@
             return;
         }
 
-        const file = $appState.list.files.find((file) => file.id == id);
+        const file = listState.files.find((file) => file.id == id);
 
         if (file) {
             requestLoad(file.linkPath ? file.linkPath : file.fullPath, file.isFile, "Direct");
@@ -912,9 +913,9 @@
     };
 
     const goBack = async () => {
-        if (!$appState.header.canGoBack) return;
+        if (!headerState.canGoBack) return;
 
-        if ($appState.header.search.searching) {
+        if (headerState.search.searching) {
             return await endSearch(false);
         }
 
@@ -923,9 +924,9 @@
     };
 
     const goForward = async () => {
-        if (!$appState.header.canGoForward) return;
+        if (!headerState.canGoForward) return;
 
-        if ($appState.header.search.searching) {
+        if (headerState.search.searching) {
             return await endSearch(false);
         }
 
@@ -934,11 +935,11 @@
     };
 
     const requestLoad = async (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => {
-        if (!isFile && $appState.header.search.searching) {
+        if (!isFile && headerState.search.searching) {
             await endSearch(false);
         }
 
-        if (fullPath != $appState.list.currentDir.fullPath) {
+        if (fullPath != listState.currentDir.fullPath) {
             const result = await main.onSelect({ fullPath, isFile, navigation });
             if (result) {
                 load(result);
@@ -955,11 +956,11 @@
     };
 
     const setTitle = async () => {
-        const title = $appState.list.currentDir.paths.length ? $appState.list.currentDir.paths[$appState.list.currentDir.paths.length - 1] : HOME;
+        const title = listState.currentDir.paths.length ? listState.currentDir.paths[listState.currentDir.paths.length - 1] : HOME;
         await WebviewWindow.getCurrent().setTitle(title);
     };
 
-    const isRecycleBin = () => $appState.list.currentDir.fullPath == RECYCLE_BIN;
+    const isRecycleBin = () => listState.currentDir.fullPath == RECYCLE_BIN;
 
     const navigate = (e: Mp.LoadEvent) => {
         if (e.navigation == "Reload") {
@@ -968,13 +969,13 @@
         }
 
         if (e.navigation == "Back") {
-            FORWARD.push({ fullPath: $appState.list.currentDir.fullPath, selection: $appState.selection });
+            FORWARD.push({ fullPath: listState.currentDir.fullPath, selection: $appState.selection });
             const navigationHistory = BACKWARD.pop();
             restoreSelection(navigationHistory);
         }
 
         if (e.navigation == "Forward") {
-            BACKWARD.push({ fullPath: $appState.list.currentDir.fullPath, selection: $appState.selection });
+            BACKWARD.push({ fullPath: listState.currentDir.fullPath, selection: $appState.selection });
             const navigationHistory = FORWARD.pop();
             restoreSelection(navigationHistory);
         }
@@ -982,7 +983,7 @@
         if (e.navigation == "Direct" || e.navigation == "PathSelect") {
             dispatch({ type: "endSearch" });
             FORWARD.pop();
-            BACKWARD.push({ fullPath: $appState.list.currentDir.fullPath, selection: $appState.selection });
+            BACKWARD.push({ fullPath: listState.currentDir.fullPath, selection: $appState.selection });
 
             if (e.navigation == "PathSelect") {
                 const navigationHistory = BACKWARD.find((navhistory) => navhistory.fullPath == e.directory);
@@ -1037,7 +1038,7 @@
     const handleContextMenuEvent = async (e: keyof Mp.MainContextMenuSubTypeMap | keyof Mp.FavContextMenuSubTypeMap) => {
         switch (e) {
             case "Open": {
-                const file = $appState.list.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (!file) return;
                 const result = await main.onSelect({ fullPath: file.fullPath, isFile: file.isFile, navigation: "Direct" });
                 if (result) {
@@ -1047,14 +1048,14 @@
             }
 
             case "OpenInNewWindow": {
-                const file = $appState.list.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (!file) return;
                 await main.openInNewWindow(file.fullPath);
                 break;
             }
 
             case "SelectApp": {
-                const file = $appState.list.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (!file) return;
                 await main.showAppSelector(file.fullPath);
                 break;
@@ -1107,20 +1108,20 @@
             }
 
             case "Property": {
-                if ($appState.drive.hoverFavoriteId) {
-                    await main.openPropertyDielog($appState.drive.hoverFavoriteId);
+                if (driveState.hoverFavoriteId) {
+                    await main.openPropertyDielog(driveState.hoverFavoriteId);
                     dispatch({ type: "hoverFavoriteId", value: "" });
                     break;
                 }
 
-                const file = $appState.list.files.find((file) => file.id == $appState.selection.selectedIds[0]);
-                await main.openPropertyDielog(file ?? util.toFolder($appState.list.currentDir.fullPath));
+                const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                await main.openPropertyDielog(file ?? util.toFolder(listState.currentDir.fullPath));
 
                 break;
             }
 
             case "AddToFavorite": {
-                const file = $appState.list.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (!file) return;
 
                 if (!file.isFile) {
@@ -1144,15 +1145,15 @@
                 break;
 
             case "Terminal":
-                await main.openTerminal($appState.list.currentDir.fullPath, false);
+                await main.openTerminal(listState.currentDir.fullPath, false);
                 break;
 
             case "AdminTerminal":
-                await main.openTerminal($appState.list.currentDir.fullPath, true);
+                await main.openTerminal(listState.currentDir.fullPath, true);
                 break;
 
             default: {
-                const file = $appState.list.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (!file) return;
                 await main.openFileWith(file.fullPath, e as string);
             }
@@ -1212,13 +1213,13 @@
         }
 
         if (e.key == "Escape") {
-            if ($appState.rename.renaming) {
+            if (renameState.renaming) {
                 endEditFileName();
             }
         }
 
-        if ($appState.rename.renaming) return;
-        if ($appState.header.pathEditing) return;
+        if (renameState.renaming) return;
+        if (headerState.pathEditing) return;
         if ($appState.prefVisible) return;
         if ($appState.symlinkVisible) return;
         if (header.hasSearchInputFocus()) return;
@@ -1236,7 +1237,7 @@
 
         if (e.key == "Enter") {
             if ($appState.selection.selectedIds.length == 1) {
-                const file = $appState.list.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (file) {
                     e.preventDefault();
                     requestLoad(file.linkPath ? file.linkPath : file.fullPath, file.isFile, "Direct");
@@ -1272,7 +1273,7 @@
         }
 
         if (e.ctrlKey && e.key === "t") {
-            if ($appState.list.currentDir.fullPath != HOME && !isRecycleBin()) {
+            if (listState.currentDir.fullPath != HOME && !isRecycleBin()) {
                 e.preventDefault();
                 return dispatch({ type: "toggleGridView", value: !$appState.isInGridView });
             }
@@ -1335,7 +1336,7 @@
         }
 
         if (!e.altKey && !e.ctrlKey && !e.shiftKey) {
-            if (e.key.length == 1 && $appState.list.files.length) {
+            if (e.key.length == 1 && listState.files.length) {
                 if (searchInterval) {
                     window.clearTimeout(searchInterval);
                 }
@@ -1358,7 +1359,7 @@
     };
 
     const onPreferenceChange = async (isAppMenuItemChanged: boolean) => {
-        await main.onPreferenceChanged({ theme: $appState.theme, appMenuItems: $appState.appMenuItems, allowMoveColumn: $appState.allowMoveColumn });
+        await main.onPreferenceChanged({ theme: $appState.theme, appMenuItems: $appState.appMenuItems, allowMoveColumn: $appState.allowMoveColumn, useOSIcon: $appState.useOSIcon });
         if (isAppMenuItemChanged) {
             await main.changeAppMenuItems($appState.appMenuItems);
         }
@@ -1379,8 +1380,8 @@
 
         if (e.event == "Removed") {
             const newMountPoints = drives.map((info) => info.path);
-            const removedMountPoints = $appState.drive.drives.filter((info) => !newMountPoints.includes(info.path)).map((info) => info.path);
-            const currentDirRoot = util.getRootDirectory($appState.list.currentDir.fullPath);
+            const removedMountPoints = driveState.drives.filter((info) => !newMountPoints.includes(info.path)).map((info) => info.path);
+            const currentDirRoot = util.getRootDirectory(listState.currentDir.fullPath);
 
             if (removedMountPoints.includes(currentDirRoot)) {
                 await requestLoad(HOME, false, "Direct");
@@ -1437,7 +1438,7 @@
 
         await main.changeTheme(e.settings.theme);
         await main.changeAppMenuItems(e.settings.appMenuItems);
-        dispatch({ type: "setPreference", value: { theme: e.settings.theme, appMenuItems: e.settings.appMenuItems, allowMoveColumn: e.settings.allowMoveColumn } });
+        dispatch({ type: "setPreference", value: { theme: e.settings.theme, appMenuItems: e.settings.appMenuItems, allowMoveColumn: e.settings.allowMoveColumn, useOSIcon: e.settings.useOSIcon } });
         dispatch({ type: "headerLabels", value: e.settings.headerLabels });
         dispatch({ type: "leftWidth", value: e.settings.leftAreaWidth });
         dispatch({ type: "sort", value: DEFAULT_SORT_TYPE });
@@ -1473,7 +1474,7 @@
 <svelte:window oncontextmenu={(e) => e.preventDefault()} />
 <svelte:document {onkeydown} {onkeyup} onmousemove={onMouseMove} onmousedown={onMouseDown} onmouseup={onMouseUp} ondragover={onDragOver} ondragenter={onDragEnter} ondragleave={onDragLeave} />
 
-<div class="viewport" class:full-screen={$appState.isFullScreen} class:sliding={$appState.slide.sliding}>
+<div class="viewport" class:full-screen={$appState.isFullScreen} class:sliding={slideState.sliding}>
     <Bar />
     <div class="view">
         {#if $appState.prefVisible}
@@ -1482,7 +1483,7 @@
         {#if $appState.symlinkVisible}
             <Symlink {showErrorMessage} {getSymlinkTargetItem} {createSymlink} />
         {/if}
-        {#if $appState.rename.renaming}
+        {#if renameState.renaming}
             <Rename {endEditFileName} />
         {/if}
         <Header {requestLoad} {startSearch} {endSearch} {goBack} {goForward} {createItem} {reload} bind:this={header} />
@@ -1493,7 +1494,7 @@
             </div>
             <div
                 class="main"
-                class:clipping={$appState.clip.clipping}
+                class:clipping={clipState.clipping}
                 oncontextmenu={onListContextMenu}
                 onkeydown={handleKeyEvent}
                 onscroll={endEditFileName}
@@ -1501,11 +1502,11 @@
                 role="button"
                 tabindex="-1"
             >
-                {#if $appState.clip.moved}
-                    <div bind:contentRect={clipRegion} class="clip-area" style={$appState.clip.clipAreaStyle}></div>
+                {#if clipState.moved}
+                    <div bind:contentRect={clipRegion} class="clip-area" style={clipState.clipAreaStyle}></div>
                 {/if}
 
-                {#if $appState.list.currentDir.fullPath == HOME}
+                {#if listState.currentDir.fullPath == HOME}
                     <Home {requestLoad} />
                 {:else if $appState.isInGridView}
                     <GridView

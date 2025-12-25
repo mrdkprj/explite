@@ -416,7 +416,8 @@
     flex-direction: column;
 }
 
-.entry-name svg {
+.entry-name svg,
+.entry-name img {
     margin-right: 5px;
 }
 

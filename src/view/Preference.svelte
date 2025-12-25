@@ -9,12 +9,10 @@
         clearHeaderHistory,
     }: { preferenceChanged: (isAppMenuItemChanged: boolean) => void; openSettingsAsJson: () => Promise<void>; clearHeaderHistory: () => void } = $props();
 
-    const originalTheme = $appState.theme;
-    const originalAppMenuItems = $appState.appMenuItems;
-    const originalAllowMoveColumn = $appState.allowMoveColumn;
-    let theme = $state($appState.theme);
-    let appMenuItems = $state($appState.appMenuItems);
-    let allowMoveColumn = $state($appState.allowMoveColumn);
+    let theme = $state($state.snapshot($appState.theme));
+    let appMenuItems = $state($state.snapshot($appState.appMenuItems));
+    let allowMoveColumn = $state($state.snapshot($appState.allowMoveColumn));
+    let useOSIcon = $state($state.snapshot($appState.useOSIcon));
 
     const addMenuItem = () => {
         appMenuItems.push({
@@ -39,10 +37,10 @@
     };
 
     const isAppMenuItemChanged = (newAppMenuItems: Mp.AppMenuItem[]): boolean => {
-        if (newAppMenuItems.length != originalAppMenuItems.length) return true;
+        if (newAppMenuItems.length != $appState.appMenuItems.length) return true;
 
         return newAppMenuItems.some(
-            (item, index) => originalAppMenuItems[index].label != item.label || originalAppMenuItems[index].path != item.path || originalAppMenuItems[index].target != item.target,
+            (item, index) => $appState.appMenuItems[index].label != item.label || $appState.appMenuItems[index].path != item.path || $appState.appMenuItems[index].target != item.target,
         );
     };
 
@@ -50,10 +48,8 @@
         if (save) {
             const newAppMenuItems = appMenuItems.filter((item) => item.path != "");
             const appMenuItemChanged = isAppMenuItemChanged(newAppMenuItems);
-            dispatch({ type: "setPreference", value: { theme, appMenuItems: appMenuItems.filter((item) => item.path != ""), allowMoveColumn } });
+            dispatch({ type: "setPreference", value: { theme, appMenuItems: appMenuItems.filter((item) => item.path != ""), allowMoveColumn, useOSIcon } });
             preferenceChanged(appMenuItemChanged);
-        } else {
-            dispatch({ type: "setPreference", value: { theme: originalTheme, appMenuItems: originalAppMenuItems, allowMoveColumn: originalAllowMoveColumn } });
         }
 
         dispatch({ type: "togglePreference" });
@@ -91,6 +87,13 @@
                 </div>
                 <div class="pref-item">
                     <button class="pref-btn-md" onclick={removeHistory}>Remove history</button>
+                </div>
+            </div>
+            <div class="pref-separator"></div>
+            <div class="pref-title-block">Icon</div>
+            <div class="pref-item-block">
+                <div class="pref-item">
+                    <input id="useOSFileIcon" type="checkbox" bind:checked={useOSIcon} /><label for="useOSFileIcon">Use OS icons</label>
                 </div>
             </div>
             <div class="pref-separator"></div>

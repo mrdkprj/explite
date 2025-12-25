@@ -8,7 +8,7 @@
     import DirMusic from "../svg/DirMusic.svelte";
     import DirImage from "../svg/DirImage.svelte";
     import DirVideo from "../svg/DirVideo.svelte";
-    import { appState, dispatch } from "./appStateReducer.svelte";
+    import { appState, dispatch, driveState, listState } from "./appStateReducer.svelte";
     import { handleKeyEvent, HOME, RECYCLE_BIN } from "../constants";
     import main from "../main";
 
@@ -49,7 +49,7 @@
         e.preventDefault();
         e.stopPropagation();
 
-        const favorites = structuredClone($appState.drive.favorites);
+        const favorites = structuredClone(driveState.favorites);
 
         const sourceIndex = favorites.findIndex((label) => label.id == sourceId);
         const source = favorites.splice(sourceIndex, 1)[0];
@@ -62,14 +62,14 @@
     };
 </script>
 
-<div class="left" style="flex-basis: {$appState.drive.leftWidth}px">
+<div class="left" style="flex-basis: {driveState.leftWidth}px">
     <div class="left-content" ondragover={(e) => e.preventDefault()} role="button" tabindex="-1">
-        {#each $appState.drive.favorites as favorite}
+        {#each driveState.favorites as favorite}
             <div
                 data-id={favorite.id}
                 data-full-path={favorite.fullPath}
                 class="fav"
-                class:current={favorite.fullPath == $appState.list.currentDir.fullPath}
+                class:current={favorite.fullPath == listState.currentDir.fullPath}
                 onclick={onDriveClick}
                 onkeydown={handleKeyEvent}
                 oncontextmenu={onFavoriteContextMenu}
@@ -107,8 +107,8 @@
             </div>
             <div class="name">PC</div>
         </div>
-        {#each $appState.drive.drives as disk}
-            <div data-full-path={disk.path} class="disk" class:current={disk.path == $appState.list.currentDir.fullPath} onclick={onDriveClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        {#each driveState.drives as disk}
+            <div data-full-path={disk.path} class="disk" class:current={disk.path == listState.currentDir.fullPath} onclick={onDriveClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
                 <div class="icon">
                     <DriveSvg />
                 </div>
@@ -117,7 +117,7 @@
         {/each}
     </div>
     <div class="recycle-bin">
-        <div data-full-path={RECYCLE_BIN} class="disk" class:current={RECYCLE_BIN == $appState.list.currentDir.fullPath} onclick={onDriveClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div data-full-path={RECYCLE_BIN} class="disk" class:current={RECYCLE_BIN == listState.currentDir.fullPath} onclick={onDriveClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <div class="icon">
                 <RecycleSvg />
             </div>

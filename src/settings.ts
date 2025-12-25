@@ -16,6 +16,7 @@ const defaultSettings: Mp.Settings = {
     theme: "system",
     allowMoveColumn: true,
     appMenuItems: [],
+    useOSIcon: false,
 };
 
 export default class Settings {
