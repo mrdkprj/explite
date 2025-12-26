@@ -178,9 +178,12 @@ class Main {
     abortWatch = async () => {
         if (!this.isWatchable()) return;
         await ipc.invoke("unwatch", this.watchTarget);
+        this.watchTarget = "";
     };
 
     readFiles = async (directory: string) => {
+        this.searchBackup = [];
+
         if (directory == HOME) {
             this.abortWatch();
             this.files = [];
@@ -294,12 +297,10 @@ class Main {
     };
 
     onSearchEnd = async (temporal: boolean): Promise<Mp.SearchResult> => {
-        if (this.searchBackup.length) {
-            this.sortFiles(this.currentDir, this.searchBackup);
-            this.files = structuredClone(this.searchBackup);
-            this.searchBackup = [];
-            this.searchKeyword = "";
-        }
+        this.sortFiles(this.currentDir, this.searchBackup);
+        this.files = structuredClone(this.searchBackup);
+        this.searchBackup = [];
+        this.searchKeyword = "";
 
         // If temporarily ended for refresh, don't change watch recursive mode
         if (!temporal) {

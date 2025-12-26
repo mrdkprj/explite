@@ -33,7 +33,7 @@ pub enum WatcherCommand {
 pub fn spwan_watcher(app_handle: &tauri::AppHandle, cmd_rx: Receiver<WatcherCommand>) -> Result<(), String> {
     let (tx, rx) = bounded(1);
 
-    let mut watcher = new_debouncer(Duration::from_millis(100), None, move |res| tauri::async_runtime::block_on(async { tx.send(res).unwrap_or_default() })).map_err(|e| e.to_string())?;
+    let mut watcher = new_debouncer(Duration::from_millis(100), None, move |res| tx.send(res).unwrap_or_default()).map_err(|e| e.to_string())?;
     let app_handle = app_handle.clone();
 
     tauri::async_runtime::spawn(async move {

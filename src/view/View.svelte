@@ -771,10 +771,10 @@
         CSS.highlights.clear();
     };
 
-    const endSearch = async (refresh: boolean) => {
+    const endSearch = async (reload: boolean) => {
         clearSearchHighlight();
 
-        if (refresh) {
+        if (reload) {
             await main.onSearchEnd(true);
             const result = await main.search({ dir: listState.currentDir.fullPath, key: headerState.search.key, refresh: false });
             await onSearched(result);
@@ -936,7 +936,9 @@
 
     const requestLoad = async (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => {
         if (!isFile && headerState.search.searching) {
-            await endSearch(false);
+            dispatch({ type: "endSearch" });
+            dispatch({ type: "updateFiles", value: { files: [] } });
+            await tick();
         }
 
         if (fullPath != listState.currentDir.fullPath) {
