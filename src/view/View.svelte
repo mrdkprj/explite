@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount, tick } from "svelte";
-    import { appState, dispatch, renameState, listState, slideState, clipState, driveState, headerState } from "./appStateReducer.svelte";
+    import { appState, dispatch, renameState, listState, slideState, clipState, driveState, headerState, awaitContextMenu, resolveContextMenu } from "./appStateReducer.svelte";
     import Bar from "./Bar.svelte";
     import Header from "./Header.svelte";
     import Left from "./Left.svelte";
@@ -56,6 +56,7 @@
             if (navigator.userAgent.includes(OS.windows)) {
                 await main.openListContextMenu({ x: e.screenX, y: e.screenY }, itemPath, e.shiftKey, isRecycleBin());
             } else {
+                await awaitContextMenu();
                 await main.openListContextMenu({ x: e.clientX, y: e.clientY }, itemPath, e.shiftKey, isRecycleBin());
             }
         }
@@ -194,6 +195,8 @@
 
     const onMouseUp = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
+
+        resolveContextMenu();
 
         if (slideState.sliding) {
             const dist = e.clientX - slideState.startX;

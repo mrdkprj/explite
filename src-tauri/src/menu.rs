@@ -44,6 +44,7 @@ pub fn create(app_handle: &tauri::AppHandle, window_handle: isize) {
     app_handle.manage(Mutex::new(AppMenuItems(Vec::new())));
 }
 
+#[allow(unused_variables)]
 pub async fn popup_menu(app_handle: &tauri::AppHandle, window_label: &str, menu_name: &str, position: Position, full_path: Option<String>, show_admin_runas: bool) {
     let full_path = full_path.unwrap_or_default();
     let target_menu_name = if menu_name == LIST && full_path.is_empty() {
@@ -265,6 +266,7 @@ fn create_list_menu(window_handle: isize) -> Menu {
     builder.text("Property", "Property", false);
 
     builder.separator();
+    #[cfg(target_os = "windows")]
     builder.text_with_icon("AdminTerminal", "Open Terminal(Admin)", false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
     builder.text_with_icon("Terminal", "Open Terminal", false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
 
@@ -277,6 +279,7 @@ fn create_noitem_menu(window_handle: isize) -> Menu {
     builder.text("CopyFullpath", "Copy Fullpath", false);
     builder.text("Property", "Property", false);
     builder.separator();
+    #[cfg(target_os = "windows")]
     builder.text_with_icon("AdminTerminal", "Open Terminal(Admin)", false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
     builder.text_with_icon("Terminal", "Open Terminal", false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
 

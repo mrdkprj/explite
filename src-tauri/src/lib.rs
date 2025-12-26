@@ -534,14 +534,21 @@ fn assoc_icons(payload: Vec<String>) -> Result<HashMap<String, Vec<u8>>, String>
     let mut icons = HashMap::new();
 
     for full_path in payload {
-        let icon = zouni::shell::extract_icon(
+        if let Ok(icon) = zouni::shell::extract_icon(
             &full_path,
             Size {
                 width: 16,
                 height: 16,
             },
-        )?;
-        let _ = icons.insert(format!(".{}", PathBuf::from(&full_path).extension().unwrap().to_string_lossy()), icon.png);
+        ) {
+            #[cfg(target_os = "windows")]
+            let _ = icons.insert(format!(".{}", PathBuf::from(&full_path).extension().unwrap().to_string_lossy()), icon.png);
+            #[cfg(target_os = "linux")]
+            {
+                let data = std::fs::read(icon).map_err(|e| e.to_string())?;
+                let _ = icons.insert(format!(".{}", PathBuf::from(&full_path).extension().unwrap().to_string_lossy()), data);
+            }
+        }
     }
     Ok(icons)
 }

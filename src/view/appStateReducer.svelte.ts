@@ -6,12 +6,28 @@ import { ClipPosition, endClip, moveClip, startClip } from "../states/clipState.
 import { driveState, updateDrives } from "../states/driveState.svelte";
 import { edit, headerState, resetSearch, startSearch } from "../states/headerState.svelte";
 import { startSlide, endSlide, slideState } from "../states/slideState.svelte";
+import Deferred from "../deferred";
 export { listState } from "../states/listState.svelte";
 export { renameState } from "../states/renameState.svelte";
 export { clipState } from "../states/clipState.svelte";
 export { driveState } from "../states/driveState.svelte";
 export { headerState } from "../states/headerState.svelte";
 export { slideState } from "../states/slideState.svelte";
+// Linux only
+type ContextMenuState = {
+    deferred: Deferred<number> | null;
+};
+const contextMenuState: ContextMenuState = $state({ deferred: null });
+export const awaitContextMenu = async () => {
+    contextMenuState.deferred = new Deferred();
+    await contextMenuState.deferred.promise;
+};
+export const resolveContextMenu = () => {
+    if (contextMenuState.deferred) {
+        contextMenuState.deferred.resolve(0);
+        contextMenuState.deferred = null;
+    }
+};
 
 type DragHandlerType = "View" | "Column" | "Favorite";
 

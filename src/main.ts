@@ -222,7 +222,11 @@ class Main {
                     Object.keys(rawfileIcons).forEach((key) => {
                         const uint8 = Uint8Array.from(rawfileIcons[key]);
                         const base64 = uint8.toBase64();
-                        icons[key] = `data:image/png;base64,${base64}`;
+                        if (navigator.userAgent.includes(OS.windows)) {
+                            icons[key] = `data:image/png;base64,${base64}`;
+                        } else {
+                            icons[key] = `data:image/svg+xml;base64,${base64}`;
+                        }
                     });
                 }
             }

@@ -8,18 +8,25 @@
     import DirMusic from "../svg/DirMusic.svelte";
     import DirImage from "../svg/DirImage.svelte";
     import DirVideo from "../svg/DirVideo.svelte";
-    import { appState, dispatch, driveState, listState } from "./appStateReducer.svelte";
-    import { handleKeyEvent, HOME, RECYCLE_BIN } from "../constants";
+    import { appState, dispatch, driveState, listState, awaitContextMenu } from "./appStateReducer.svelte";
+    import { handleKeyEvent, HOME, OS, RECYCLE_BIN } from "../constants";
     import main from "../main";
 
     let { requestLoad, changeFavorites }: { requestLoad: (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => void; changeFavorites: () => void } = $props();
 
-    const onFavoriteContextMenu = (e: MouseEvent) => {
+    const onFavoriteContextMenu = async (e: MouseEvent) => {
         e.preventDefault();
         if (!e.target || !(e.target instanceof HTMLElement)) return;
+
         const hoverFavoriteId = e.target.getAttribute("data-id") ?? "";
         dispatch({ type: "hoverFavoriteId", value: hoverFavoriteId });
-        main.openFavContextMenu({ x: e.screenX, y: e.screenY });
+
+        if (navigator.userAgent.includes(OS.windows)) {
+            await main.openFavContextMenu({ x: e.screenX, y: e.screenY });
+        } else {
+            await awaitContextMenu();
+            main.openFavContextMenu({ x: e.clientX, y: e.clientY });
+        }
     };
 
     const onDriveClick = (e: MouseEvent) => {
