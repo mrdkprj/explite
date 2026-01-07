@@ -569,11 +569,11 @@ fn assoc_icons(payload: Vec<String>) -> Result<HashMap<String, IconInfo>, String
             );
             #[cfg(target_os = "linux")]
             {
-                let data = std::fs::read(icon).map_err(|e| e.to_string())?;
+                let data = std::fs::read(&icon.file).map_err(|e| e.to_string())?;
                 let _ = icons.insert(
                     get_extension(&full_path),
                     IconInfo {
-                        full_path: icon,
+                        full_path: Some(icon.file),
                         data,
                     },
                 );
