@@ -143,7 +143,7 @@ declare global {
             actualExtension: string;
             isFile: boolean;
             entityType: Mp.EntityType;
-            fileType: Mp.LinkFileType;
+            fileType: Mp.FileType;
             linkPath: string;
             ddate: number;
             originalPath: string;

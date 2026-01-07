@@ -128,6 +128,11 @@ export type ThumbnailArgs = {
     height: number;
 };
 
+type IconInfo = {
+    full_path?: string;
+    data: number[];
+};
+
 type TauriCommandMap = {
     prepare_menu: TauriCommand<undefined, undefined>;
     open_list_context_menu: TauriCommand<ContextMenuArg, undefined>;
@@ -182,7 +187,7 @@ type TauriCommandMap = {
     to_thumbnail: TauriCommand<ThumbnailArgs, number[]>;
     to_image_thumbnail: TauriCommand<string, number[]>;
     is_file: TauriCommand<string, boolean>;
-    assoc_icons: TauriCommand<string[], { [key: string]: number[] }>;
+    assoc_icons: TauriCommand<string[], { [key: string]: IconInfo }>;
 };
 
 export class IPCBase {

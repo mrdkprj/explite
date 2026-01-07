@@ -1,7 +1,7 @@
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
 import { Dirent, FileAttribute, IPCBase, RecycleBinItem } from "./ipc";
 import { path } from "./path";
-import { ARCHIVE_EXT, LinuxUserRootDir, MIME_TYPE, OS, RECYCLE_BIN_ITEM, SEPARATOR, WIN_SPECIAL_FOLDERS, WinUserRootDir } from "./constants";
+import { ARCHIVE_EXT, LINUX_SPECIAL_FOLDERS, LINUX_USER_ROOT_DIR, MIME_TYPE, OS, RECYCLE_BIN_ITEM, SEPARATOR, WIN_SPECIAL_FOLDERS, WIN_USER_ROOT_DIR } from "./constants";
 import { t } from "./translation/useTranslation";
 
 const REGULAR_TYPES = [".ts", ".json", ".mjs", ".cjs"];
@@ -41,11 +41,11 @@ class Util {
     }
 
     private mayContainSpecialFolder(fullPath: string, attr: FileAttribute) {
-        if (this.isWin() && fullPath.startsWith(WinUserRootDir) && attr.is_directory) {
+        if (this.isWin() && fullPath.startsWith(WIN_USER_ROOT_DIR) && attr.is_directory) {
             return true;
         }
 
-        if (!this.isWin() && fullPath.startsWith(LinuxUserRootDir) && attr.is_directory) {
+        if (!this.isWin() && fullPath.startsWith(LINUX_USER_ROOT_DIR) && attr.is_directory) {
             return true;
         }
 
@@ -55,6 +55,11 @@ class Util {
     private getSpecialFolderType(fullPath: string) {
         if (this.isWin()) {
             const matched = Object.entries(WIN_SPECIAL_FOLDERS).find(([_, reg]) => !!fullPath.match(reg));
+            if (matched) {
+                return matched[0];
+            }
+        } else {
+            const matched = Object.entries(LINUX_SPECIAL_FOLDERS).find(([_, reg]) => !!fullPath.match(reg));
             if (matched) {
                 return matched[0];
             }

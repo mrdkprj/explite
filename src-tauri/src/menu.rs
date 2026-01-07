@@ -122,17 +122,19 @@ fn update_open_with(menu: &Menu, file_path: &str) {
         let mut item = submenu.get_menu_item_by_id(&app.path).unwrap();
         #[cfg(target_os = "windows")]
         {
+            let width = 16;
+            let height = 16;
             let extension = Path::new(&app.icon_path).extension().unwrap_or_default();
             if extension == "exe" || extension == "ico" {
                 let icon = zouni::shell::extract_icon(
                     app.icon_path,
                     Size {
-                        width: 16,
-                        height: 16,
+                        width,
+                        height,
                     },
                 )
                 .unwrap();
-                item.set_icon(Some(MenuIcon::from_rgba(icon.raw_pixels, icon.width, icon.height)));
+                item.set_icon(Some(MenuIcon::from_rgba(icon.raw_pixels, width, height)));
             } else {
                 item.set_icon(Some(MenuIcon::new(app.icon_path)));
             }
@@ -169,15 +171,17 @@ pub fn change_app_menu_items(app_handle: &tauri::AppHandle, new_app_menu_items: 
     let start_index = menu.items().iter().position(|item| item.uuid == terminal.uuid).unwrap() as u32 + 1;
     for (i, new_item) in new_app_menu_items.iter().enumerate() {
         let menu_id = app_menu_item_id(&new_item.path);
+        let width = 16;
+        let height = 16;
         if let Ok(icon) = zouni::shell::extract_icon(
             &new_item.path,
             Size {
-                width: 16,
-                height: 16,
+                width,
+                height,
             },
         ) {
             #[cfg(target_os = "windows")]
-            let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, Some(MenuIcon::from_rgba(icon.raw_pixels, icon.width, icon.height)));
+            let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, Some(MenuIcon::from_rgba(icon.raw_pixels, width, height)));
             #[cfg(target_os = "linux")]
             let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, Some(MenuIcon::new(icon)));
             menu.insert(item, start_index + i as u32);

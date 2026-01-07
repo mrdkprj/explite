@@ -16,11 +16,28 @@
     import { icons } from "../main";
 
     let { item }: { item: Mp.MediaFile } = $props();
+
+    const showOSIcon = (item: Mp.MediaFile) => {
+        if (!$appState.useOSIcon) return false;
+        if (item.fileType == "App") {
+            return item.name in icons;
+        } else {
+            return item.actualExtension in icons;
+        }
+    };
+
+    const getImage = (item: Mp.MediaFile) => {
+        if (item.fileType == "App") {
+            return icons[item.name];
+        } else {
+            return icons[item.actualExtension];
+        }
+    };
 </script>
 
 {#if item.isFile}
-    {#if $appState.useOSIcon && item.actualExtension in icons}
-        <img src={icons[item.actualExtension]} alt="" width="16" height="16" />
+    {#if showOSIcon(item)}
+        <img src={getImage(item)} alt="" width="16" height="16" loading="lazy" />
     {:else if item.fileType == "Audio"}
         <AudioSvg />
     {:else if item.fileType == "Video"}

@@ -215,20 +215,7 @@ class Main {
             }
 
             if (this.settings.data.useOSIcon) {
-                const fileMap: { [key: string]: string } = {};
-                this.files.filter((file) => file.isFile && !(file.actualExtension in icons)).forEach((file) => (fileMap[file.actualExtension] = file.fullPath));
-                if (Object.keys(fileMap).length) {
-                    const rawfileIcons = await ipc.invoke("assoc_icons", Object.values(fileMap));
-                    Object.keys(rawfileIcons).forEach((key) => {
-                        const uint8 = Uint8Array.from(rawfileIcons[key]);
-                        const base64 = uint8.toBase64();
-                        if (navigator.userAgent.includes(OS.windows)) {
-                            icons[key] = `data:image/png;base64,${base64}`;
-                        } else {
-                            icons[key] = `data:image/svg+xml;base64,${base64}`;
-                        }
-                    });
-                }
+                await this.getFileIcon();
             }
 
             const sortType = this.sortFiles(directory, this.files);
@@ -250,6 +237,29 @@ class Main {
                 sortType: DEFAULT_SORT_TYPE,
             };
         }
+    };
+
+    private getFileIcon = async () => {
+        const fileMap: { [key: string]: string } = {};
+        this.files
+            .filter((file) => file.isFile && !(file.actualExtension in icons))
+            .forEach((file) => (file.fileType == "App" ? (fileMap[file.name] = file.fullPath) : (fileMap[file.actualExtension] = file.fullPath)));
+        if (!Object.keys(fileMap).length) return;
+
+        const iconInfoMap = await ipc.invoke("assoc_icons", Object.values(fileMap));
+        Object.keys(iconInfoMap).forEach((key) => {
+            const uint8 = Uint8Array.from(iconInfoMap[key].data);
+            const base64 = uint8.toBase64();
+            if (navigator.userAgent.includes(OS.windows)) {
+                icons[key] = `data:image/png;base64,${base64}`;
+            } else {
+                if (iconInfoMap[key].full_path!.toLowerCase().endsWith("svg")) {
+                    icons[key] = `data:image/svg+xml;base64,${base64}`;
+                } else {
+                    icons[key] = `data:image/png;base64,${base64}`;
+                }
+            }
+        });
     };
 
     sort = (e: Mp.SortRequest): Mp.SortResult => {

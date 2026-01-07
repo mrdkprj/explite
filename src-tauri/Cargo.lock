@@ -6177,9 +6177,9 @@ dependencies = [
 
 [[package]]
 name = "zouni"
-version = "0.1.19"
+version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78a221214da11161f61f020529588b4ad1a03e903b1fee2c7ccd76b6fad1ba6d"
+checksum = "0d033ed3715343fd2a198c2e25a7f35028293de34a611c38e12c48a25d8609f5"
 dependencies = [
  "ffmpeg-next",
  "gio",

@@ -77,8 +77,8 @@ export const MIME_TYPE = {
 
 export const ARCHIVE_EXT = [".zip", ".tar", ".7z", ".gz", ".bz", ".xz"];
 
-export const WinUserRootDir = "C:\\Users";
-export const LinuxUserRootDir = "/home/";
+export const WIN_USER_ROOT_DIR = "C:\\Users";
+export const LINUX_USER_ROOT_DIR = "/home/";
 
 export const WIN_SPECIAL_FOLDERS = {
     Desktop: new RegExp(/C:\\Users\\.*\\Desktop$/),
@@ -87,4 +87,13 @@ export const WIN_SPECIAL_FOLDERS = {
     Music: new RegExp(/C:\\Users\\.*\\Music$/),
     Pictures: new RegExp(/C:\\Users\\.*\\Pictures$/),
     Videos: new RegExp(/C:\\Users\\.*\\Videos$/),
+};
+
+export const LINUX_SPECIAL_FOLDERS = {
+    Desktop: new RegExp(/\/home\/.*\/Desktop$/),
+    Documents: new RegExp(/\/home\/.*\/.*\/Documents$/),
+    Downloads: new RegExp(/\/home\/.*\/.*\/Downloads$/),
+    Music: new RegExp(/\/home\/.*\/.*\/Music$/),
+    Pictures: new RegExp(/\/home\/.*\/.*\/Pictures$/),
+    Videos: new RegExp(/\/home\/.*\/.*\/Videos$/),
 };

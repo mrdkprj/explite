@@ -529,8 +529,26 @@ fn is_file(payload: String) -> bool {
     PathBuf::from(payload).is_file()
 }
 
+fn get_extension(full_path: &str) -> String {
+    let path = PathBuf::from(full_path);
+    if let Some(extension) = path.extension() {
+        if extension == "exe" {
+            path.file_name().unwrap_or_default().to_string_lossy().to_string()
+        } else {
+            format!(".{}", extension.to_string_lossy())
+        }
+    } else {
+        path.file_name().unwrap_or_default().to_string_lossy().to_string()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct IconInfo {
+    full_path: Option<String>,
+    data: Vec<u8>,
+}
 #[tauri::command]
-fn assoc_icons(payload: Vec<String>) -> Result<HashMap<String, Vec<u8>>, String> {
+fn assoc_icons(payload: Vec<String>) -> Result<HashMap<String, IconInfo>, String> {
     let mut icons = HashMap::new();
 
     for full_path in payload {
@@ -542,11 +560,23 @@ fn assoc_icons(payload: Vec<String>) -> Result<HashMap<String, Vec<u8>>, String>
             },
         ) {
             #[cfg(target_os = "windows")]
-            let _ = icons.insert(format!(".{}", PathBuf::from(&full_path).extension().unwrap().to_string_lossy()), icon.png);
+            let _ = icons.insert(
+                get_extension(&full_path),
+                IconInfo {
+                    full_path: None,
+                    data: icon.png,
+                },
+            );
             #[cfg(target_os = "linux")]
             {
                 let data = std::fs::read(icon).map_err(|e| e.to_string())?;
-                let _ = icons.insert(format!(".{}", PathBuf::from(&full_path).extension().unwrap().to_string_lossy()), data);
+                let _ = icons.insert(
+                    get_extension(&full_path),
+                    IconInfo {
+                        full_path: icon,
+                        data,
+                    },
+                );
             }
         }
     }
