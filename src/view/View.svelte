@@ -778,12 +778,12 @@
         clearSearchHighlight();
 
         if (reload) {
-            await main.onSearchEnd(true);
+            await main.onSearchEnd();
             const result = await main.search({ dir: listState.currentDir.fullPath, key: headerState.search.key, refresh: false });
             await onSearched(result);
         } else {
             dispatch({ type: "endSearch" });
-            const result = await main.onSearchEnd(false);
+            const result = await main.onSearchEnd();
             await onSearched(result);
         }
     };

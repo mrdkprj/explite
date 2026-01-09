@@ -342,15 +342,10 @@ async fn open_recycle_context_menu(window: WebviewWindow, payload: ContextMenuAr
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct WatchRequest {
-    path: String,
-    recursive: bool,
-}
 #[tauri::command]
-fn watch(app: AppHandle, payload: WatchRequest) -> Result<(), String> {
+fn watch(app: AppHandle, payload: String) -> Result<(), String> {
     if let Some(tx) = app.try_state::<WatchTx>() {
-        tx.inner().0.send(WatcherCommand::Watch(payload.path, payload.recursive)).map_err(|e| e.to_string())
+        tx.inner().0.send(WatcherCommand::Watch(payload)).map_err(|e| e.to_string())
     } else {
         Ok(())
     }

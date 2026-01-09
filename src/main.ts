@@ -88,10 +88,10 @@ class Main {
         if (e.fullPath == RECYCLE_BIN_ITEM) return null;
 
         if (e.isFile) {
-            this.openFile(e.fullPath);
+            await this.openFile(e.fullPath);
             return null;
         } else {
-            return this.openFolder(e.fullPath, e.navigation);
+            return await this.openFolder(e.fullPath, e.navigation);
         }
     };
 
@@ -116,16 +116,14 @@ class Main {
         await ipc.invoke("show_app_selector", fullPath);
     };
 
-    private openFolder = async (fullPath: string, navigation: Mp.Navigation): Promise<Mp.LoadEvent | null> => {
-        if (fullPath == HOME) {
+    private openFolder = async (directory: string, navigation: Mp.Navigation): Promise<Mp.LoadEvent | null> => {
+        if (directory == HOME) {
             const result = await this.readFiles(HOME);
             const drives = await util.getDriveInfo();
             return { files: this.files, directory: HOME, navigation, sortType: result.sortType, failed: !result.done, headers: [], drives };
         }
 
-        const directory = fullPath;
-
-        if (!this.isRecycleBin(fullPath)) {
+        if (!this.isRecycleBin(directory)) {
             const found = await util.exists(directory);
             if (!found) {
                 await this.showErrorMessage(`"${directory}" does not exist.`);
@@ -166,12 +164,12 @@ class Main {
         return true;
     };
 
-    startWatch = async (recursive: boolean) => {
+    startWatch = async () => {
         await this.abortWatch();
         this.watchTarget = this.currentDir;
 
         if (this.isWatchable()) {
-            await ipc.invoke("watch", { path: this.watchTarget, recursive });
+            await ipc.invoke("watch", this.watchTarget);
         }
     };
 
@@ -183,34 +181,24 @@ class Main {
 
     readFiles = async (directory: string) => {
         this.searchBackup = [];
+        this.currentDir = directory;
 
-        if (directory == HOME) {
+        if (this.currentDir == HOME) {
             this.abortWatch();
             this.files = [];
-            this.currentDir = directory;
-            this.watchTarget = directory;
+            this.watchTarget = this.currentDir;
             return {
                 done: true,
                 sortType: DEFAULT_SORT_TYPE,
             };
         }
 
-        if (!this.isRecycleBin(directory)) {
-            const found = await util.exists(directory);
-            if (!found) {
-                return {
-                    done: false,
-                    sortType: DEFAULT_SORT_TYPE,
-                };
-            }
-        }
-
         try {
-            if (this.isRecycleBin(directory)) {
+            if (this.isRecycleBin(this.currentDir)) {
                 const allDirents = await ipc.invoke("read_recycle_bin", undefined);
                 this.files = allDirents.filter((dirent) => !dirent.attributes.is_system).map((dirent) => util.toFileFromRecycleBinItem(dirent));
             } else {
-                const allDirents = await ipc.invoke("readdir", { directory, recursive: false });
+                const allDirents = await ipc.invoke("readdir", { directory: this.currentDir, recursive: false });
                 this.files = allDirents.filter((dirent) => !dirent.attributes.is_system).map((dirent) => util.toFile(dirent));
             }
 
@@ -218,13 +206,9 @@ class Main {
                 await this.getFileIcon();
             }
 
-            const sortType = this.sortFiles(directory, this.files);
+            const sortType = this.sortFiles(this.currentDir, this.files);
 
-            if (this.currentDir != directory) {
-                this.startWatch(false);
-            }
-
-            this.currentDir = directory;
+            await this.startWatch();
 
             return {
                 done: true,
@@ -270,10 +254,6 @@ class Main {
     search = async (e: Mp.SearchRequest): Promise<Mp.SearchResult> => {
         if (!this.searchBackup.length) {
             this.searchBackup = structuredClone(this.files);
-            if (e.dir != RECYCLE_BIN) {
-                // In search, all items needs to be listed, so watch recursively
-                this.startWatch(true);
-            }
         }
 
         const key = e.key.toLocaleLowerCase();
@@ -310,16 +290,11 @@ class Main {
         return strippedText.includes(strippedKey);
     };
 
-    onSearchEnd = async (temporal: boolean): Promise<Mp.SearchResult> => {
+    onSearchEnd = async (): Promise<Mp.SearchResult> => {
         this.sortFiles(this.currentDir, this.searchBackup);
         this.files = structuredClone(this.searchBackup);
         this.searchBackup = [];
         this.searchKeyword = "";
-
-        // If temporarily ended for refresh, don't change watch recursive mode
-        if (!temporal) {
-            this.startWatch(false);
-        }
 
         return { files: this.files };
     };
