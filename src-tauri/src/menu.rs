@@ -183,7 +183,7 @@ pub fn change_app_menu_items(app_handle: &tauri::AppHandle, new_app_menu_items: 
             #[cfg(target_os = "windows")]
             let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, Some(MenuIcon::from_rgba(icon.raw_pixels, width, height)));
             #[cfg(target_os = "linux")]
-            let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, Some(MenuIcon::new(icon)));
+            let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, Some(MenuIcon::new(icon.file)));
             menu.insert(item, start_index + i as u32);
         } else {
             let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, None);
