@@ -1,5 +1,5 @@
 <script lang="ts" generics="T">
-    import { onMount, tick } from "svelte";
+    import { onMount, tick, untrack } from "svelte";
     import type { Snippet } from "svelte";
     import Deferred from "../deferred";
 
@@ -52,16 +52,17 @@
         }),
     );
 
-    // whenever `items` changes, invalidate the current heightmap
+    // only when items.length is changed, invalidate the current heightmap
     $effect(() => {
-        if (mounted) refresh(items, viewport_height, itemHeight);
+        const currentItemsLength = items.length;
+        if (mounted) untrack(() => refresh(currentItemsLength));
     });
 
-    async function refresh(items: T[], viewport_height: number, itemHeight: number | undefined) {
-        const isStartOverflow = items.length < start;
+    async function refresh(itemLength: number) {
+        const isStartOverflow = itemLength < start;
 
         if (isStartOverflow) {
-            scrollToIndex(items.length ? items.length - 1 : 0, { behavior: "auto" });
+            scrollToIndex(itemLength ? itemLength - 1 : 0, { behavior: "auto" });
         }
 
         const { scrollTop } = viewport;
@@ -71,7 +72,7 @@
         let content_height = top - scrollTop;
         let i = start;
 
-        while (content_height < viewport_height && i < items.length) {
+        while (content_height < viewport_height && i < itemLength) {
             let row = rows[i - start];
 
             if (!row) {
@@ -87,11 +88,11 @@
 
         end = i;
 
-        const remaining = items.length - end;
+        const remaining = itemLength - end;
         average_height = (top + content_height) / end;
 
         bottom = remaining * average_height;
-        height_map.length = items.length;
+        height_map.length = itemLength;
 
         if (rows.length && onRefresh) {
             onRefresh(rows);
