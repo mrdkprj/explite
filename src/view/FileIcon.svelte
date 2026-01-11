@@ -1,5 +1,6 @@
 <script lang="ts">
-    import { appState } from "./appStateReducer.svelte";
+    import { appState, icons } from "./appStateReducer.svelte";
+    import util from "../util";
     import AudioSvg from "../svg/AudioSvg.svelte";
     import VideoSvg from "../svg/VideoSvg.svelte";
     import ImageSvg from "../svg/ImageSvg.svelte";
@@ -13,37 +14,63 @@
     import DirImage from "../svg/DirImage.svelte";
     import DirVideo from "../svg/DirVideo.svelte";
     import FolderSvg from "../svg/FolderSvg.svelte";
-    import { icons } from "../main";
 
-    let { item }: { item: Mp.MediaFile } = $props();
+    let { item, size, showThumbnail }: { item: Mp.MediaFile; size: number; showThumbnail: boolean } = $props();
 
     const showOSIcon = (item: Mp.MediaFile) => {
         if (!$appState.useOSIcon) return false;
+
+        if (showThumbnail) {
+            if (item.fileType == "Image" || item.fileType == "Video") {
+                return false;
+            }
+        }
+
         if (item.fileType == "App") {
-            return item.name in icons;
+            return item.name in icons.cache;
         } else {
-            return item.actualExtension in icons;
+            return item.actualExtension in icons.cache;
         }
     };
 
     const getImage = (item: Mp.MediaFile) => {
         if (item.fileType == "App") {
-            return icons[item.name];
+            return showThumbnail ? icons.cache[item.name].large : icons.cache[item.name].small;
         } else {
-            return icons[item.actualExtension];
+            return showThumbnail ? icons.cache[item.actualExtension].large : icons.cache[item.actualExtension].small;
         }
     };
 </script>
 
 {#if item.isFile}
     {#if showOSIcon(item)}
-        <img src={getImage(item)} alt="" width="16" height="16" loading="lazy" />
+        <img src={getImage(item)} alt="" loading="lazy" width={size} height={size} />
     {:else if item.fileType == "Audio"}
         <AudioSvg />
     {:else if item.fileType == "Video"}
-        <VideoSvg />
+        {#if showThumbnail}
+            {#await util.toVideoThumbnail(item.fullPath)}
+                <div style="width: 100px;height:90px;"></div>
+            {:then data}
+                <div class="cover">
+                    <div class="film"></div>
+                    <img src={data} class="thumbnail-video" alt="" loading="lazy" decoding="async" />
+                    <div class="film"></div>
+                </div>
+            {/await}
+        {:else}
+            <VideoSvg />
+        {/if}
     {:else if item.fileType == "Image"}
-        <ImageSvg />
+        {#if showThumbnail}
+            {#await util.toImageThumbnail(item.fullPath)}
+                <div style="width: 100px;height:90px;"></div>
+            {:then data}
+                <img src={data} class="thumbnail-img" alt="" loading="lazy" decoding="async" />
+            {/await}
+        {:else}
+            <ImageSvg />
+        {/if}
     {:else if item.fileType == "Zip"}
         <Zip />
     {:else if item.fileType == "App"}

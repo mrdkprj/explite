@@ -125,7 +125,8 @@ export type ThumbnailArgs = {
 
 type IconInfo = {
     full_path?: string;
-    data: number[];
+    small: number[];
+    large: number[];
 };
 
 type TauriCommandMap = {

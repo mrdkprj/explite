@@ -45,6 +45,7 @@
     let mounted = $state(false);
     let top = $state(0);
     let bottom = $state(0);
+    let isScrolling = $state(false);
 
     const visible = $derived(
         items.slice(start, end).map((data, i) => {
@@ -103,58 +104,63 @@
         if (onScroll) {
             await onScroll();
         }
+        if (!isScrolling) {
+            isScrolling = true;
+            requestAnimationFrame(() => {
+                const { scrollTop } = viewport;
 
-        const { scrollTop } = viewport;
-
-        for (let v = 0; v < rows.length; v += 1) {
-            height_map[start + v] = itemHeight || rows[v].offsetHeight;
-        }
-
-        let i = 0;
-        let y = 0;
-
-        if (items.length) {
-            while (i < items.length) {
-                const row_height = height_map[i] || average_height;
-                if (y + row_height > scrollTop) {
-                    start = i;
-                    top = y;
-
-                    break;
+                for (let v = 0; v < rows.length; v += 1) {
+                    height_map[start + v] = itemHeight || rows[v].offsetHeight;
                 }
 
-                y += row_height;
-                i += 1;
-            }
-        } else {
-            // reset if items is empty
-            start = 0;
-            top = 0;
+                let i = 0;
+                let y = 0;
+
+                if (items.length) {
+                    while (i < items.length) {
+                        const row_height = height_map[i] || average_height;
+                        if (y + row_height > scrollTop) {
+                            start = i;
+                            top = y;
+
+                            break;
+                        }
+
+                        y += row_height;
+                        i += 1;
+                    }
+                } else {
+                    // reset if items is empty
+                    start = 0;
+                    top = 0;
+                }
+
+                while (i < items.length) {
+                    y += height_map[i] || average_height;
+                    i += 1;
+
+                    if (y > scrollTop + viewport_height) break;
+                }
+
+                end = i;
+
+                const remaining = items.length - end;
+                average_height = y / end;
+
+                while (i < items.length) height_map[i++] = average_height;
+                bottom = remaining * average_height;
+
+                if (scrollPromise) {
+                    scrollPromise.resolve(true);
+                    scrollPromise = null;
+                }
+
+                isScrolling = false;
+                // TODO if we overestimated the space these
+                // rows would occupy we may need to add some
+                // more. maybe we can just call handle_scroll again?
+            });
         }
-
-        while (i < items.length) {
-            y += height_map[i] || average_height;
-            i += 1;
-
-            if (y > scrollTop + viewport_height) break;
-        }
-
-        end = i;
-
-        const remaining = items.length - end;
-        average_height = y / end;
-
-        while (i < items.length) height_map[i++] = average_height;
-        bottom = remaining * average_height;
-
-        if (scrollPromise) {
-            scrollPromise.resolve(true);
-            scrollPromise = null;
-        }
-
-        // TODO if we overestimated the space these
-        // rows would occupy we may need to add some
-        // more. maybe we can just call handle_scroll again?
     }
 
     export async function scrollToIndex(index: number, opts: ScrollToOptions, alignBottom?: boolean) {
@@ -215,7 +221,6 @@
     svelte-virtual-list-contents,
     svelte-virtual-list-row {
         display: block;
-        /* width: fit-content; */
     }
 
     svelte-virtual-list-row {

@@ -107,6 +107,7 @@ declare global {
             allowMoveColumn: boolean;
             appMenuItems: AppMenuItem[];
             useOSIcon: boolean;
+            rememberColumns: boolean;
         };
 
         type Preference = {
@@ -114,6 +115,7 @@ declare global {
             allowMoveColumn: boolean;
             appMenuItems: AppMenuItem[];
             useOSIcon: boolean;
+            rememberColumns: boolean;
         };
 
         type AppMenuItem = {
@@ -158,6 +160,16 @@ declare global {
             sortType: Mp.SortType;
             failed: boolean;
             headers: Mp.HeaderLabel[];
+            iconCache?: Mp.IconCache;
+        };
+
+        type IconCache = {
+            cache: {
+                [key: string]: {
+                    small: string;
+                    large: string;
+                };
+            };
         };
 
         type HeaderLabelMap = { [key in Mp.SortKey]: Mp.HeaderLabel };

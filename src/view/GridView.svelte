@@ -3,17 +3,18 @@
 
     import { handleKeyEvent } from "../constants";
     import VirtualList from "./VirtualList.svelte";
-    import AudioSvg from "../svg/AudioSvg.svelte";
-    import Zip from "../svg/Zip.svelte";
-    import AppSvg from "../svg/AppSvg.svelte";
-    import FileSvg from "../svg/FileSvg.svelte";
-    import DirDesktop from "../svg/DirDesktop.svelte";
-    import DirDocuments from "../svg/DirDocuments.svelte";
-    import DirDownloads from "../svg/DirDownloads.svelte";
-    import DirMusic from "../svg/DirMusic.svelte";
-    import DirImage from "../svg/DirImage.svelte";
-    import DirVideo from "../svg/DirVideo.svelte";
-    import FolderSvg from "../svg/FolderSvg.svelte";
+    // import AudioSvg from "../svg/AudioSvg.svelte";
+    // import Zip from "../svg/Zip.svelte";
+    // import AppSvg from "../svg/AppSvg.svelte";
+    // import FileSvg from "../svg/FileSvg.svelte";
+    // import DirDesktop from "../svg/DirDesktop.svelte";
+    // import DirDocuments from "../svg/DirDocuments.svelte";
+    // import DirDownloads from "../svg/DirDownloads.svelte";
+    // import DirMusic from "../svg/DirMusic.svelte";
+    // import DirImage from "../svg/DirImage.svelte";
+    // import DirVideo from "../svg/DirVideo.svelte";
+    // import FolderSvg from "../svg/FolderSvg.svelte";
+    import FileIcon from "./FileIcon.svelte";
 
     let {
         visibleStartIndex = $bindable(0),
@@ -26,8 +27,6 @@
         onRowClick,
         onSelect,
         colDetailMouseDown,
-        toVideoThumbnail,
-        toImageThumbnail,
         onScroll,
     }: {
         visibleStartIndex: number;
@@ -40,8 +39,6 @@
         onRowClick: (e: MouseEvent) => void;
         onSelect: (e: MouseEvent) => void;
         colDetailMouseDown: (e: MouseEvent) => void;
-        toVideoThumbnail: (fullPath: string) => Promise<string>;
-        toImageThumbnail: (fullPath: string) => Promise<string>;
         onScroll: () => Promise<void>;
     } = $props();
 
@@ -107,7 +104,8 @@
                             {#if item.linkPath}
                                 <div class="symlink-icon"><div class="symlink-arrow"></div></div>
                             {/if}
-                            {#if item.isFile}
+                            <FileIcon {item} size={100} showThumbnail={true} />
+                            <!-- {#if item.isFile}
                                 {#if item.fileType == "Audio"}
                                     <AudioSvg />
                                 {:else if item.fileType == "Video"}
@@ -147,7 +145,7 @@
                                 <DirVideo />
                             {:else}
                                 <FolderSvg />
-                            {/if}
+                            {/if} -->
                         </div>
                         <div class="name" id={item.uuid} data-file-id={item.id} class:rename-hidden={renameState.targetUUID == item.uuid}>
                             {item.name}

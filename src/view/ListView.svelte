@@ -112,7 +112,7 @@
                                 {#if item.linkPath}
                                     <div class="symlink-icon"><div class="symlink-arrow"></div></div>
                                 {/if}
-                                <FileIcon {item} />
+                                <FileIcon {item} size={16} showThumbnail={false} />
                             </div>
                             <div class="name" id={item.uuid} data-file-id={item.id} class:rename-hidden={renameState.targetUUID == item.uuid}>
                                 {item.name}

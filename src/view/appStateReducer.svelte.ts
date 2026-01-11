@@ -29,6 +29,8 @@ export const resolveContextMenu = () => {
     }
 };
 
+export const icons: Mp.IconCache = $state({ cache: {} });
+
 type DragHandlerType = "View" | "Column" | "Favorite";
 
 type AppState = {
@@ -54,6 +56,7 @@ type AppState = {
     isInGridView: boolean;
     scrolling: boolean;
     useOSIcon: boolean;
+    rememberColumns: boolean;
 };
 
 export const initialAppState: AppState = {
@@ -82,6 +85,7 @@ export const initialAppState: AppState = {
     isInGridView: false,
     scrolling: false,
     useOSIcon: false,
+    rememberColumns: true,
 };
 
 type AppAction =
@@ -122,7 +126,7 @@ type AppAction =
     | { type: "endDrag" }
     | { type: "startRename"; value: { rect: Mp.PartialRect; oldName: string; fullPath: string; uuid: string } }
     | { type: "endRename" }
-    | { type: "setPreference"; value: { theme: Mp.Theme; appMenuItems: Mp.AppMenuItem[]; allowMoveColumn: boolean; useOSIcon: boolean } }
+    | { type: "setPreference"; value: { theme: Mp.Theme; appMenuItems: Mp.AppMenuItem[]; allowMoveColumn: boolean; useOSIcon: boolean; rememberColumns: boolean } }
     | { type: "togglePreference" }
     | { type: "toggleCreateSymlink" }
     | { type: "toggleGridView"; value: boolean }
@@ -137,7 +141,14 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return state;
 
         case "setPreference":
-            return { ...state, theme: action.value.theme, allowMoveColumn: action.value.allowMoveColumn, appMenuItems: action.value.appMenuItems, useOSIcon: action.value.useOSIcon };
+            return {
+                ...state,
+                theme: action.value.theme,
+                allowMoveColumn: action.value.allowMoveColumn,
+                appMenuItems: action.value.appMenuItems,
+                useOSIcon: action.value.useOSIcon,
+                rememberColumns: action.value.rememberColumns,
+            };
 
         case "isMaximized":
             return { ...state, isMaximized: action.value };

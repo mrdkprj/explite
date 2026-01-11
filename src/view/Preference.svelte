@@ -13,6 +13,7 @@
     let appMenuItems = $state($state.snapshot($appState.appMenuItems));
     let allowMoveColumn = $state($state.snapshot($appState.allowMoveColumn));
     let useOSIcon = $state($state.snapshot($appState.useOSIcon));
+    let rememberColumns = $state($state.snapshot($appState.rememberColumns));
 
     const addMenuItem = () => {
         appMenuItems.push({
@@ -48,7 +49,7 @@
         if (save) {
             const newAppMenuItems = appMenuItems.filter((item) => item.path != "");
             const appMenuItemChanged = isAppMenuItemChanged(newAppMenuItems);
-            dispatch({ type: "setPreference", value: { theme, appMenuItems: appMenuItems.filter((item) => item.path != ""), allowMoveColumn, useOSIcon } });
+            dispatch({ type: "setPreference", value: { theme, appMenuItems: appMenuItems.filter((item) => item.path != ""), allowMoveColumn, useOSIcon, rememberColumns } });
             preferenceChanged(appMenuItemChanged);
         }
 
@@ -80,23 +81,24 @@
                 </select>
             </div>
             <div class="pref-separator"></div>
-            <div class="pref-title-block">Column</div>
-            <div class="pref-item-block">
-                <div class="pref-item">
-                    <input id="allowMoveColumn" type="checkbox" bind:checked={allowMoveColumn} /><label for="allowMoveColumn">Allow column move</label>
-                </div>
-                <div class="pref-item">
-                    <button class="pref-btn-md" onclick={removeHistory}>Remove history</button>
-                </div>
+
+            <div class="pref-title-block">View</div>
+            <div class="pref-item-block"></div>
+            <div class="pref-item">
+                <input id="rememberColumns" type="checkbox" bind:checked={rememberColumns} /><label for="rememberColumns">Remember column settings</label>
             </div>
-            <div class="pref-separator"></div>
-            <div class="pref-title-block">Icon</div>
-            <div class="pref-item-block">
-                <div class="pref-item">
-                    <input id="useOSFileIcon" type="checkbox" bind:checked={useOSIcon} /><label for="useOSFileIcon">Use OS icons</label>
-                </div>
+            <div class="pref-item">
+                <button class="pref-btn-md" onclick={removeHistory} disabled={!rememberColumns}>Remove history</button>
             </div>
+            <div class="pref-item">
+                <input id="allowMoveColumn" type="checkbox" bind:checked={allowMoveColumn} /><label for="allowMoveColumn">Allow column move</label>
+            </div>
+            <div class="pref-item">
+                <input id="useOSFileIcon" type="checkbox" bind:checked={useOSIcon} /><label for="useOSFileIcon">Use OS icons</label>
+            </div>
+
             <div class="pref-separator"></div>
+
             <div class="pref-title-block">Menu</div>
             <div class="pref-item-block">
                 <div class="pref-item">
@@ -134,7 +136,9 @@
                     </div>
                 </div>
             </div>
+
             <div class="pref-separator"></div>
+
             <div class="pref-item-block pref-action">
                 <button class="pref-btn-lg" onclick={() => close(true)}>Apply</button>
                 <button class="pref-btn-lg" onclick={() => close(false)}>Close</button>
@@ -159,7 +163,7 @@
         color: var(--menu-color);
         display: flex;
         width: 540px;
-        height: 540px;
+        height: 560px;
         flex-direction: column;
         box-shadow: 7px 5px 5px var(--dialog-shadow);
         outline: 1px solid var(--dialog-border-color);
@@ -280,6 +284,10 @@
     }
     .pref-btn-md {
         padding: 5px;
+    }
+    .pref-btn-md:disabled {
+        background-color: #ccc;
+        pointer-events: none;
     }
     .pref-btn-lg {
         padding: 8px;

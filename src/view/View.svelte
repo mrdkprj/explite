@@ -1364,7 +1364,13 @@
     };
 
     const onPreferenceChange = async (isAppMenuItemChanged: boolean) => {
-        await main.onPreferenceChanged({ theme: $appState.theme, appMenuItems: $appState.appMenuItems, allowMoveColumn: $appState.allowMoveColumn, useOSIcon: $appState.useOSIcon });
+        await main.onPreferenceChanged({
+            theme: $appState.theme,
+            appMenuItems: $appState.appMenuItems,
+            allowMoveColumn: $appState.allowMoveColumn,
+            useOSIcon: $appState.useOSIcon,
+            rememberColumns: $appState.rememberColumns,
+        });
         if (isAppMenuItemChanged) {
             await main.changeAppMenuItems($appState.appMenuItems);
         }
@@ -1443,7 +1449,16 @@
 
         await main.changeTheme(e.settings.theme);
         await main.changeAppMenuItems(e.settings.appMenuItems);
-        dispatch({ type: "setPreference", value: { theme: e.settings.theme, appMenuItems: e.settings.appMenuItems, allowMoveColumn: e.settings.allowMoveColumn, useOSIcon: e.settings.useOSIcon } });
+        dispatch({
+            type: "setPreference",
+            value: {
+                theme: e.settings.theme,
+                appMenuItems: e.settings.appMenuItems,
+                allowMoveColumn: e.settings.allowMoveColumn,
+                useOSIcon: e.settings.useOSIcon,
+                rememberColumns: e.settings.rememberColumns,
+            },
+        });
         dispatch({ type: "headerLabels", value: e.settings.headerLabels });
         dispatch({ type: "leftWidth", value: e.settings.leftAreaWidth });
         dispatch({ type: "sort", value: DEFAULT_SORT_TYPE });
@@ -1525,8 +1540,6 @@
                         {onRowClick}
                         {onSelect}
                         {colDetailMouseDown}
-                        toImageThumbnail={main.toImageThumbnail}
-                        toVideoThumbnail={main.toVideoThumbnail}
                         {onScroll}
                     />
                 {:else}

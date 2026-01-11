@@ -3,7 +3,7 @@ use dialog::DialogOptions;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, env, path::PathBuf};
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
-use zouni::{dialog::MessageResult, *};
+use zouni::dialog::MessageResult;
 mod dialog;
 mod helper;
 mod menu;
@@ -31,7 +31,7 @@ fn exists(payload: String) -> bool {
 
 #[tauri::command]
 fn open_path(payload: String) -> Result<(), String> {
-    shell::open_path(payload)
+    zouni::shell::open_path(payload)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,17 +41,17 @@ struct OpenWithArg {
 }
 #[tauri::command]
 fn open_path_with(payload: OpenWithArg) -> Result<(), String> {
-    shell::open_path_with(payload.full_path, payload.app_path)
+    zouni::shell::open_path_with(payload.full_path, payload.app_path)
 }
 
 #[tauri::command]
 fn show_app_selector(payload: String) -> Result<(), String> {
-    shell::show_open_with_dialog(payload)
+    zouni::shell::show_open_with_dialog(payload)
 }
 
 #[tauri::command]
 fn open_property_dielog(payload: String) -> Result<(), String> {
-    shell::open_file_property(payload)
+    zouni::shell::open_file_property(payload)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,8 +61,8 @@ struct ReadDirRequest {
 }
 
 #[tauri::command]
-fn readdir(payload: ReadDirRequest) -> Vec<Dirent> {
-    fs::readdir(payload.directory, payload.recursive, true).unwrap_or_default()
+fn readdir(payload: ReadDirRequest) -> Vec<zouni::Dirent> {
+    zouni::fs::readdir(payload.directory, payload.recursive, true).unwrap_or_default()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,48 +76,48 @@ fn rename(payload: RenameInfo) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn list_volumes() -> Vec<Volume> {
-    fs::list_volumes().unwrap_or_default()
+fn list_volumes() -> Vec<zouni::Volume> {
+    zouni::fs::list_volumes().unwrap_or_default()
 }
 
 #[tauri::command]
 fn start_drag(payload: Vec<String>) -> Result<(), String> {
-    drag_drop::start_drag(payload, Operation::Copy)
+    zouni::drag_drop::start_drag(payload, zouni::Operation::Copy)
 }
 
 #[tauri::command]
-fn stat(payload: String) -> Result<FileAttribute, String> {
-    fs::stat(&payload)
+fn stat(payload: String) -> Result<zouni::FileAttribute, String> {
+    zouni::fs::stat(&payload)
 }
 
 #[tauri::command]
 fn get_mime_type(payload: String) -> String {
-    fs::get_mime_type(payload)
+    zouni::fs::get_mime_type(payload)
 }
 
 #[tauri::command]
 fn trash(payload: Vec<String>) -> Result<(), String> {
-    fs::trash_all(&payload)
+    zouni::fs::trash_all(&payload)
 }
 
 #[tauri::command]
 fn delete(payload: Vec<String>) -> Result<(), String> {
-    fs::delete_all(&payload)
+    zouni::fs::delete_all(&payload)
 }
 
 #[tauri::command]
 fn undelete(payload: Vec<String>) -> Result<(), String> {
-    fs::undelete(&payload)
+    zouni::fs::undelete(&payload)
 }
 
 #[tauri::command]
-fn undelete_by_time(payload: Vec<RecycleBinItem>) -> Result<(), String> {
-    fs::undelete_by_time(&payload)
+fn undelete_by_time(payload: Vec<zouni::RecycleBinItem>) -> Result<(), String> {
+    zouni::fs::undelete_by_time(&payload)
 }
 
 #[tauri::command]
-fn delete_from_recycle_bin(payload: Vec<RecycleBinItem>) -> Result<(), String> {
-    fs::delete_from_recycle_bin(&payload)
+fn delete_from_recycle_bin(payload: Vec<zouni::RecycleBinItem>) -> Result<(), String> {
+    zouni::fs::delete_from_recycle_bin(&payload)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -130,13 +130,13 @@ struct CopyInfo {
 async fn copy(window: WebviewWindow, payload: CopyInfo) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        fs::copy_all(&payload.from, payload.to)
+        zouni::fs::copy_all(&payload.from, payload.to)
     }
     #[cfg(target_os = "linux")]
     {
         window
             .run_on_main_thread(move || {
-                gtk::glib::spawn_future_local(async move { fs::copy_all(&payload.from, payload.to).await });
+                gtk::glib::spawn_future_local(async move { zouni::fs::copy_all(&payload.from, payload.to).await });
             })
             .map_err(|e| e.to_string())
     }
@@ -147,13 +147,13 @@ async fn copy(window: WebviewWindow, payload: CopyInfo) -> Result<(), String> {
 async fn mv(window: WebviewWindow, payload: CopyInfo) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        fs::mv_all(&payload.from, payload.to)
+        zouni::fs::mv_all(&payload.from, payload.to)
     }
     #[cfg(target_os = "linux")]
     {
         window
             .run_on_main_thread(move || {
-                gtk::glib::spawn_future_local(async move { fs::mv_all(&payload.from, payload.to).await });
+                gtk::glib::spawn_future_local(async move { zouni::fs::mv_all(&payload.from, payload.to).await });
             })
             .map_err(|e| e.to_string())
     }
@@ -161,34 +161,34 @@ async fn mv(window: WebviewWindow, payload: CopyInfo) -> Result<(), String> {
 
 #[tauri::command]
 fn is_uris_available() -> bool {
-    clipboard::is_uris_available()
+    zouni::clipboard::is_uris_available()
 }
 
 #[tauri::command]
-fn read_uris(window: WebviewWindow) -> Result<ClipboardData, String> {
-    clipboard::read_uris(get_window_handel(&window))
+fn read_uris(window: WebviewWindow) -> Result<zouni::ClipboardData, String> {
+    zouni::clipboard::read_uris(get_window_handel(&window))
 }
 
 #[tauri::command]
 fn read_text(window: WebviewWindow) -> Result<String, String> {
-    clipboard::read_text(get_window_handel(&window))
+    zouni::clipboard::read_text(get_window_handel(&window))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
 struct WriteUriInfo {
     fullPaths: Vec<String>,
-    operation: Operation,
+    operation: zouni::Operation,
 }
 
 #[tauri::command]
 fn write_uris(window: WebviewWindow, payload: WriteUriInfo) -> Result<(), String> {
-    clipboard::write_uris(get_window_handel(&window), &payload.fullPaths, payload.operation)
+    zouni::clipboard::write_uris(get_window_handel(&window), &payload.fullPaths, payload.operation)
 }
 
 #[tauri::command]
 fn write_text(window: WebviewWindow, payload: String) -> Result<(), String> {
-    clipboard::write_text(get_window_handel(&window), payload)
+    zouni::clipboard::write_text(get_window_handel(&window), payload)
 }
 
 #[tauri::command]
@@ -482,7 +482,7 @@ fn unlisten_file_drop() {
 }
 
 #[tauri::command]
-fn read_recycle_bin() -> Result<Vec<RecycleBinDirent>, String> {
+fn read_recycle_bin() -> Result<Vec<zouni::RecycleBinDirent>, String> {
     zouni::fs::read_recycle_bin()
 }
 
@@ -502,7 +502,7 @@ async fn to_thumbnail(payload: ThumbnailArgs) -> Result<Vec<u8>, String> {
     tauri::async_runtime::spawn(async move {
         zouni::media::extract_video_thumbnail(
             payload.full_path,
-            Some(Size {
+            Some(zouni::Size {
                 width: payload.width,
                 height: payload.height,
             }),
@@ -524,58 +524,15 @@ fn is_file(payload: String) -> bool {
     PathBuf::from(payload).is_file()
 }
 
-fn get_extension(full_path: &str) -> String {
-    let path = PathBuf::from(full_path);
-    if let Some(extension) = path.extension() {
-        if extension == "exe" {
-            path.file_name().unwrap_or_default().to_string_lossy().to_string()
-        } else {
-            format!(".{}", extension.to_string_lossy())
-        }
-    } else {
-        path.file_name().unwrap_or_default().to_string_lossy().to_string()
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct IconInfo {
     full_path: Option<String>,
-    data: Vec<u8>,
+    small: Vec<u8>,
+    large: Vec<u8>,
 }
 #[tauri::command]
 fn assoc_icons(payload: Vec<String>) -> Result<HashMap<String, IconInfo>, String> {
-    let mut icons = HashMap::new();
-
-    for full_path in payload {
-        if let Ok(icon) = zouni::shell::extract_icon(
-            &full_path,
-            Size {
-                width: 16,
-                height: 16,
-            },
-        ) {
-            #[cfg(target_os = "windows")]
-            let _ = icons.insert(
-                get_extension(&full_path),
-                IconInfo {
-                    full_path: None,
-                    data: icon.png,
-                },
-            );
-            #[cfg(target_os = "linux")]
-            {
-                let data = std::fs::read(&icon.file).map_err(|e| e.to_string())?;
-                let _ = icons.insert(
-                    get_extension(&full_path),
-                    IconInfo {
-                        full_path: Some(icon.file),
-                        data,
-                    },
-                );
-            }
-        }
-    }
-    Ok(icons)
+    helper::assoc_icons(payload)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

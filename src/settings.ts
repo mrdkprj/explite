@@ -17,6 +17,7 @@ const defaultSettings: Mp.Settings = {
     allowMoveColumn: true,
     appMenuItems: [],
     useOSIcon: false,
+    rememberColumns: true,
 };
 
 export default class Settings {

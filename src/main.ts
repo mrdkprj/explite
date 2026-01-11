@@ -2,14 +2,13 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import Settings from "./settings";
 import util from "./util";
 import { DEFAULT_SORT_TYPE, HOME, OS, RECYCLE_BIN, RECYCLE_BIN_ITEM } from "./constants";
-import { DeleteUndeleteRequest, IPC } from "./ipc";
+import { DeleteUndeleteRequest, Dirent, IPC, RecycleBinItem } from "./ipc";
 import { path } from "./path";
 import { History } from "./history";
 import { t } from "./translation/useTranslation";
+import { icons } from "./view/appStateReducer.svelte";
 
 const ipc = new IPC("View");
-
-export const icons: { [key: string]: string } = {};
 
 class Main {
     private initialized = false;
@@ -194,16 +193,24 @@ class Main {
         }
 
         try {
-            if (this.isRecycleBin(this.currentDir)) {
-                const allDirents = await ipc.invoke("read_recycle_bin", undefined);
-                this.files = allDirents.filter((dirent) => !dirent.attributes.is_system).map((dirent) => util.toFileFromRecycleBinItem(dirent));
-            } else {
-                const allDirents = await ipc.invoke("readdir", { directory: this.currentDir, recursive: false });
-                this.files = allDirents.filter((dirent) => !dirent.attributes.is_system).map((dirent) => util.toFile(dirent));
-            }
+            const fileMap: { [key: string]: string } = {};
+            const allDirents = this.isRecycleBin(this.currentDir) ? await ipc.invoke("read_recycle_bin", undefined) : await ipc.invoke("readdir", { directory: this.currentDir, recursive: false });
+            this.files = allDirents
+                .filter((dirent) => !dirent.attributes.is_system)
+                .map((dirent) => {
+                    const file = this.isRecycleBin(this.currentDir) ? util.toFileFromRecycleBinItem(dirent as RecycleBinItem) : util.toFile(dirent as Dirent);
+                    if (this.settings.data.useOSIcon) {
+                        if (file.isFile && !(file.actualExtension in icons.cache)) {
+                            file.fileType == "App" ? (fileMap[file.name] = file.fullPath) : (fileMap[file.actualExtension] = file.fullPath);
+                        }
+                    }
+                    return file;
+                });
 
-            if (this.settings.data.useOSIcon) {
-                await this.getFileIcon();
+            if (Object.keys(fileMap).length) {
+                setTimeout(() => {
+                    this.getFileIcon(fileMap);
+                });
             }
 
             const sortType = this.sortFiles(this.currentDir, this.files);
@@ -223,24 +230,21 @@ class Main {
         }
     };
 
-    private getFileIcon = async () => {
-        const fileMap: { [key: string]: string } = {};
-        this.files
-            .filter((file) => file.isFile && !(file.actualExtension in icons))
-            .forEach((file) => (file.fileType == "App" ? (fileMap[file.name] = file.fullPath) : (fileMap[file.actualExtension] = file.fullPath)));
-        if (!Object.keys(fileMap).length) return;
-
+    private getFileIcon = async (fileMap: { [key: string]: string }) => {
         const iconInfoMap = await ipc.invoke("assoc_icons", Object.values(fileMap));
         Object.keys(iconInfoMap).forEach((key) => {
-            const uint8 = Uint8Array.from(iconInfoMap[key].data);
-            const base64 = uint8.toBase64();
+            const small = Uint8Array.from(iconInfoMap[key].small);
+            const smallBase64 = small.toBase64();
+
             if (navigator.userAgent.includes(OS.windows)) {
-                icons[key] = `data:image/png;base64,${base64}`;
+                const large = Uint8Array.from(iconInfoMap[key].large);
+                const largeBase64 = large.toBase64();
+                icons.cache[key] = { small: `data:image/png;base64,${smallBase64}`, large: `data:image/png;base64,${largeBase64}` };
             } else {
                 if (iconInfoMap[key].full_path!.toLowerCase().endsWith("svg")) {
-                    icons[key] = `data:image/svg+xml;base64,${base64}`;
+                    icons.cache[key] = { small: `data:image/svg+xml;base64,${smallBase64}`, large: `data:image/svg+xml;base64,${smallBase64}` };
                 } else {
-                    icons[key] = `data:image/png;base64,${base64}`;
+                    icons.cache[key] = { small: `data:image/png;base64,${smallBase64}`, large: `data:image/png;base64,${smallBase64}` };
                 }
             }
         });
@@ -421,6 +425,7 @@ class Main {
         this.settings.data.appMenuItems = preference.appMenuItems;
         this.settings.data.allowMoveColumn = preference.allowMoveColumn;
         this.settings.data.useOSIcon = preference.useOSIcon;
+        this.settings.data.rememberColumns = preference.rememberColumns;
     };
 
     showFileFolderDialog = async (title: string, defaultPath: string, folder: boolean): Promise<string | null> => {
@@ -744,20 +749,6 @@ class Main {
             this.showErrorMessage(ex);
             return { fullPaths: [], done: true };
         }
-    };
-
-    toVideoThumbnail = async (fullPath: string) => {
-        const raw = await ipc.invoke("to_thumbnail", { full_path: fullPath, width: 100, height: 100 });
-        const uint8 = Uint8Array.from(raw);
-        const base64 = uint8.toBase64();
-        return `data:image/jpeg;base64,${base64}`;
-    };
-
-    toImageThumbnail = async (fullPath: string) => {
-        const raw = await ipc.invoke("to_image_thumbnail", fullPath);
-        const uint8 = Uint8Array.from(raw);
-        const base64 = uint8.toBase64();
-        return `data:image/jpeg;base64,${base64}`;
     };
 
     onWatchEvent = async (e: Mp.WatchEvent) => {
