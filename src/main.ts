@@ -163,18 +163,18 @@ class Main {
         return true;
     };
 
-    startWatch = async () => {
-        await this.abortWatch();
+    startWatch = () => {
+        this.abortWatch();
         this.watchTarget = this.currentDir;
 
         if (this.isWatchable()) {
-            await ipc.invoke("watch", this.watchTarget);
+            ipc.invoke("watch", this.watchTarget);
         }
     };
 
-    abortWatch = async () => {
+    abortWatch = () => {
         if (!this.isWatchable()) return;
-        await ipc.invoke("unwatch", this.watchTarget);
+        ipc.invoke("unwatch", this.watchTarget);
         this.watchTarget = "";
     };
 
