@@ -1,7 +1,7 @@
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
 import { Dirent, FileAttribute, IPCBase, RecycleBinItem } from "./ipc";
 import { path } from "./path";
-import { ARCHIVE_EXT, LINUX_SPECIAL_FOLDERS, LINUX_USER_ROOT_DIR, MIME_TYPE, OS, RECYCLE_BIN_ITEM, SEPARATOR, WIN_SPECIAL_FOLDERS, WIN_USER_ROOT_DIR } from "./constants";
+import { ARCHIVE_EXT, LINUX_SPECIAL_FOLDERS, LINUX_USER_ROOT_DIR, MIME_TYPE, OS, RECYCLE_BIN_ITEM, SEPARATOR, WIN_SPECIAL_FOLDERS, WIN_USER_ROOT_DIR, WSL_ROOT } from "./constants";
 import { t } from "./translation/useTranslation";
 
 const REGULAR_TYPES = [".ts", ".json", ".mjs", ".cjs"];
@@ -293,10 +293,23 @@ class Util {
                     name: volume.volume_label,
                     available: volume.available_units,
                     total: volume.total_units,
+                    virtual: false,
                 };
             })
             .filter((drive) => drive.label);
         drives.sort((a, b) => a.label.localeCompare(b.label));
+
+        const wsls = util.isWin() ? await ipc.invoke("get_wsl_names", undefined) : [];
+        wsls.forEach((wsl) => {
+            drives.push({
+                label: "",
+                path: `${WSL_ROOT}${wsl}\\`,
+                name: wsl,
+                available: 0,
+                total: 0,
+                virtual: true,
+            });
+        });
 
         return drives;
     }

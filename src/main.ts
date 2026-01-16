@@ -1,7 +1,7 @@
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import Settings from "./settings";
 import util from "./util";
-import { DEFAULT_SORT_TYPE, HOME, OS, RECYCLE_BIN, RECYCLE_BIN_ITEM } from "./constants";
+import { DEFAULT_SORT_TYPE, HOME, OS, RECYCLE_BIN, RECYCLE_BIN_ITEM, WSL_ROOT } from "./constants";
 import { DeleteUndeleteRequest, Dirent, IPC, RecycleBinItem } from "./ipc";
 import { path } from "./path";
 import { History } from "./history";
@@ -159,6 +159,7 @@ class Main {
         if (!this.watchTarget) return false;
         if (this.watchTarget == HOME) return false;
         if (this.isRecycleBin(this.watchTarget)) return false;
+        if (this.watchTarget.startsWith(WSL_ROOT)) return false;
 
         return true;
     };

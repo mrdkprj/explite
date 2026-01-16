@@ -6,7 +6,7 @@ use crate::{
     IconInfo,
 };
 use tauri::Manager;
-use zouni::Size;
+use zouni::{process::SpawnOption, Size};
 
 pub fn setup(app: &tauri::App) {
     let mut urls = Vec::new();
@@ -88,4 +88,20 @@ pub fn assoc_icons(full_paths: Vec<String>) -> Result<HashMap<String, IconInfo>,
         }
     }
     Ok(icons)
+}
+
+pub async fn get_wsl_names() -> Result<Vec<String>, String> {
+    let result = zouni::process::spawn(SpawnOption {
+        program: "wsl".to_string(),
+        args: Some(vec!["-l".to_string(), "-q".to_string()]),
+        cancellation_token: "wsl".to_string(),
+    })
+    .await
+    .map_err(|e| e.stderr)?;
+
+    if result.stdout.is_empty() {
+        Ok(Vec::new())
+    } else {
+        Ok(result.stdout.replace(char::from(0), "").split("\r\n").filter(|&x| !x.is_empty()).map(|s| s.to_string()).collect())
+    }
 }

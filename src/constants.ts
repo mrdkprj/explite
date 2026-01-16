@@ -97,3 +97,5 @@ export const LINUX_SPECIAL_FOLDERS = {
     Pictures: new RegExp(/\/home\/.*\/.*\/Pictures$/),
     Videos: new RegExp(/\/home\/.*\/.*\/Videos$/),
 };
+
+export const WSL_ROOT = "\\\\wsl.localhost\\";

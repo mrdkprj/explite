@@ -184,6 +184,7 @@ type TauriCommandMap = {
     to_image_thumbnail: TauriCommand<string, number[]>;
     is_file: TauriCommand<string, boolean>;
     assoc_icons: TauriCommand<string[], { [key: string]: IconInfo }>;
+    get_wsl_names: TauriCommand<undefined, string[]>;
 };
 
 export class IPCBase {

@@ -8,6 +8,7 @@
     import DirMusic from "../svg/DirMusic.svelte";
     import DirImage from "../svg/DirImage.svelte";
     import DirVideo from "../svg/DirVideo.svelte";
+    import LinuxSvg from "../svg/LinuxSvg.svelte";
     import { appState, dispatch, driveState, listState, awaitContextMenu } from "./appStateReducer.svelte";
     import { handleKeyEvent, HOME, OS, RECYCLE_BIN } from "../constants";
     import main from "../main";
@@ -116,10 +117,17 @@
         </div>
         {#each driveState.drives as disk}
             <div data-full-path={disk.path} class="disk" class:current={disk.path == listState.currentDir.fullPath} onclick={onDriveClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
-                <div class="icon">
-                    <DriveSvg />
-                </div>
-                <div class="name">{disk.name}({disk.label})</div>
+                {#if disk.virtual}
+                    <div class="icon">
+                        <LinuxSvg />
+                    </div>
+                    <div class="name">{disk.name}</div>
+                {:else}
+                    <div class="icon">
+                        <DriveSvg />
+                    </div>
+                    <div class="name">{disk.name}({disk.label})</div>
+                {/if}
             </div>
         {/each}
     </div>

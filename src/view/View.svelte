@@ -940,7 +940,12 @@
     const requestLoad = async (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => {
         if (!isFile && headerState.search.searching) {
             dispatch({ type: "endSearch" });
-            dispatch({ type: "updateFiles", value: { files: [] } });
+            if (fullPath == listState.currentDir.fullPath) {
+                const result = await main.onSearchEnd();
+                dispatch({ type: "updateFiles", value: { files: result.files } });
+            } else {
+                dispatch({ type: "updateFiles", value: { files: [] } });
+            }
             await tick();
         }
 

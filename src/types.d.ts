@@ -186,6 +186,7 @@ declare global {
             path: string;
             available: number;
             total: number;
+            virtual: boolean;
         };
 
         type RefreshResult = {

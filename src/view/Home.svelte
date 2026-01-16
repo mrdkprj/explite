@@ -16,24 +16,26 @@
 
 <div class="container">
     {#each driveState.drives as disk}
-        <div data-full-path={disk.path} class="ldisk" class:current={disk.path == listState.currentDir.fullPath} ondblclick={onDriveClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
-            <div class="icon">
-                <LargeDriveSvg />
-            </div>
-            <div class="info" data-full-path={disk.path}>
-                <div class="name">{disk.name}({disk.label})</div>
-                <div class="bar">
-                    <div class="used" style="width: {Math.floor(((disk.total - disk.available) / disk.total) * 100)}%"></div>
+        {#if !disk.virtual}
+            <div data-full-path={disk.path} class="ldisk" class:current={disk.path == listState.currentDir.fullPath} ondblclick={onDriveClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+                <div class="icon">
+                    <LargeDriveSvg />
                 </div>
-                <div>
-                    {t("availableSpace")}&nbsp;
-                    {new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingMode: "floor" }).format(disk.available / 1.074e9)} GB/{new Intl.NumberFormat("en-US", {
-                        maximumSignificantDigits: 3,
-                        roundingMode: "floor",
-                    }).format(disk.total / 1.074e9)} GB
+                <div class="info" data-full-path={disk.path}>
+                    <div class="name">{disk.name}({disk.label})</div>
+                    <div class="bar">
+                        <div class="used" style="width: {Math.floor(((disk.total - disk.available) / disk.total) * 100)}%"></div>
+                    </div>
+                    <div>
+                        {t("availableSpace")}&nbsp;
+                        {new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingMode: "floor" }).format(disk.available / 1.074e9)} GB/{new Intl.NumberFormat("en-US", {
+                            maximumSignificantDigits: 3,
+                            roundingMode: "floor",
+                        }).format(disk.total / 1.074e9)} GB
+                    </div>
                 </div>
             </div>
-        </div>
+        {/if}
     {/each}
 </div>
 

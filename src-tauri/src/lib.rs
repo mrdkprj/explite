@@ -535,6 +535,11 @@ fn assoc_icons(payload: Vec<String>) -> Result<HashMap<String, IconInfo>, String
     helper::assoc_icons(payload)
 }
 
+#[tauri::command]
+async fn get_wsl_names() -> Result<Vec<String>, String> {
+    helper::get_wsl_names().await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -602,7 +607,8 @@ pub fn run() {
             to_thumbnail,
             to_image_thumbnail,
             is_file,
-            assoc_icons
+            assoc_icons,
+            get_wsl_names
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
