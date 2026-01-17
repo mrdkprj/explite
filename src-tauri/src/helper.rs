@@ -1,10 +1,9 @@
-use std::{collections::HashMap, path::PathBuf};
-
 use crate::{
     session::Session,
     watcher::{self, WatchTx},
-    IconInfo,
+    IconInfo, ThumbnailArgs,
 };
+use std::{collections::HashMap, path::PathBuf};
 use tauri::Manager;
 use zouni::{process::SpawnOption, Size};
 
@@ -104,4 +103,24 @@ pub async fn get_wsl_names() -> Result<Vec<String>, String> {
     } else {
         Ok(result.stdout.replace(char::from(0), "").split("\r\n").filter(|&x| !x.is_empty()).map(|s| s.to_string()).collect())
     }
+}
+
+pub async fn video_thumbnail(payload: ThumbnailArgs) -> Result<Vec<u8>, String> {
+    tauri::async_runtime::spawn(async move {
+        zouni::media::extract_video_thumbnail(
+            payload.full_path,
+            Some(zouni::Size {
+                width: payload.width,
+                height: payload.height,
+            }),
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+pub async fn image_thumbnail(payload: String) -> Result<Vec<u8>, String> {
+    tauri::async_runtime::spawn(async move { rs_vips::VipsImage::new_from_file(payload).unwrap().thumbnail_image(100).unwrap().webpsave_buffer().map_err(|e| e.to_string()) })
+        .await
+        .map_err(|e| e.to_string())?
 }

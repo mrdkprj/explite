@@ -499,24 +499,12 @@ struct ThumbnailArgs {
 }
 #[tauri::command]
 async fn to_thumbnail(payload: ThumbnailArgs) -> Result<Vec<u8>, String> {
-    tauri::async_runtime::spawn(async move {
-        zouni::media::extract_video_thumbnail(
-            payload.full_path,
-            Some(zouni::Size {
-                width: payload.width,
-                height: payload.height,
-            }),
-        )
-    })
-    .await
-    .map_err(|e| e.to_string())?
+    helper::video_thumbnail(payload).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn to_image_thumbnail(payload: String) -> Result<Vec<u8>, String> {
-    tauri::async_runtime::spawn(async move { rs_vips::VipsImage::new_from_file(payload).unwrap().thumbnail_image(100).unwrap().webpsave_buffer().map_err(|e| e.to_string()) })
-        .await
-        .map_err(|e| e.to_string())?
+    helper::image_thumbnail(payload).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
