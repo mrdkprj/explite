@@ -77,6 +77,7 @@
         });
 
         const overflownPaths = _overflownPaths.reverse();
+
         return {
             visiblePaths: _visiblePaths.reverse(),
             overflownPaths,
@@ -307,33 +308,37 @@
                                 role="button"
                             >
                                 {#each paths.overflownPaths as hiddenPath, index}
-                                    <div
-                                        class="dialog-data"
-                                        data-path={paths.overflownPaths.slice(0, index + 1).join(SEPARATOR)}
-                                        onclick={onPathClick}
-                                        onkeydown={handleKeyEvent}
-                                        role="button"
-                                        tabindex="-1"
-                                    >
-                                        {hiddenPath}
-                                    </div>
+                                    {#if !util.isWsl(hiddenPath)}
+                                        <div
+                                            class="dialog-data"
+                                            data-path={paths.overflownPaths.slice(0, index + 1).join(SEPARATOR)}
+                                            onclick={onPathClick}
+                                            onkeydown={handleKeyEvent}
+                                            role="button"
+                                            tabindex="-1"
+                                        >
+                                            {hiddenPath}
+                                        </div>
+                                    {/if}
                                 {/each}
                             </div>
                         {/if}
                     {/if}
                     {#each paths.visiblePaths as visiblePath, index}
-                        <div
-                            class="path-data"
-                            data-path={path.join(paths.overflown, paths.visiblePaths.slice(0, index + 1).join(SEPARATOR))}
-                            onclick={onPathClick}
-                            onkeydown={handleKeyEvent}
-                            role="button"
-                            tabindex="-1"
-                            style="max-width:{pathWidth - MIN_COMPONENT_WIDTH}px"
-                        >
-                            {visiblePath}
-                        </div>
-                        <PathDividerSvg />
+                        {#if !util.isWsl(visiblePath)}
+                            <div
+                                class="path-data"
+                                data-path={path.join(paths.overflown, paths.visiblePaths.slice(0, index + 1).join(SEPARATOR))}
+                                onclick={onPathClick}
+                                onkeydown={handleKeyEvent}
+                                role="button"
+                                tabindex="-1"
+                                style="max-width:{pathWidth - MIN_COMPONENT_WIDTH}px"
+                            >
+                                {visiblePath}
+                            </div>
+                            <PathDividerSvg />
+                        {/if}
                     {/each}
                     <div class="path-edit" onclick={onPathMarginClick} onkeydown={handleKeyEvent} role="button" tabindex="-1"></div>
                 </div>

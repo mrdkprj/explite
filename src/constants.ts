@@ -98,4 +98,4 @@ export const LINUX_SPECIAL_FOLDERS = {
     Videos: new RegExp(/\/home\/.*\/.*\/Videos$/),
 };
 
-export const WSL_ROOT = "\\\\wsl.localhost\\";
+export const WSL_ROOT = "\\\\wsl.localhost";

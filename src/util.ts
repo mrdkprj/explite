@@ -12,6 +12,11 @@ class Util {
         return navigator.userAgent.includes(OS.windows);
     }
 
+    isWsl(fullPath: string | undefined) {
+        if (!fullPath) return false;
+        return fullPath.startsWith(WSL_ROOT);
+    }
+
     async exists(target: string | undefined | null, createIfNotFound = false) {
         if (!target) return false;
 
@@ -299,17 +304,21 @@ class Util {
             .filter((drive) => drive.label);
         drives.sort((a, b) => a.label.localeCompare(b.label));
 
-        const wsls = util.isWin() ? await ipc.invoke("get_wsl_names", undefined) : [];
-        wsls.forEach((wsl) => {
-            drives.push({
-                label: "",
-                path: `${WSL_ROOT}${wsl}\\`,
-                name: wsl,
-                available: 0,
-                total: 0,
-                virtual: true,
+        try {
+            const wsls = util.isWin() ? await ipc.invoke("get_wsl_names", undefined) : [];
+            wsls.forEach((wsl) => {
+                drives.push({
+                    label: "",
+                    path: `${WSL_ROOT}\\${wsl}\\`,
+                    name: wsl,
+                    available: 0,
+                    total: 0,
+                    virtual: true,
+                });
             });
-        });
+        } catch (ex: any) {
+            // do nothing
+        }
 
         return drives;
     }

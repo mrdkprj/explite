@@ -652,9 +652,8 @@
     white-space: nowrap;
     font-family: var(--font);
     font-size: var(--font-size);
-    padding: 0 5px 0 0;
+    padding: 0px 5px 0px 0px;
     margin: 0;
-    field-sizing: content;
 }
 
 .rename-textarea{

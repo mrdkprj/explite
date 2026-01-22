@@ -1,4 +1,5 @@
-import { HOME, SEPARATOR } from "../constants";
+import { path } from "../path";
+import { HOME } from "../constants";
 
 export type ListState = {
     currentDir: {
@@ -26,7 +27,7 @@ export const load = (e: Mp.LoadEvent) => {
     state.files = e.files;
     state.currentDir = {
         fullPath: e.directory,
-        paths: e.directory == HOME ? [] : e.directory.split(SEPARATOR).filter((i) => i),
+        paths: e.directory == HOME ? [] : path.split(e.directory),
     };
 };
 

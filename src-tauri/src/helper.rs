@@ -105,13 +105,13 @@ pub async fn get_wsl_names() -> Result<Vec<String>, String> {
     }
 }
 
-pub async fn video_thumbnail(payload: ThumbnailArgs) -> Result<Vec<u8>, String> {
+pub async fn video_thumbnail(args: ThumbnailArgs) -> Result<Vec<u8>, String> {
     tauri::async_runtime::spawn(async move {
         zouni::media::extract_video_thumbnail(
-            payload.full_path,
+            args.full_path,
             Some(zouni::Size {
-                width: payload.width,
-                height: payload.height,
+                width: args.width,
+                height: args.height,
             }),
         )
     })
@@ -119,8 +119,14 @@ pub async fn video_thumbnail(payload: ThumbnailArgs) -> Result<Vec<u8>, String> 
     .map_err(|e| e.to_string())?
 }
 
-pub async fn image_thumbnail(payload: String) -> Result<Vec<u8>, String> {
-    tauri::async_runtime::spawn(async move { rs_vips::VipsImage::new_from_file(payload).unwrap().thumbnail_image(100).unwrap().webpsave_buffer().map_err(|e| e.to_string()) })
-        .await
-        .map_err(|e| e.to_string())?
+pub async fn image_thumbnail(file_path: String) -> Result<Vec<u8>, String> {
+    if file_path.ends_with(".ico") {
+        return std::fs::read(file_path).map_err(|e| e.to_string());
+    }
+
+    tauri::async_runtime::spawn(async move {
+        rs_vips::VipsImage::new_from_file(file_path).map_err(|e| e.to_string())?.thumbnail_image(100).map_err(|e| e.to_string())?.webpsave_buffer().map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }

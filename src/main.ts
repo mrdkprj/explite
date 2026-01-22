@@ -1,7 +1,7 @@
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import Settings from "./settings";
 import util from "./util";
-import { DEFAULT_SORT_TYPE, HOME, OS, RECYCLE_BIN, RECYCLE_BIN_ITEM, WSL_ROOT } from "./constants";
+import { DEFAULT_SORT_TYPE, HOME, OS, RECYCLE_BIN, RECYCLE_BIN_ITEM } from "./constants";
 import { DeleteUndeleteRequest, Dirent, IPC, RecycleBinItem } from "./ipc";
 import { path } from "./path";
 import { History } from "./history";
@@ -159,9 +159,12 @@ class Main {
         if (!this.watchTarget) return false;
         if (this.watchTarget == HOME) return false;
         if (this.isRecycleBin(this.watchTarget)) return false;
-        if (this.watchTarget.startsWith(WSL_ROOT)) return false;
 
         return true;
+    };
+
+    isNetwork = () => {
+        return util.isWsl(this.watchTarget);
     };
 
     startWatch = () => {
@@ -169,13 +172,13 @@ class Main {
         this.watchTarget = this.currentDir;
 
         if (this.isWatchable()) {
-            ipc.invoke("watch", this.watchTarget);
+            ipc.invoke("watch", { path: this.watchTarget, network: this.isNetwork() });
         }
     };
 
     abortWatch = () => {
         if (!this.isWatchable()) return;
-        ipc.invoke("unwatch", this.watchTarget);
+        ipc.invoke("unwatch", { path: this.watchTarget, network: this.isNetwork() });
         this.watchTarget = "";
     };
 
@@ -535,6 +538,7 @@ class Main {
 
         const file = this.files[fileIndex];
         const filePath = file.fullPath;
+        console.log(path.dirname(filePath));
         const newPath = path.join(path.dirname(filePath), newName);
 
         try {
@@ -542,7 +546,8 @@ class Main {
             if (found) {
                 throw new Error(`File name "${newName}" exists`);
             }
-
+            console.log(newPath);
+            console.log(filePath);
             await ipc.invoke("rename", { new: newPath, old: filePath });
 
             this.trackOperation("Rename", [filePath], newPath, []);
@@ -686,7 +691,7 @@ class Main {
                 }
 
                 return fullPath;
-            })
+            }),
         );
         return mapped.filter((item) => item != null);
     };

@@ -1,10 +1,11 @@
-import { OS, SEPARATOR } from "./constants";
+import { SEPARATOR } from "./constants";
+import util from "./util";
 
 export class path {
     static join(...paths: string[]) {
-        const components = navigator.userAgent.includes(OS.windows)
+        const components = util.isWin()
             ? paths
-                  .map((a) => a.split(SEPARATOR))
+                  .map((a) => path.split(a))
                   .flat()
                   .filter(Boolean)
             : paths.map((a) => a.split(SEPARATOR)).flat();
@@ -38,5 +39,11 @@ export class path {
         if (!path) return "";
         const components = path.split(SEPARATOR);
         return components[0] + SEPARATOR;
+    }
+
+    static split(path: string | undefined) {
+        if (!path) return [];
+        const pattern = util.isWsl(path) ? new RegExp(/(?<!^|\\)\\/) : SEPARATOR;
+        return path.split(pattern).filter(Boolean);
     }
 }
