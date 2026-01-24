@@ -529,7 +529,7 @@ fn assoc_icons(payload: Vec<String>) -> Result<HashMap<String, IconInfo>, String
 }
 
 #[tauri::command]
-async fn get_wsl_names() -> Result<Vec<String>, String> {
+async fn get_wsl_names() -> Result<Vec<String>, zouni::process::CommandStatus> {
     helper::get_wsl_names().await
 }
 
