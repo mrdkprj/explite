@@ -5,6 +5,8 @@ use std::{collections::HashMap, env, path::PathBuf};
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 use zouni::dialog::MessageResult;
 mod dialog;
+#[cfg(target_os = "linux")]
+mod gtk_thumb;
 mod helper;
 mod menu;
 mod session;
