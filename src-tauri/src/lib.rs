@@ -127,38 +127,15 @@ struct CopyInfo {
     from: Vec<String>,
     to: String,
 }
-#[allow(unused_variables)]
+
 #[tauri::command]
-async fn copy(window: WebviewWindow, payload: CopyInfo) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    {
-        zouni::fs::copy_all(&payload.from, payload.to)
-    }
-    #[cfg(target_os = "linux")]
-    {
-        window
-            .run_on_main_thread(move || {
-                gtk::glib::spawn_future_local(async move { zouni::fs::copy_all(&payload.from, payload.to).await });
-            })
-            .map_err(|e| e.to_string())
-    }
+fn copy(payload: CopyInfo) -> Result<(), String> {
+    zouni::fs::copy_all(&payload.from, payload.to)
 }
 
-#[allow(unused_variables)]
 #[tauri::command]
-async fn mv(window: WebviewWindow, payload: CopyInfo) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    {
-        zouni::fs::mv_all(&payload.from, payload.to)
-    }
-    #[cfg(target_os = "linux")]
-    {
-        window
-            .run_on_main_thread(move || {
-                gtk::glib::spawn_future_local(async move { zouni::fs::mv_all(&payload.from, payload.to).await });
-            })
-            .map_err(|e| e.to_string())
-    }
+fn mv(payload: CopyInfo) -> Result<(), String> {
+    zouni::fs::mv_all(&payload.from, payload.to)
 }
 
 #[tauri::command]
@@ -506,12 +483,34 @@ struct ThumbnailArgs {
 }
 #[tauri::command]
 async fn to_thumbnail(payload: ThumbnailArgs) -> Result<Vec<u8>, String> {
-    helper::video_thumbnail(payload).await.map_err(|e| e.to_string())
+    #[cfg(target_os = "windows")]
+    {
+        helper::video_thumbnail(payload).await.map_err(|e| e.to_string())
+    }
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(data) = helper::video_thumbnail(payload.clone()).await {
+            Ok(data)
+        } else {
+            Ok(gtk_thumb::video_thumbnail(payload.full_path, Some("explite"))?.0)
+        }
+    }
 }
 
 #[tauri::command]
 async fn to_image_thumbnail(payload: String) -> Result<Vec<u8>, String> {
-    helper::image_thumbnail(payload).await.map_err(|e| e.to_string())
+    #[cfg(target_os = "windows")]
+    {
+        helper::image_thumbnail(payload).await.map_err(|e| e.to_string())
+    }
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(data) = helper::image_thumbnail(payload.clone()).await {
+            Ok(data)
+        } else {
+            Ok(gtk_thumb::image_thumbnail(payload, Some("explite"))?.0)
+        }
+    }
 }
 
 #[tauri::command]

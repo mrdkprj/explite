@@ -13,6 +13,8 @@ use rs_vips::{
 use std::{
     collections::HashMap,
     ffi::{c_char, c_void, CStr, CString},
+    fs::{create_dir, set_permissions, Permissions},
+    os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
 };
 use url::Url;
@@ -27,11 +29,15 @@ const THUMB_MTIME: &str = "png-comment-1-Thumb::MTime";
 const THUMB_SOFTWARE: &str = "png-comment-2-Software";
 const NORMAL: i32 = 128;
 const LARGE: i32 = 256;
+const DIRECTORY_PERM: u32 = 0o700;
+const FILE_PERM: u32 = 0o600;
 
+// Creates thumbnails(128 and 256)
 pub fn video_thumbnail<P: AsRef<Path>>(file: P, software: Option<&str>) -> Result<(Vec<u8>, Vec<u8>), String> {
     make_thumbnail(file, SourceType::Video, software)
 }
 
+// Creates thumbnails(128 and 256)
 pub fn image_thumbnail<P: AsRef<Path>>(file: P, software: Option<&str>) -> Result<(Vec<u8>, Vec<u8>), String> {
     make_thumbnail(file, SourceType::Picture, software)
 }
@@ -40,7 +46,11 @@ fn make_thumbnail<P: AsRef<Path>>(file: P, source_type: SourceType, software: Op
     let _ = Vips::init("mkthumb");
 
     let url = Url::from_file_path(file.as_ref()).unwrap();
-    let info = File::for_path(file.as_ref()).query_info("time::*", FileQueryInfoFlags::NOFOLLOW_SYMLINKS, Cancellable::NONE).map_err(|e| e.message().to_string())?;
+    let info = File::for_path(file.as_ref()).query_info("access::can-read,time::*", FileQueryInfoFlags::NOFOLLOW_SYMLINKS, Cancellable::NONE).map_err(|e| e.message().to_string())?;
+    // the original image file is readable. If it is not, the program should not attempt to read a thumbnail from the cache, and it should not save any information in the cache
+    if !info.boolean("access::can-read") {
+        return Err("Cannot access file".to_string());
+    }
     let mtime = info.attribute_uint64("time::modified").to_string();
 
     let mut hasher = Md5::new();
@@ -50,18 +60,42 @@ fn make_thumbnail<P: AsRef<Path>>(file: P, source_type: SourceType, software: Op
 
     let fname = format!("{:x}.png", result);
 
-    let dire = if let Ok(cache_home) = std::env::var("XDG_CACHE_HOME") {
-        PathBuf::from(format!("{cache_home}/thumbnails"))
+    let cache_directory_candidate = if let Ok(cache_home) = std::env::var("XDG_CACHE_HOME") {
+        Some(PathBuf::from(format!("{cache_home}/thumbnails")))
     } else if let Ok(home) = std::env::var("HOME") {
-        PathBuf::from(format!("{home}/.cache/thumbnails"))
+        Some(PathBuf::from(format!("{home}/.cache/thumbnails")))
     } else {
-        PathBuf::new()
+        None
     };
 
-    let (normal, large) = (dire.join("normal").join(&fname), dire.join("large").join(&fname));
+    let cache_directory = if let Some(cache_directory) = cache_directory_candidate {
+        cache_directory
+    } else {
+        return Err("Thumbnail cache directory not found".to_string());
+    };
+
+    if !cache_directory.exists() {
+        create_dir(&cache_directory).map_err(|e| e.to_string())?;
+        let permissions = Permissions::from_mode(DIRECTORY_PERM);
+        set_permissions(&cache_directory, permissions).map_err(|e| e.to_string())?;
+    }
+
+    let (normal, large) = (cache_directory.join("normal").join(&fname), cache_directory.join("large").join(&fname));
+
+    if !normal.exists() {
+        create_dir(&normal).map_err(|e| e.to_string())?;
+        let permissions = Permissions::from_mode(DIRECTORY_PERM);
+        set_permissions(&normal, permissions).map_err(|e| e.to_string())?;
+    }
+
+    if !large.exists() {
+        create_dir(&large).map_err(|e| e.to_string())?;
+        let permissions = Permissions::from_mode(DIRECTORY_PERM);
+        set_permissions(&large, permissions).map_err(|e| e.to_string())?;
+    }
 
     let should_create_large = if large.exists() {
-        must_recreate(&large, &mtime)?
+        must_recreate(&large, &mtime).unwrap_or_default()
     } else {
         true
     };
@@ -76,11 +110,13 @@ fn make_thumbnail<P: AsRef<Path>>(file: P, source_type: SourceType, software: Op
     };
 
     if !size256.is_empty() {
-        std::fs::write(large, &size256).map_err(|e| e.to_string())?;
+        std::fs::write(&large, &size256).map_err(|e| e.to_string())?;
+        let permissions = Permissions::from_mode(FILE_PERM);
+        set_permissions(&large, permissions).map_err(|e| e.to_string())?;
     }
 
     let should_create_normal = if normal.exists() {
-        must_recreate(&normal, &mtime)?
+        must_recreate(&normal, &mtime).unwrap_or_default()
     } else {
         true
     };
@@ -95,7 +131,9 @@ fn make_thumbnail<P: AsRef<Path>>(file: P, source_type: SourceType, software: Op
     };
 
     if !size128.is_empty() {
-        std::fs::write(normal, &size128).map_err(|e| e.to_string())?;
+        std::fs::write(&normal, &size128).map_err(|e| e.to_string())?;
+        let permissions = Permissions::from_mode(FILE_PERM);
+        set_permissions(&normal, permissions).map_err(|e| e.to_string())?;
     }
 
     Ok((size128, size256))
@@ -146,13 +184,13 @@ unsafe extern "C" fn read_pngcomment(image: *mut rs_vips::bindings::_VipsImage, 
     std::ptr::null_mut()
 }
 
-fn large_from_image(url: &Url, source: PathBuf, mtime: &String, software: Option<&str>) -> Result<Vec<u8>, String> {
+fn large_from_image(url: &Url, source: PathBuf, mtime: &str, software: Option<&str>) -> Result<Vec<u8>, String> {
     let image = VipsImage::new_from_file(source).map_err(map_vips_error)?.thumbnail_image(LARGE).map_err(map_vips_error)?;
     set_image_data(&image, url, mtime, software)?;
     image.pngsave_buffer().map_err(map_vips_error)
 }
 
-fn normal_from_image(url: &Url, large: &[u8], source: PathBuf, mtime: &String, software: Option<&str>) -> Result<Vec<u8>, String> {
+fn normal_from_image(url: &Url, large: &[u8], source: PathBuf, mtime: &str, software: Option<&str>) -> Result<Vec<u8>, String> {
     let image = if large.is_empty() {
         VipsImage::new_from_file(source).map_err(map_vips_error)?.thumbnail_image(NORMAL).map_err(map_vips_error)?
     } else {
@@ -162,14 +200,14 @@ fn normal_from_image(url: &Url, large: &[u8], source: PathBuf, mtime: &String, s
     image.pngsave_buffer().map_err(map_vips_error)
 }
 
-fn large_from_video(url: &Url, source: PathBuf, mtime: &String, software: Option<&str>) -> Result<Vec<u8>, String> {
+fn large_from_video(url: &Url, source: PathBuf, mtime: &str, software: Option<&str>) -> Result<Vec<u8>, String> {
     let buffer = create_video_thumbnail(source).map_err(|e| e.to_string())?;
     let image = VipsImage::new_from_buffer(&buffer, "").map_err(map_vips_error)?.thumbnail_image(LARGE).map_err(map_vips_error)?;
     set_image_data(&image, url, mtime, software)?;
     image.pngsave_buffer().map_err(map_vips_error)
 }
 
-fn normal_from_video(url: &Url, large: &[u8], source: PathBuf, mtime: &String, software: Option<&str>) -> Result<Vec<u8>, String> {
+fn normal_from_video(url: &Url, large: &[u8], source: PathBuf, mtime: &str, software: Option<&str>) -> Result<Vec<u8>, String> {
     let image = if large.is_empty() {
         let buffer = create_video_thumbnail(source).map_err(|e| e.to_string())?;
         VipsImage::new_from_buffer(&buffer, "").map_err(map_vips_error)?.thumbnail_image(NORMAL).map_err(map_vips_error)?
@@ -180,8 +218,8 @@ fn normal_from_video(url: &Url, large: &[u8], source: PathBuf, mtime: &String, s
     image.pngsave_buffer().map_err(map_vips_error)
 }
 
-fn set_image_data(image: &VipsImage, url: &Url, mtime: &String, software: Option<&str>) -> Result<(), String> {
-    image.set_string(THUMB_URI, &url.to_string()).map_err(map_vips_error)?;
+fn set_image_data(image: &VipsImage, url: &Url, mtime: &str, software: Option<&str>) -> Result<(), String> {
+    image.set_string(THUMB_URI, url.as_ref()).map_err(map_vips_error)?;
     image.set_string(THUMB_MTIME, mtime).map_err(map_vips_error)?;
     if let Some(software) = software {
         image.set_string(THUMB_SOFTWARE, software).map_err(map_vips_error)?;

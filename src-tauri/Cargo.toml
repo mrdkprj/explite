@@ -26,6 +26,7 @@ features = [
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = { version = "0.18.2" }
+gio = { version = "0.18", features = ["v2_72"] }
 zbus = { version = "5.12.0" }
 url = "2"
 ffmpeg-next = "7.0.0"
