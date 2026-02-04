@@ -538,7 +538,7 @@ class Main {
 
         const file = this.files[fileIndex];
         const filePath = file.fullPath;
-        console.log(path.dirname(filePath));
+
         const newPath = path.join(path.dirname(filePath), newName);
 
         try {
@@ -546,8 +546,6 @@ class Main {
             if (found) {
                 throw new Error(`File name "${newName}" exists`);
             }
-            console.log(newPath);
-            console.log(filePath);
             await ipc.invoke("rename", { new: newPath, old: filePath });
 
             this.trackOperation("Rename", [filePath], newPath, []);

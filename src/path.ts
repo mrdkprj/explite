@@ -1,14 +1,20 @@
-import { SEPARATOR } from "./constants";
-import util from "./util";
+const OS = {
+    windows: "Windows",
+    linux: "Linux",
+};
+
+const SEPARATOR = navigator.userAgent.includes(OS.windows) ? "\\" : "/";
+const SEPARATOR_EXP = new RegExp(/\\|\//);
+const WSL_ROOT = "\\\\wsl.localhost";
 
 export class path {
     static join(...paths: string[]) {
-        const components = util.isWin()
+        const components = navigator.userAgent.includes(OS.windows)
             ? paths
-                  .map((a) => path.split(a))
+                  .map((a) => this.split(a))
                   .flat()
                   .filter(Boolean)
-            : paths.map((a) => a.split(SEPARATOR)).flat();
+            : paths.map((a) => this.split(a)).flat();
         return components.join(SEPARATOR);
     }
 
@@ -23,27 +29,27 @@ export class path {
     static basename(path: string | undefined) {
         if (!path) return "";
 
-        const components = path.split(SEPARATOR);
+        const components = this.split(path);
         return components[components.length - 1];
     }
 
     static dirname(path: string | undefined) {
         if (!path) return "";
 
-        const components = path.split(SEPARATOR);
+        const components = this.split(path);
         const rest = components.slice(0, components.length - 1);
         return rest.join(SEPARATOR);
     }
 
     static root(path: string | undefined) {
         if (!path) return "";
-        const components = path.split(SEPARATOR);
+        const components = this.split(path);
         return components[0] + SEPARATOR;
     }
 
     static split(path: string | undefined) {
         if (!path) return [];
-        const pattern = util.isWsl(path) ? new RegExp(/(?<!^|\\)\\/) : SEPARATOR;
+        const pattern = path.startsWith(WSL_ROOT) ? new RegExp(/(?<!^|\\)\\/) : SEPARATOR_EXP;
         return path.split(pattern).filter(Boolean);
     }
 }
