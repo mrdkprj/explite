@@ -1,12 +1,13 @@
 import { writable } from "svelte/store";
-import { load, updateFiles, reset } from "../states/listState.svelte";
-import { DEFAULT_LABLES } from "../constants";
+import { load, updateFiles, reset, listState } from "../states/listState.svelte";
+import { DEFAULT_LABLES, HOME, RECYCLE_BIN } from "../constants";
 import { endRename, startRename } from "../states/renameState.svelte";
 import { ClipPosition, endClip, moveClip, startClip } from "../states/clipState.svelte";
 import { driveState, updateDrives } from "../states/driveState.svelte";
 import { edit, headerState, resetSearch, startSearch } from "../states/headerState.svelte";
 import { startSlide, endSlide, slideState } from "../states/slideState.svelte";
 import Deferred from "../deferred";
+import { path } from "../path";
 export { listState } from "../states/listState.svelte";
 export { renameState } from "../states/renameState.svelte";
 export { clipState } from "../states/clipState.svelte";
@@ -40,6 +41,7 @@ type AppState = {
     sort: Mp.SortType;
     preventBlur: boolean;
     selection: Mp.ItemSelection;
+    selectionAnchor: string;
     copyCutTargets: {
         op: Mp.ClipboardOperation;
         ids: string[];
@@ -69,6 +71,7 @@ export const initialAppState: AppState = {
     },
     preventBlur: false,
     selection: { selectedId: "", selectedIds: [] },
+    selectionAnchor: "",
     copyCutTargets: {
         op: "None",
         ids: [],
@@ -96,7 +99,7 @@ type AppAction =
     | { type: "startSearch" }
     | { type: "endSearch" }
     | { type: "headerLabels"; value: Mp.HeaderLabel[] }
-    | { type: "history"; value: { canGoBack: boolean; canGoForward: boolean } }
+    | { type: "navigated"; value: { canGoBack: boolean; canGoForward: boolean } }
     | { type: "sort"; value: Mp.SortType }
     | { type: "updateFiles"; value: { files: Mp.MediaFile[] } }
     | { type: "preventBlur"; value: boolean }
@@ -106,6 +109,7 @@ type AppAction =
     | { type: "clearSelection" }
     | { type: "appendSelectedIds"; value: string[] }
     | { type: "updateSelection"; value: Mp.ItemSelection }
+    | { type: "selectionAnchor"; value: string }
     | { type: "changeFavorites"; value: Mp.MediaFile[] }
     | { type: "leftWidth"; value: number }
     | { type: "startSlide"; value: { target: "Area" | Mp.SortKey; startX: number } }
@@ -131,6 +135,7 @@ type AppAction =
     | { type: "toggleCreateSymlink" }
     | { type: "toggleGridView"; value: boolean }
     | { type: "scrolling"; value: boolean }
+    | { type: "chunkSize"; value: number }
     | { type: "load"; value: { event: Mp.LoadEvent } };
 
 const updater = (state: AppState, action: AppAction): AppState => {
@@ -205,9 +210,10 @@ const updater = (state: AppState, action: AppAction): AppState => {
         case "headerLabels":
             return { ...state, headerLabels: action.value };
 
-        case "history":
+        case "navigated":
             headerState.canGoBack = action.value.canGoBack;
             headerState.canGoForward = action.value.canGoForward;
+            headerState.canGoUpward = !!path.dirname(listState.currentDir.fullPath) && listState.currentDir.fullPath != HOME && listState.currentDir.fullPath != RECYCLE_BIN;
             return state;
 
         case "sort":
@@ -220,7 +226,7 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return { ...state, selection: { ...state.selection, selectedIds: action.value } };
 
         case "clearSelection":
-            return { ...state, selection: { ...state.selection, selectedId: "", selectedIds: [] } };
+            return { ...state, selection: { ...state.selection, selectedId: "", selectedIds: [] }, selectionAnchor: "" };
 
         case "appendSelectedIds":
             return { ...state, selection: { ...state.selection, selectedIds: [...state.selection.selectedIds, ...action.value] } };
@@ -231,6 +237,9 @@ const updater = (state: AppState, action: AppAction): AppState => {
 
         case "updateSelection":
             return { ...state, selection: { ...state.selection, selectedId: action.value.selectedId, selectedIds: action.value.selectedIds } };
+
+        case "selectionAnchor":
+            return { ...state, selectionAnchor: action.value };
 
         case "preventBlur":
             return { ...state, preventBlur: action.value };
@@ -321,6 +330,10 @@ const updater = (state: AppState, action: AppAction): AppState => {
 
         case "scrolling":
             return { ...state, scrolling: action.value };
+
+        case "chunkSize":
+            listState.chunkSize = action.value;
+            return state;
 
         default:
             return state;

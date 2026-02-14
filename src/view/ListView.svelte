@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { DATE_OPTION, handleKeyEvent, RECYCLE_BIN } from "../constants";
+    import { COLUMN_HEADER_HEIGHT, DATE_OPTION, handleKeyEvent, HEADER_DIVIDER_WIDTh, LIST_ITEM_HEIGHT, RECYCLE_BIN } from "../constants";
     import Column from "./Column.svelte";
     import VirtualList from "./VirtualList.svelte";
     import { appState, listState, headerState, renameState } from "./appStateReducer.svelte";
@@ -37,8 +37,6 @@
         onScroll: () => Promise<void>;
     } = $props();
 
-    const HEADER_DIVIDER_WIDTh = 10;
-
     const isRecycleBin = () => listState.currentDir.fullPath == RECYCLE_BIN;
 
     const shouldDisplayLabel = (key: Mp.SortKey) => {
@@ -58,8 +56,8 @@
     bind:viewport={fileListContainer}
     bind:start={visibleStartIndex}
     bind:end={visibleEndIndex}
-    itemHeight={30}
-    headerHeight={30}
+    itemHeight={LIST_ITEM_HEIGHT}
+    headerHeight={COLUMN_HEADER_HEIGHT}
     onRefresh={searchHighlight}
     {onScroll}
 >

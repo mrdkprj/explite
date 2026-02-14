@@ -2,6 +2,7 @@ export type HeaderState = {
     pathEditing: boolean;
     canGoBack: boolean;
     canGoForward: boolean;
+    canGoUpward: boolean;
     search: SearchState;
 };
 
@@ -14,6 +15,7 @@ const state: HeaderState = $state({
     pathEditing: false,
     canGoBack: false,
     canGoForward: false,
+    canGoUpward: false,
     search: {
         searching: false,
         key: "",

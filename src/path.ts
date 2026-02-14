@@ -5,7 +5,7 @@ const OS = {
 
 const SEPARATOR = navigator.userAgent.includes(OS.windows) ? "\\" : "/";
 const SEPARATOR_EXP = new RegExp(/\\|\//);
-const WSL_ROOT = "\\\\wsl.localhost";
+const UNC = "\\\\";
 
 export class path {
     static join(...paths: string[]) {
@@ -49,7 +49,7 @@ export class path {
 
     static split(path: string | undefined) {
         if (!path) return [];
-        const pattern = path.startsWith(WSL_ROOT) ? new RegExp(/(?<!^|\\)\\/) : SEPARATOR_EXP;
+        const pattern = path.startsWith(UNC) ? new RegExp(/(?<!^|\\)\\/) : SEPARATOR_EXP;
         return path.split(pattern).filter(Boolean);
     }
 }

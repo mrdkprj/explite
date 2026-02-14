@@ -1,13 +1,16 @@
 <script lang="ts">
     import BackSvg from "../svg/BackSvg.svelte";
     import FowardSvg from "../svg/FowardSvg.svelte";
+    import UpwardSvg from "../svg/UpwardSvg.svelte";
+    import PlusSvg from "../svg/PlusSvg.svelte";
     import NewFileSvg from "../svg/NewFileSvg.svelte";
     import NewFolderSvg from "../svg/NewFolderSvg.svelte";
+    import NewSymLinkSvg from "../svg/NewSymLinkSvg.svelte";
     import PathDividerSvg from "../svg/PathDividerSvg.svelte";
     import ReloadSvg from "../svg/ReloadSvg.svelte";
     import ClearSvg from "../svg/ClearSvg.svelte";
-    import ThreeDots from "../svg/ThreeDots.svelte";
-    import Display from "../svg/Display.svelte";
+    import ThreeDotsSvg from "../svg/ThreeDotsSvg.svelte";
+    import DisplaySvg from "../svg/DisplaySvg.svelte";
     import { dispatch, listState, headerState } from "./appStateReducer.svelte";
     import { handleKeyEvent, HOME, RECYCLE_BIN, SEPARATOR } from "../constants";
     import util from "../util";
@@ -24,18 +27,26 @@
         endSearch,
         goBack,
         goForward,
+        goUpward,
         requestLoad,
         reload,
         createItem,
     }: {
         startSearch: () => void;
         endSearch: (refresh: boolean) => Promise<void>;
-        goBack: () => Promise<void>;
-        goForward: () => Promise<void>;
+        goBack: () => void;
+        goForward: () => void;
+        goUpward: () => void;
         requestLoad: (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => void;
         reload: (includeDrive: boolean) => void;
         createItem: (isFile: boolean, shortcut?: boolean) => void;
     } = $props();
+
+    const COMPONENT_PADDINGS = 20;
+    const COMPONENT_RIGHT_MARGIN = 5;
+    const DIVIDER_WIDTH = 16;
+    // border + display svg + divider + dots svg + divider + paddings + righ margin + click margin min-width
+    const MIN_COMPONENT_WIDTH = 1 + 36 + DIVIDER_WIDTH + 36 + DIVIDER_WIDTH + COMPONENT_PADDINGS + COMPONENT_RIGHT_MARGIN + 100;
 
     let searchInterval = 0;
     let searchInput: HTMLInputElement;
@@ -48,8 +59,6 @@
     let showHiddenPaths = $state(false);
     let showCreateDir = $state(false);
     let paths: Paths = $derived.by(() => {
-        const padding = 25;
-        const separator = 16;
         const _canvas = canvas || (canvas = document.createElement("canvas"));
         const context = _canvas.getContext("2d");
         if (!context) {
@@ -68,7 +77,7 @@
         const paths = listState.currentDir.paths.slice();
         paths.reverse().forEach((path, index) => {
             const metrics = context.measureText(path);
-            width += metrics.width + padding + separator;
+            width += metrics.width + COMPONENT_PADDINGS + COMPONENT_RIGHT_MARGIN + DIVIDER_WIDTH;
             if (width > pathWidth && index > 0) {
                 _overflownPaths.push(path);
             } else {
@@ -84,9 +93,6 @@
             overflown: overflownPaths.join(SEPARATOR),
         };
     });
-
-    // Border + 2 icons + 2 dividers + paddings + righ margin + click margin
-    const MIN_COMPONENT_WIDTH = 1 + 36 + 16 + 36 + 16 + 20 + 5 + 100;
 
     const onSearchInputKeyDown = async (e: KeyboardEvent) => {
         if (e.key == "Enter") {
@@ -215,10 +221,20 @@
         dispatch({ type: "toggleCreateSymlink" });
     };
 
+    const createText = (e: MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        createItem(true);
+    };
+
     const createDir = (e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
         createItem(false);
+    };
+
+    const dropdownMouseEvent = (e: MouseEvent) => {
+        e.preventDefault();
     };
 
     const onkeydown = (e: KeyboardEvent) => {
@@ -237,29 +253,24 @@
         <div class="button {headerState.canGoForward ? '' : 'disabled'}" onclick={goForward} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <FowardSvg />
         </div>
+        <div class="button {headerState.canGoUpward ? '' : 'disabled'}" onclick={goUpward} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+            <UpwardSvg />
+        </div>
         <div class="button {listState.currentDir.fullPath == HOME ? 'disabled' : ''}" onclick={() => reload(true)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <ReloadSvg />
         </div>
         <div
             class="button {listState.currentDir.fullPath == HOME || headerState.search.searching ? 'disabled' : ''}"
-            onclick={() => createItem(true)}
-            onkeydown={handleKeyEvent}
-            role="button"
-            tabindex="-1"
-        >
-            <NewFileSvg />
-        </div>
-        <div
-            class="button {listState.currentDir.fullPath == HOME || headerState.search.searching ? 'disabled' : ''}"
+            class:btn-active={showCreateDir}
             onclick={showCreateDirDialog}
             onkeydown={handleKeyEvent}
             role="button"
             tabindex="-1"
         >
-            <NewFolderSvg />
+            <PlusSvg />
             {#if showCreateDir}
                 <div
-                    class="header-dialog"
+                    class="header-dropdown"
                     style="top:{dropdownPosition.top}px;left:{dropdownPosition.left}px;"
                     use:setCreateDirDialogFocus
                     onblur={hideCreateDirDialog}
@@ -267,8 +278,18 @@
                     tabindex="0"
                     role="button"
                 >
-                    <div class="dialog-data" onmousedown={createDir} role="button" tabindex="-1">Directory</div>
-                    <div class="dialog-data" onmousedown={showSymlinkDialog} role="button" tabindex="-1">Shortcut</div>
+                    <div class="dropdown-data" onclick={createText} onmousedown={dropdownMouseEvent} onmouseup={dropdownMouseEvent} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+                        <div class="label-icon"><NewFileSvg /></div>
+                        Text File
+                    </div>
+                    <div class="dropdown-data" onclick={createDir} onmousedown={dropdownMouseEvent} onmouseup={dropdownMouseEvent} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+                        <div class="label-icon"><NewFolderSvg /></div>
+                        Directory
+                    </div>
+                    <div class="dropdown-data" onclick={showSymlinkDialog} onmousedown={dropdownMouseEvent} onmouseup={dropdownMouseEvent} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+                        <div class="label-icon"><NewSymLinkSvg /></div>
+                        Shortcut
+                    </div>
                 </div>
             {/if}
         </div>
@@ -290,16 +311,16 @@
             <div class="path-holder">
                 <div class="path">
                     <div class="display">
-                        <Display />
+                        <DisplaySvg />
                     </div>
                     <PathDividerSvg />
                     {#if paths.overflownPaths.length}
-                        <div class="button path-dots" onclick={showHiddenPathsDialog} onkeydown={handleKeyEvent} role="button" tabindex="-1">
-                            <ThreeDots />
+                        <div class="button path-dots" class:btn-active={showHiddenPaths} onclick={showHiddenPathsDialog} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+                            <ThreeDotsSvg />
                         </div>
                         {#if showHiddenPaths}
                             <div
-                                class="header-dialog"
+                                class="header-dropdown"
                                 style="top:{dropdownPosition.top}px;left:{dropdownPosition.left}px;"
                                 use:setPathDialogFocus
                                 onblur={toggleHiddenPathDialog}
@@ -310,7 +331,7 @@
                                 {#each paths.overflownPaths as hiddenPath, index}
                                     {#if !util.isWsl(hiddenPath)}
                                         <div
-                                            class="dialog-data"
+                                            class="dropdown-data"
                                             data-path={paths.overflownPaths.slice(0, index + 1).join(SEPARATOR)}
                                             onclick={onPathClick}
                                             onkeydown={handleKeyEvent}
@@ -368,7 +389,6 @@
             </div>
         {/if}
     </div>
-    <div class="path" style="display:none"><svg></svg></div>
 </div>
 
 <style>
@@ -417,10 +437,6 @@
         padding: 5px 10px;
     }
 
-    .path svg {
-        overflow: visible;
-    }
-
     .path-data:first-child {
         margin-left: 10px;
     }
@@ -432,7 +448,6 @@
         font-size: 14px;
         overflow: hidden;
         text-overflow: ellipsis;
-        white-space: nowrap;
     }
 
     .path-data:hover {
@@ -440,7 +455,7 @@
         border-radius: 4px;
     }
 
-    .header-dialog {
+    .header-dropdown {
         position: absolute;
         z-index: 1000;
         background-color: var(--dialog-bgcolor);
@@ -454,13 +469,20 @@
         box-shadow: 3px 4px 5px var(--dialog-shadow);
     }
 
-    .dialog-data {
+    .dropdown-data {
         position: relative;
-        padding: 5px 5px;
-        width: calc(100% - 10px);
+        padding: 5px 10px;
+        width: calc(100% - 20px);
         margin: 5px 0 0 0;
         font-size: 14px;
         white-space: nowrap;
+        display: flex;
+        align-items: center;
+    }
+
+    .dropdown-data .label-icon {
+        margin-right: 10px;
+        display: flex;
     }
 
     .path-dots {
@@ -471,7 +493,7 @@
     }
 
     .path-dots:hover,
-    .dialog-data:hover {
+    .dropdown-data:hover {
         background-color: var(--path-hover-color);
         border-radius: 4px;
     }

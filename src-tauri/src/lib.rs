@@ -285,40 +285,12 @@ async fn open_list_context_menu(window: WebviewWindow, payload: ContextMenuArg) 
 
 #[tauri::command]
 async fn open_fav_context_menu(window: WebviewWindow, payload: menu::Position) {
-    #[cfg(target_os = "windows")]
-    {
-        menu::popup_menu(window.app_handle(), window.label(), menu::FAV, payload, None, false).await;
-    }
-    #[cfg(target_os = "linux")]
-    {
-        let app_handle = window.app_handle().clone();
-        app_handle
-            .run_on_main_thread(move || {
-                gtk::glib::spawn_future_local(async move {
-                    menu::popup_menu(window.app_handle(), window.label(), menu::FAV, payload, None, false).await;
-                });
-            })
-            .unwrap();
-    }
+    menu::popup_menu(window.app_handle(), window.label(), menu::FAV, payload, None, false).await;
 }
 
 #[tauri::command]
 async fn open_recycle_context_menu(window: WebviewWindow, payload: ContextMenuArg) {
-    #[cfg(target_os = "windows")]
-    {
-        menu::popup_menu(window.app_handle(), window.label(), menu::RECYCLE_BIN, payload.position, Some(payload.full_path), false).await;
-    }
-    #[cfg(target_os = "linux")]
-    {
-        let app_handle = window.app_handle().clone();
-        app_handle
-            .run_on_main_thread(move || {
-                gtk::glib::spawn_future_local(async move {
-                    menu::popup_menu(window.app_handle(), window.label(), menu::RECYCLE_BIN, payload.position, Some(payload.full_path), false).await;
-                });
-            })
-            .unwrap();
-    }
+    menu::popup_menu(window.app_handle(), window.label(), menu::RECYCLE_BIN, payload.position, Some(payload.full_path), false).await;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

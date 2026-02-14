@@ -99,3 +99,13 @@ export const LINUX_SPECIAL_FOLDERS = {
 };
 
 export const WSL_ROOT = "\\\\wsl.localhost";
+
+export const COLUMN_HEADER_HEIGHT = 30;
+export const GRID_VERTICAL_MARGIN = 10;
+export const LIST_ITEM_HEIGHT = 30;
+export const GRID_ITEM_HEIGHT = 140;
+export const LARGE_ICON_SIZE = 100;
+export const HEADER_DIVIDER_WIDTh = 10;
+
+// width + padding + margin
+export const GRID_ITEM_WIDTH = 100 + 10 + 10;

@@ -7,6 +7,7 @@ export type ListState = {
         paths: string[];
     };
     files: Mp.MediaFile[];
+    chunkSize: number;
 };
 
 export const state: ListState = $state({
@@ -15,6 +16,7 @@ export const state: ListState = $state({
         paths: [],
     },
     files: [],
+    chunkSize: 0,
 });
 
 export { state as listState };

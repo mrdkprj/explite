@@ -46,6 +46,7 @@
         row-gap: 10px;
         flex-wrap: wrap;
     }
+
     .ldisk {
         display: flex;
         flex-direction: row;
@@ -56,12 +57,15 @@
         cursor: pointer;
         width: 280px;
     }
+
     .ldisk:hover {
         background-color: var(--selection-bgcolor);
     }
+
     .icon {
         margin: 0 10px;
     }
+
     .info {
         display: flex;
         flex-direction: column;
@@ -70,20 +74,24 @@
         align-items: flex-start;
         flex: 1 1 auto;
     }
+
     .info div {
         pointer-events: none;
     }
+
     .info .name {
         width: 200px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
+
     .bar {
         width: 90%;
         height: 10px;
         outline: 1px solid;
     }
+
     .used {
         width: 50%;
         height: 100%;

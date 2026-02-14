@@ -2,32 +2,29 @@
     import DriveSvg from "../svg/DriveSvg.svelte";
     import FolderSvg from "../svg/FolderSvg.svelte";
     import RecycleSvg from "../svg/RecycleSvg.svelte";
-    import DirDesktop from "../svg/DirDesktop.svelte";
-    import DirDocuments from "../svg/DirDocuments.svelte";
-    import DirDownloads from "../svg/DirDownloads.svelte";
-    import DirMusic from "../svg/DirMusic.svelte";
-    import DirImage from "../svg/DirImage.svelte";
-    import DirVideo from "../svg/DirVideo.svelte";
+    import DirDesktopSvg from "../svg/DirDesktopSvg.svelte";
+    import DirDocumentsSvg from "../svg/DirDocumentsSvg.svelte";
+    import DirDownloadsSvg from "../svg/DirDownloadsSvg.svelte";
+    import DirMusicSvg from "../svg/DirMusicSvg.svelte";
+    import DirImageSvg from "../svg/DirImageSvg.svelte";
+    import DirVideoSvg from "../svg/DirVideoSvg.svelte";
     import LinuxSvg from "../svg/LinuxSvg.svelte";
-    import { appState, dispatch, driveState, listState, awaitContextMenu } from "./appStateReducer.svelte";
-    import { handleKeyEvent, HOME, OS, RECYCLE_BIN } from "../constants";
-    import main from "../main";
+    import { appState, dispatch, driveState, listState } from "./appStateReducer.svelte";
+    import { handleKeyEvent, HOME, RECYCLE_BIN } from "../constants";
 
-    let { requestLoad, changeFavorites }: { requestLoad: (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => void; changeFavorites: () => void } = $props();
+    let {
+        requestLoad,
+        changeFavorites,
+        onFavoriteContextMenu,
+    }: { requestLoad: (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => void; changeFavorites: () => void; onFavoriteContextMenu: (e: MouseEvent) => Promise<void> } = $props();
 
-    const onFavoriteContextMenu = async (e: MouseEvent) => {
+    const onContextMenu = async (e: MouseEvent) => {
         e.preventDefault();
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
         const hoverFavoriteId = e.target.getAttribute("data-id") ?? "";
         dispatch({ type: "hoverFavoriteId", value: hoverFavoriteId });
-
-        if (navigator.userAgent.includes(OS.windows)) {
-            await main.openFavContextMenu({ x: e.screenX, y: e.screenY });
-        } else {
-            await awaitContextMenu();
-            main.openFavContextMenu({ x: e.clientX, y: e.clientY });
-        }
+        await onFavoriteContextMenu(e);
     };
 
     const onDriveClick = (e: MouseEvent) => {
@@ -80,7 +77,7 @@
                 class:current={favorite.fullPath == listState.currentDir.fullPath}
                 onclick={onDriveClick}
                 onkeydown={handleKeyEvent}
-                oncontextmenu={onFavoriteContextMenu}
+                oncontextmenu={onContextMenu}
                 ondragstart={startDragFavorite}
                 ondrop={onDropFavorite}
                 role="button"
@@ -89,17 +86,17 @@
             >
                 <div class="icon folder">
                     {#if favorite.fileType == "Desktop"}
-                        <DirDesktop />
+                        <DirDesktopSvg />
                     {:else if favorite.fileType == "Documents"}
-                        <DirDocuments />
+                        <DirDocumentsSvg />
                     {:else if favorite.fileType == "Downloads"}
-                        <DirDownloads />
+                        <DirDownloadsSvg />
                     {:else if favorite.fileType == "Music"}
-                        <DirMusic />
+                        <DirMusicSvg />
                     {:else if favorite.fileType == "Pictures"}
-                        <DirImage />
+                        <DirImageSvg />
                     {:else if favorite.fileType == "Videos"}
-                        <DirVideo />
+                        <DirVideoSvg />
                     {:else}
                         <FolderSvg />
                     {/if}
@@ -113,7 +110,7 @@
             <div class="icon">
                 <DriveSvg />
             </div>
-            <div class="name">PC</div>
+            <div class="name">{HOME}</div>
         </div>
         {#each driveState.drives as disk}
             <div data-full-path={disk.path} class="disk" class:current={disk.path == listState.currentDir.fullPath} onclick={onDriveClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
@@ -136,7 +133,7 @@
             <div class="icon">
                 <RecycleSvg />
             </div>
-            <div class="name">Recycle Bin</div>
+            <div class="name">{RECYCLE_BIN}</div>
         </div>
     </div>
 </div>

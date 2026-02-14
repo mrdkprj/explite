@@ -1,19 +1,7 @@
 <script lang="ts">
     import { appState, listState, renameState, headerState } from "./appStateReducer.svelte";
-
-    import { handleKeyEvent } from "../constants";
+    import { GRID_ITEM_HEIGHT, GRID_VERTICAL_MARGIN, handleKeyEvent, LARGE_ICON_SIZE } from "../constants";
     import VirtualList from "./VirtualList.svelte";
-    // import AudioSvg from "../svg/AudioSvg.svelte";
-    // import Zip from "../svg/Zip.svelte";
-    // import AppSvg from "../svg/AppSvg.svelte";
-    // import FileSvg from "../svg/FileSvg.svelte";
-    // import DirDesktop from "../svg/DirDesktop.svelte";
-    // import DirDocuments from "../svg/DirDocuments.svelte";
-    // import DirDownloads from "../svg/DirDownloads.svelte";
-    // import DirMusic from "../svg/DirMusic.svelte";
-    // import DirImage from "../svg/DirImage.svelte";
-    // import DirVideo from "../svg/DirVideo.svelte";
-    // import FolderSvg from "../svg/FolderSvg.svelte";
     import FileIcon from "./FileIcon.svelte";
 
     let {
@@ -42,13 +30,13 @@
         onScroll: () => Promise<void>;
     } = $props();
 
-    const GRID_ITEM_WIDTH = 110 + 10 + 10;
-
     const toChunk = () => {
         if (!fileListContainer) return [];
+
         const chunks = [];
         const files = listState.files;
-        const chunkSize = Math.floor(fileListContainer.clientWidth / GRID_ITEM_WIDTH);
+        const chunkSize = listState.chunkSize;
+
         for (let i = 0; i < files.length; i += chunkSize) {
             const chunk = files.slice(i, i + chunkSize);
             chunks.push(chunk);
@@ -63,10 +51,11 @@
     bind:viewport={fileListContainer}
     bind:start={visibleStartIndex}
     bind:end={visibleEndIndex}
-    itemHeight={140}
+    itemHeight={GRID_ITEM_HEIGHT}
     headerHeight={0}
     onRefresh={searchHighlight}
     thumbnail={true}
+    vmargin={GRID_VERTICAL_MARGIN * 2}
     {onScroll}
 >
     {#snippet header()}{/snippet}
@@ -104,48 +93,7 @@
                             {#if item.linkPath}
                                 <div class="symlink-icon"><div class="symlink-arrow"></div></div>
                             {/if}
-                            <FileIcon {item} size={100} showThumbnail={true} />
-                            <!-- {#if item.isFile}
-                                {#if item.fileType == "Audio"}
-                                    <AudioSvg />
-                                {:else if item.fileType == "Video"}
-                                    {#await toVideoThumbnail(item.fullPath)}
-                                        <div style="width: 100px;height:90px;"></div>
-                                    {:then data}
-                                        <div class="cover">
-                                            <div class="film"></div>
-                                            <img src={data} class="thumbnail-video" alt="" loading="lazy" decoding="async" />
-                                            <div class="film"></div>
-                                        </div>
-                                    {/await}
-                                {:else if item.fileType == "Image"}
-                                    {#await toImageThumbnail(item.fullPath)}
-                                        <div style="width: 100px;height:90px;"></div>
-                                    {:then data}
-                                        <img src={data} class="thumbnail-img" alt="" loading="lazy" decoding="async" />
-                                    {/await}
-                                {:else if item.fileType == "Zip"}
-                                    <Zip />
-                                {:else if item.fileType == "App"}
-                                    <AppSvg />
-                                {:else}
-                                    <FileSvg />
-                                {/if}
-                            {:else if item.fileType == "Desktop"}
-                                <DirDesktop />
-                            {:else if item.fileType == "Documents"}
-                                <DirDocuments />
-                            {:else if item.fileType == "Downloads"}
-                                <DirDownloads />
-                            {:else if item.fileType == "Music"}
-                                <DirMusic />
-                            {:else if item.fileType == "Pictures"}
-                                <DirImage />
-                            {:else if item.fileType == "Videos"}
-                                <DirVideo />
-                            {:else}
-                                <FolderSvg />
-                            {/if} -->
+                            <FileIcon {item} size={LARGE_ICON_SIZE} showThumbnail={true} />
                         </div>
                         <div class="name" id={item.uuid} data-file-id={item.id} class:rename-hidden={renameState.targetUUID == item.uuid}>
                             {item.name}

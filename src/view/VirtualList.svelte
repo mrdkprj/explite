@@ -18,6 +18,7 @@
         onRefresh = undefined,
         onScroll = undefined,
         thumbnail = false,
+        vmargin = 0,
     }: {
         id?: string;
         items: T[];
@@ -33,6 +34,7 @@
         onRefresh?: ((nodes: HTMLElement[]) => void) | undefined;
         onScroll?: () => Promise<void>;
         thumbnail?: boolean;
+        vmargin?: number;
     } = $props();
 
     let height_map: number[] = [];
@@ -66,7 +68,7 @@
             scrollToIndex(itemLength ? itemLength - 1 : 0, { behavior: "auto" });
         }
 
-        const { scrollTop } = viewport;
+        const scrollTop = viewport.scrollTop + vmargin;
 
         await tick(); // wait until the DOM is up to date
 
@@ -107,7 +109,7 @@
         if (!isScrolling) {
             isScrolling = true;
             requestAnimationFrame(() => {
-                const { scrollTop } = viewport;
+                const scrollTop = viewport.scrollTop + vmargin;
 
                 for (let v = 0; v < rows.length; v += 1) {
                     height_map[start + v] = itemHeight || rows[v].offsetHeight;
@@ -164,7 +166,7 @@
     }
 
     export async function scrollToIndex(index: number, opts: ScrollToOptions, alignBottom?: boolean) {
-        const { scrollTop } = viewport;
+        const scrollTop = viewport.scrollTop + vmargin;
         const itemsDelta = alignBottom ? Math.max(1, index - start) : index - start;
         const _itemHeight = itemHeight || average_height;
         const _distance = itemsDelta * _itemHeight;

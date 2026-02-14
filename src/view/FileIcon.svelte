@@ -4,15 +4,15 @@
     import AudioSvg from "../svg/AudioSvg.svelte";
     import VideoSvg from "../svg/VideoSvg.svelte";
     import ImageSvg from "../svg/ImageSvg.svelte";
-    import Zip from "../svg/Zip.svelte";
+    import ZipSvg from "../svg/ZipSvg.svelte";
     import AppSvg from "../svg/AppSvg.svelte";
     import FileSvg from "../svg/FileSvg.svelte";
-    import DirDesktop from "../svg/DirDesktop.svelte";
-    import DirDocuments from "../svg/DirDocuments.svelte";
-    import DirDownloads from "../svg/DirDownloads.svelte";
-    import DirMusic from "../svg/DirMusic.svelte";
-    import DirImage from "../svg/DirImage.svelte";
-    import DirVideo from "../svg/DirVideo.svelte";
+    import DirDesktopSvg from "../svg/DirDesktopSvg.svelte";
+    import DirDocumentsSvg from "../svg/DirDocumentsSvg.svelte";
+    import DirDownloadsSvg from "../svg/DirDownloadsSvg.svelte";
+    import DirMusicSvg from "../svg/DirMusicSvg.svelte";
+    import DirImageSvg from "../svg/DirImageSvg.svelte";
+    import DirVideoSvg from "../svg/DirVideoSvg.svelte";
     import FolderSvg from "../svg/FolderSvg.svelte";
 
     let { item, size, showThumbnail }: { item: Mp.MediaFile; size: number; showThumbnail: boolean } = $props();
@@ -50,7 +50,7 @@
     {:else if item.fileType == "Video"}
         {#if showThumbnail}
             {#await util.toVideoThumbnail(item.fullPath)}
-                <div style="width: 100px;height:90px;"></div>
+                <div class="pending"></div>
             {:then data}
                 <div class="cover">
                     <div class="film"></div>
@@ -64,7 +64,7 @@
     {:else if item.fileType == "Image"}
         {#if showThumbnail}
             {#await util.toImageThumbnail(item.fullPath)}
-                <div style="width: 100px;height:90px;"></div>
+                <div class="pending"></div>
             {:then data}
                 <img src={data} class="thumbnail-img" alt="" loading="lazy" decoding="async" />
             {/await}
@@ -72,24 +72,31 @@
             <ImageSvg />
         {/if}
     {:else if item.fileType == "Zip"}
-        <Zip />
+        <ZipSvg />
     {:else if item.fileType == "App"}
         <AppSvg />
     {:else}
         <FileSvg />
     {/if}
 {:else if item.fileType == "Desktop"}
-    <DirDesktop />
+    <DirDesktopSvg />
 {:else if item.fileType == "Documents"}
-    <DirDocuments />
+    <DirDocumentsSvg />
 {:else if item.fileType == "Downloads"}
-    <DirDownloads />
+    <DirDownloadsSvg />
 {:else if item.fileType == "Music"}
-    <DirMusic />
+    <DirMusicSvg />
 {:else if item.fileType == "Pictures"}
-    <DirImage />
+    <DirImageSvg />
 {:else if item.fileType == "Videos"}
-    <DirVideo />
+    <DirVideoSvg />
 {:else}
     <FolderSvg />
 {/if}
+
+<style>
+    .pending {
+        width: 100px;
+        height: 90px;
+    }
+</style>

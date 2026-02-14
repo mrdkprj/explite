@@ -1,0 +1,127 @@
+.dialog-overlay {
+    background-color: transparent;
+    width: 100%;
+    height: calc(100% - 50px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    z-index: 9999;
+}
+
+.dialog-header {
+    width: 100%;
+    height: 30px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.dialog {
+    width: calc(100% - 40px);
+    height: calc(100% - 30px);
+    overflow: auto;
+    padding: 0 20px 20px 20px;
+}
+
+.dialog-item-block {
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.dialog-separator {
+    height: 1px;
+    border-top: 1px solid #ccc;
+    margin: 20px 0 10px 0;
+}
+
+.dialog-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.dialog-title-block {
+    font-size: 16px;
+    font-weight: bold;
+    margin: 0 0 10px 0;
+}
+
+.dialog-select {
+    width: 90%;
+    padding: 5px 0 5px 5px;
+    border-radius: 4px;
+    border-color: #ccc;
+    background-color: var(--button-bgcolor);
+    color: var(--button-color);
+}
+
+.dialog-select:focus {
+    outline: none;
+}
+
+.dialog-select.pref-target {
+    width: 100%;
+    outline: none;
+    border: none;
+    height: 100%;
+}
+
+.dialog button {
+    background-color: var(--button-bgcolor);
+    color: var(--button-color);
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.dialog button:disabled {
+    visibility: hidden;
+}
+
+.dialog button:hover,
+.dialog button:not(:disabled):hover {
+    background-color: #e1e4ed;
+}
+
+.dialog-action {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.dialog-action button:not(:last-child) {
+    margin-right:10px;
+}
+
+.dialog-btn-md {
+    padding: 5px;
+}
+
+.dialog-btn-md:disabled {
+    background-color: #ccc;
+    pointer-events: none;
+}
+
+.dialog-btn-lg {
+    padding: 8px;
+}
+
+.dialog-close {
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    width: 45px;
+    height: 100%;
+    text-align: center;
+    user-select: none;
+    -webkit-user-select: none;
+    position: relative;
+    -webkit-app-region: no-drag;
+    line-height: 35px;
+    border-top-right-radius: 8px;
+}
+
+.dialog-close:hover {
+    background-color: var(--close-hover-bgcolor);
+    color: var(--close-hover-color);
+}

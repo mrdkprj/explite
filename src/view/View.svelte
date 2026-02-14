@@ -1,7 +1,8 @@
 <script lang="ts">
     import { onMount, tick } from "svelte";
     import { appState, dispatch, renameState, listState, slideState, clipState, driveState, headerState, awaitContextMenu, resolveContextMenu } from "./appStateReducer.svelte";
-    import Bar from "./Bar.svelte";
+    import TopBar from "./TopBar.svelte";
+    import BottomBar from "./BottomBar.svelte";
     import Header from "./Header.svelte";
     import Left from "./Left.svelte";
     import Preference from "./Preference.svelte";
@@ -12,7 +13,7 @@
     import ListView from "./ListView.svelte";
     import Rename from "./Rename.svelte";
 
-    import { BROWSER_SHORTCUT_KEYS, DEFAULT_SORT_TYPE, HOME, OS, RECYCLE_BIN, handleKeyEvent } from "../constants";
+    import { BROWSER_SHORTCUT_KEYS, COLUMN_HEADER_HEIGHT, DEFAULT_SORT_TYPE, GRID_VERTICAL_MARGIN, HOME, OS, RECYCLE_BIN, handleKeyEvent } from "../constants";
     import { IPC } from "../ipc";
     import main from "../main";
     import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -62,6 +63,15 @@
         }
     };
 
+    const onFavoriteContextMenu = async (e: MouseEvent) => {
+        if (navigator.userAgent.includes(OS.windows)) {
+            await main.openFavContextMenu({ x: e.screenX, y: e.screenY });
+        } else {
+            await awaitContextMenu();
+            await main.openFavContextMenu({ x: e.clientX, y: e.clientY });
+        }
+    };
+
     const onWindowSizeChanged = async () => {
         const isMaximized = await WebviewWindow.getCurrent().isMaximized();
         dispatch({ type: "isMaximized", value: isMaximized });
@@ -72,7 +82,6 @@
         await folderUpdatePromise.promise;
     };
 
-    /* list */
     const clearSelection = () => {
         dispatch({ type: "clearSelection" });
     };
@@ -87,6 +96,7 @@
         await tick();
         const element = document.getElementById(id);
 
+        // If not rendered
         if (!element) {
             const index = listState.files.findIndex((file) => file.id == id);
             if (index <= visibleStartIndex) {
@@ -99,13 +109,17 @@
 
         const rect = element.getBoundingClientRect();
         const containerRect = fileListContainer.getBoundingClientRect();
-        const containerTop = containerRect.top + 30;
+
+        const containerTop = $appState.isInGridView ? containerRect.top + GRID_VERTICAL_MARGIN : containerRect.top + COLUMN_HEADER_HEIGHT;
+        const scrollHeight = fileListContainer.offsetHeight - fileListContainer.clientHeight;
+        const containerBottom = containerRect.bottom - scrollHeight;
+
         if (rect.top <= containerTop) {
             fileListContainer.scrollBy(0, rect.top - containerTop);
         }
 
-        if (rect.bottom > containerRect.bottom) {
-            fileListContainer.scrollBy(0, rect.height);
+        if (rect.bottom > containerBottom) {
+            fileListContainer.scrollBy(0, rect.bottom - containerBottom);
         }
     };
 
@@ -352,14 +366,14 @@
         if (!e.target || !(e.target instanceof HTMLElement)) return;
         if (!clipState.clipping) return;
 
-        const rect = getClipRect(e);
+        const clipRect = getClipRect(e);
 
         const selected: string[] = [];
         document.querySelectorAll(".selectable").forEach((e) => {
-            const rect2 = getItemRect(e as HTMLElement);
             const id = e.getAttribute("data-file-id");
             if (!id) return;
-            if (isRectInRect(rect, rect2) && !$appState.selection.selectedIds.includes(id)) {
+            const itemRect = getItemRect(e as HTMLElement);
+            if (isRectInRect(clipRect, itemRect) && !$appState.selection.selectedIds.includes(id)) {
                 selected.push(id);
             }
         });
@@ -373,14 +387,14 @@
         if (!e.target || !(e.target instanceof HTMLElement)) return;
         if (!clipState.clipping) return;
 
-        const rect = getClipRect(e);
+        const clipRect = getClipRect(e);
 
         const unselected: string[] = [];
         document.querySelectorAll(".selectable").forEach((e) => {
-            const rect2 = getItemRect(e as HTMLElement);
             const id = e.getAttribute("data-file-id");
             if (!id) return;
-            if (!isRectInRect(rect, rect2) && $appState.selection.selectedIds.includes(id)) {
+            const itemRect = getItemRect(e as HTMLElement);
+            if (!isRectInRect(clipRect, itemRect) && $appState.selection.selectedIds.includes(id)) {
                 unselected.push(id);
             }
         });
@@ -461,12 +475,13 @@
     };
 
     const selectByShift = (id: string) => {
-        dispatch({ type: "setSelectedIds", value: [] });
-
         const range = [];
 
         if ($appState.selection.selectedId) {
-            range.push(getChildIndex($appState.selection.selectedId));
+            if (!$appState.selectionAnchor) {
+                dispatch({ type: "selectionAnchor", value: $appState.selection.selectedId });
+            }
+            range.push(getChildIndex($appState.selectionAnchor));
         } else {
             range.push(0);
         }
@@ -480,7 +495,7 @@
             ids.push(listState.files[i].id);
         }
 
-        dispatch({ type: "setSelectedIds", value: ids });
+        dispatch({ type: "updateSelection", value: { selectedId: id, selectedIds: ids } });
     };
 
     const selectByCtrl = async (id: string) => {
@@ -505,11 +520,10 @@
             await select(listState.files[0].id);
         }
 
-        const downward = $appState.selection.selectedId == $appState.selection.selectedIds[0];
-
+        const downward = $appState.selectionAnchor == $appState.selection.selectedIds[0];
         const currentId = downward ? $appState.selection.selectedIds[$appState.selection.selectedIds.length - 1] : $appState.selection.selectedIds[0];
         const currentIndex = getChildIndex(currentId);
-        const nextId = key === "ArrowDown" ? listState.files[currentIndex + 1]?.id : listState.files[currentIndex - 1]?.id;
+        const nextId = getNextItemId(key, currentIndex);
 
         if (!nextId) return;
 
@@ -525,12 +539,24 @@
 
         const currentId = $appState.selection.selectedId ? $appState.selection.selectedId : listState.files[0].id;
         const currentIndex = getChildIndex(currentId);
-        const nextId = e.key === "ArrowDown" ? listState.files[currentIndex + 1]?.id : listState.files[currentIndex - 1]?.id;
+        const nextId = getNextItemId(e.key, currentIndex);
 
         if (!nextId) return;
 
         clearSelection();
         await select(nextId);
+    };
+
+    const getNextItemId = (key: string, currentIndex: number) => {
+        if (!$appState.isInGridView) {
+            return key === "ArrowDown" ? listState.files[currentIndex + 1]?.id : listState.files[currentIndex - 1]?.id;
+        }
+
+        if (key == "ArrowLeft" || key == "ArrowRight") {
+            return key === "ArrowRight" ? listState.files[currentIndex + 1]?.id : listState.files[currentIndex - 1]?.id;
+        }
+
+        return key === "ArrowDown" ? listState.files[currentIndex + listState.chunkSize]?.id : listState.files[currentIndex - listState.chunkSize]?.id;
     };
 
     const selectUpto = async (e: KeyboardEvent) => {
@@ -555,7 +581,6 @@
         await scrollToElement(targetId);
     };
 
-    /* rename */
     const startEditFileName = () => {
         if (isRecycleBin()) return;
 
@@ -915,26 +940,25 @@
         }
     };
 
-    const goBack = async () => {
+    const goBack = () => {
         if (!headerState.canGoBack) return;
-
-        if (headerState.search.searching) {
-            return await endSearch(false);
-        }
 
         const navigationHistory = BACKWARD[BACKWARD.length - 1];
         requestLoad(navigationHistory.fullPath, false, "Back");
     };
 
-    const goForward = async () => {
+    const goForward = () => {
         if (!headerState.canGoForward) return;
-
-        if (headerState.search.searching) {
-            return await endSearch(false);
-        }
 
         const navigationHistory = FORWARD[FORWARD.length - 1];
         requestLoad(navigationHistory.fullPath, false, "Forward");
+    };
+
+    const goUpward = () => {
+        if (!headerState.canGoUpward) return;
+
+        const parent = path.dirname(listState.currentDir.fullPath);
+        requestLoad(parent, false, "PathSelect");
     };
 
     const requestLoad = async (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => {
@@ -1013,9 +1037,9 @@
         visibleEndIndex = 0;
         dispatch({ type: "toggleGridView", value: false });
         dispatch({ type: "headerLabels", value: e.headers });
-        dispatch({ type: "history", value: { canGoBack: BACKWARD.length > 0, canGoForward: FORWARD.length > 0 } });
         dispatch({ type: "sort", value: e.sortType });
         dispatch({ type: "load", value: { event: e } });
+        dispatch({ type: "navigated", value: { canGoBack: BACKWARD.length > 0, canGoForward: FORWARD.length > 0 } });
 
         if (e.drives) {
             dispatch({ type: "drives", value: e.drives });
@@ -1289,32 +1313,6 @@
             }
         }
 
-        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-            e.preventDefault();
-            return await moveSelection(e);
-        }
-
-        if (e.altKey && e.key == "ArrowLeft") {
-            e.preventDefault();
-            await goBack();
-            return;
-        }
-
-        if (e.altKey && e.key == "ArrowRight") {
-            e.preventDefault();
-            await goForward();
-            return;
-        }
-
-        if (e.key === "Home" || e.key === "End") {
-            e.preventDefault();
-            if (e.shiftKey) {
-                return await moveSelectionUpto(e);
-            } else {
-                return await selectUpto(e);
-            }
-        }
-
         if (e.ctrlKey && e.key == "c") {
             e.preventDefault();
             return markCopyCut(true);
@@ -1328,6 +1326,38 @@
         if (e.ctrlKey && e.key == "v") {
             e.preventDefault();
             return pasteItems();
+        }
+
+        if (e.altKey && e.key == "ArrowLeft") {
+            e.preventDefault();
+            goBack();
+            return;
+        }
+
+        if (e.altKey && e.key == "ArrowRight") {
+            e.preventDefault();
+            goForward();
+            return;
+        }
+
+        if (e.altKey && e.key == "ArrowUp") {
+            e.preventDefault();
+            goUpward();
+            return;
+        }
+
+        if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight") {
+            e.preventDefault();
+            return await moveSelection(e);
+        }
+
+        if (e.key === "Home" || e.key === "End") {
+            e.preventDefault();
+            if (e.shiftKey) {
+                return await moveSelectionUpto(e);
+            } else {
+                return await selectUpto(e);
+            }
         }
 
         if (e.key == "Delete") {
@@ -1389,6 +1419,23 @@
         await main.createSymlink(path, linkPath);
     };
 
+    const minimize = async () => {
+        await WebviewWindow.getCurrent().minimize();
+    };
+
+    const toggleMaximize = async () => {
+        await main.toggleMaximize(WebviewWindow.getCurrent());
+        dispatch({ type: "isMaximized", value: !$appState.isMaximized });
+    };
+
+    const launchNew = async () => {
+        await main.launchNew();
+    };
+
+    const close = async () => {
+        await main.closeWindow(WebviewWindow.getCurrent());
+    };
+
     const onDeviceEvent = async (e: Mp.DeviceEvent) => {
         if (!e.name.includes("Disk") && !e.name.includes("Storage")) return;
 
@@ -1414,7 +1461,7 @@
                 FORWARD.length = 0;
             }
 
-            dispatch({ type: "history", value: { canGoBack: BACKWARD.length > 0, canGoForward: FORWARD.length > 0 } });
+            dispatch({ type: "navigated", value: { canGoBack: BACKWARD.length > 0, canGoForward: FORWARD.length > 0 } });
         }
 
         dispatch({ type: "drives", value: drives });
@@ -1500,7 +1547,7 @@
 <svelte:document {onkeydown} {onkeyup} onmousemove={onMouseMove} onmousedown={onMouseDown} onmouseup={onMouseUp} ondragover={onDragOver} ondragenter={onDragEnter} ondragleave={onDragLeave} />
 
 <div class="viewport" class:full-screen={$appState.isFullScreen} class:sliding={slideState.sliding}>
-    <Bar />
+    <TopBar {minimize} {toggleMaximize} {launchNew} {close} />
     <div class="view">
         {#if $appState.prefVisible}
             <Preference preferenceChanged={onPreferenceChange} {openSettingsAsJson} {clearHeaderHistory} />
@@ -1511,9 +1558,9 @@
         {#if renameState.renaming}
             <Rename {endEditFileName} />
         {/if}
-        <Header {requestLoad} {startSearch} {endSearch} {goBack} {goForward} {createItem} {reload} bind:this={header} />
+        <Header {requestLoad} {startSearch} {endSearch} {goBack} {goForward} {goUpward} {createItem} {reload} bind:this={header} />
         <div id="viewContent" class="body" ondragover={onDragOver} onkeydown={handleKeyEvent} role="button" tabindex="-1">
-            <Left {requestLoad} {changeFavorites} />
+            <Left {requestLoad} {changeFavorites} {onFavoriteContextMenu} />
             <div class="area-divider" onmousedown={onAreaSliderMousedown} onkeydown={handleKeyEvent} role="button" tabindex="-1">
                 <div class="line"></div>
             </div>
@@ -1568,4 +1615,5 @@
             </div>
         </div>
     </div>
+    <BottomBar clientWidth={fileListContainer?.clientWidth} />
 </div>

@@ -110,7 +110,6 @@ fn update_open_with(menu: &Menu, file_path: &str) {
     select_app_item.set_visible(true);
 
     let apps = zouni::shell::get_open_with(file_path);
-
     let apps: Vec<AppInfo> = apps.into_iter().filter(|app| !app.path.is_empty()).rev().collect();
 
     if !apps.is_empty() {

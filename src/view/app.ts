@@ -1,4 +1,5 @@
 import "./view.css";
+import "./dialog.css";
 import "../common.css";
 import { mount } from "svelte";
 import View from "./View.svelte";

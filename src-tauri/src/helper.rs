@@ -91,7 +91,7 @@ pub fn assoc_icons(full_paths: Vec<String>) -> Result<HashMap<String, IconInfo>,
 
 pub async fn get_wsl_names() -> Result<Vec<String>, zouni::process::CommandStatus> {
     let result = zouni::process::spawn(SpawnOption {
-        program: "wsl2".to_string(),
+        program: "wsl".to_string(),
         args: Some(vec!["-l".to_string(), "-q".to_string()]),
         cancellation_token: Some("wsl".to_string()),
     })
