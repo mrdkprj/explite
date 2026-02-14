@@ -141,7 +141,7 @@
             showHiddenPaths = false;
             pendingPath = null;
         }
-
+        console.log(path);
         requestLoad(path, false, "PathSelect");
     };
 
@@ -235,6 +235,11 @@
 
     const dropdownMouseEvent = (e: MouseEvent) => {
         e.preventDefault();
+    };
+
+    const buildPaths = (upToCurrent: string[], before?: string) => {
+        const current = upToCurrent.length == 1 && upToCurrent[0].endsWith(":") ? upToCurrent[0] + SEPARATOR : upToCurrent.join(SEPARATOR);
+        return before ? path.join(before, current) : current;
     };
 
     const onkeydown = (e: KeyboardEvent) => {
@@ -332,7 +337,7 @@
                                     {#if !util.isWsl(hiddenPath)}
                                         <div
                                             class="dropdown-data"
-                                            data-path={paths.overflownPaths.slice(0, index + 1).join(SEPARATOR)}
+                                            data-path={buildPaths(paths.overflownPaths.slice(0, index + 1))}
                                             onclick={onPathClick}
                                             onkeydown={handleKeyEvent}
                                             role="button"
@@ -349,7 +354,7 @@
                         {#if !util.isWsl(visiblePath)}
                             <div
                                 class="path-data"
-                                data-path={path.join(paths.overflown, paths.visiblePaths.slice(0, index + 1).join(SEPARATOR))}
+                                data-path={buildPaths(paths.visiblePaths.slice(0, index + 1), paths.overflown)}
                                 onclick={onPathClick}
                                 onkeydown={handleKeyEvent}
                                 role="button"

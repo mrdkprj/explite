@@ -9,12 +9,10 @@ const UNC = "\\\\";
 
 export class path {
     static join(...paths: string[]) {
-        const components = navigator.userAgent.includes(OS.windows)
-            ? paths
-                  .map((a) => this.split(a))
-                  .flat()
-                  .filter(Boolean)
-            : paths.map((a) => this.split(a)).flat();
+        const components = paths
+            .map((a) => this.split(a))
+            .flat()
+            .filter(Boolean);
         return components.join(SEPARATOR);
     }
 
