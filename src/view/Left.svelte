@@ -54,7 +54,7 @@
         e.preventDefault();
         e.stopPropagation();
 
-        const favorites = structuredClone(driveState.favorites);
+        const favorites = $state.snapshot(driveState.favorites);
 
         const sourceIndex = favorites.findIndex((label) => label.id == sourceId);
         const source = favorites.splice(sourceIndex, 1)[0];

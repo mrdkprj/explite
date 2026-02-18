@@ -16,7 +16,7 @@ export const state: SlideState = $state({
 
 export { state as slideState };
 
-export const startSlide = (headerLabels: Mp.HeaderLabel[], target: "Area" | Mp.SortKey, startX: number) => {
+export const startSlide = (headerLabels: Mp.ColumnLabel[], target: "Area" | Mp.SortKey, startX: number) => {
     const width = target == "Area" ? driveState.leftWidth : headerLabels.filter((label) => label.sortKey == target)[0].width;
     state.sliding = true;
     state.target = target;

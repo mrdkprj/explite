@@ -1,11 +1,12 @@
 import { writable } from "svelte/store";
 import { load, updateFiles, reset, listState } from "../states/listState.svelte";
-import { DEFAULT_LABLES, HOME, RECYCLE_BIN } from "../constants";
+import { HOME, RECYCLE_BIN } from "../constants";
 import { endRename, startRename } from "../states/renameState.svelte";
 import { ClipPosition, endClip, moveClip, startClip } from "../states/clipState.svelte";
 import { driveState, updateDrives } from "../states/driveState.svelte";
 import { edit, headerState, resetSearch, startSearch } from "../states/headerState.svelte";
 import { startSlide, endSlide, slideState } from "../states/slideState.svelte";
+import { calculateColumnWidths, columnState, swithWidth } from "../states/columnState.svelte";
 import Deferred from "../deferred";
 import { path } from "../path";
 export { listState } from "../states/listState.svelte";
@@ -14,6 +15,7 @@ export { clipState } from "../states/clipState.svelte";
 export { driveState } from "../states/driveState.svelte";
 export { headerState } from "../states/headerState.svelte";
 export { slideState } from "../states/slideState.svelte";
+export { columnState } from "../states/columnState.svelte";
 // Linux only
 type ContextMenuState = {
     deferred: Deferred<number> | null;
@@ -36,8 +38,6 @@ type DragHandlerType = "View" | "Column" | "Favorite";
 
 type AppState = {
     isMaximized: boolean;
-    isFullScreen: boolean;
-    headerLabels: Mp.HeaderLabel[];
     sort: Mp.SortType;
     preventBlur: boolean;
     selection: Mp.ItemSelection;
@@ -59,12 +59,11 @@ type AppState = {
     scrolling: boolean;
     useOSIcon: boolean;
     rememberColumns: boolean;
+    autoAdjustColumn: boolean;
 };
 
 export const initialAppState: AppState = {
     isMaximized: false,
-    isFullScreen: false,
-    headerLabels: DEFAULT_LABLES,
     sort: {
         asc: true,
         key: "name",
@@ -89,16 +88,18 @@ export const initialAppState: AppState = {
     scrolling: false,
     useOSIcon: false,
     rememberColumns: true,
+    autoAdjustColumn: false,
 };
 
 type AppAction =
     | { type: "reset" }
     | { type: "isMaximized"; value: boolean }
-    | { type: "isFullScreen"; value: boolean }
     | { type: "pathEditing"; value: boolean }
     | { type: "startSearch" }
     | { type: "endSearch" }
-    | { type: "headerLabels"; value: Mp.HeaderLabel[] }
+    | { type: "columnLabels"; value: Mp.ColumnLabel[] }
+    | { type: "calculateColumnWidths"; value: Mp.MediaFile[] }
+    | { type: "useCalculatedWidths"; value: Mp.SortKey }
     | { type: "navigated"; value: { canGoBack: boolean; canGoForward: boolean } }
     | { type: "sort"; value: Mp.SortType }
     | { type: "updateFiles"; value: { files: Mp.MediaFile[] } }
@@ -136,6 +137,7 @@ type AppAction =
     | { type: "toggleGridView"; value: boolean }
     | { type: "scrolling"; value: boolean }
     | { type: "chunkSize"; value: number }
+    | { type: "autoAdjustColumn"; value: boolean }
     | { type: "load"; value: { event: Mp.LoadEvent } };
 
 const updater = (state: AppState, action: AppAction): AppState => {
@@ -157,9 +159,6 @@ const updater = (state: AppState, action: AppAction): AppState => {
 
         case "isMaximized":
             return { ...state, isMaximized: action.value };
-
-        case "isFullScreen":
-            return { ...state, isFullScreen: action.value };
 
         case "pathEditing": {
             edit(action.value);
@@ -207,8 +206,17 @@ const updater = (state: AppState, action: AppAction): AppState => {
         case "clearIncremental":
             return { ...state, incrementalKey: "" };
 
-        case "headerLabels":
-            return { ...state, headerLabels: action.value };
+        case "columnLabels":
+            columnState.columnLabels = action.value;
+            return state;
+
+        case "calculateColumnWidths":
+            calculateColumnWidths(action.value);
+            return state;
+
+        case "useCalculatedWidths":
+            swithWidth(action.value);
+            return state;
 
         case "navigated":
             headerState.canGoBack = action.value.canGoBack;
@@ -253,7 +261,7 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return state;
 
         case "startSlide": {
-            startSlide(state.headerLabels, action.value.target, action.value.startX);
+            startSlide(columnState.columnLabels, action.value.target, action.value.startX);
             return state;
         }
         case "slide": {
@@ -261,14 +269,14 @@ const updater = (state: AppState, action: AppAction): AppState => {
                 driveState.leftWidth = slideState.initial + action.value;
                 return state;
             }
-            const headerLabels = structuredClone(state.headerLabels);
-            const label = headerLabels.filter((label) => label.sortKey == slideState.target)[0];
+
+            const label = columnState.columnLabels.filter((label) => label.sortKey == slideState.target)[0];
             const newWidth = slideState.initial + action.value;
             if (newWidth <= 50) {
                 return state;
             }
             label.width = slideState.initial + action.value;
-            return { ...state, headerLabels };
+            return state;
         }
         case "endSlide": {
             endSlide();
@@ -334,6 +342,9 @@ const updater = (state: AppState, action: AppAction): AppState => {
         case "chunkSize":
             listState.chunkSize = action.value;
             return state;
+
+        case "autoAdjustColumn":
+            return { ...state, autoAdjustColumn: action.value };
 
         default:
             return state;

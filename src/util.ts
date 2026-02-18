@@ -1,7 +1,7 @@
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
 import { Dirent, FileAttribute, IPCBase, RecycleBinItem } from "./ipc";
 import { path } from "./path";
-import { ARCHIVE_EXT, LINUX_SPECIAL_FOLDERS, LINUX_USER_ROOT_DIR, MIME_TYPE, OS, RECYCLE_BIN_ITEM, SEPARATOR, WIN_SPECIAL_FOLDERS, WIN_USER_ROOT_DIR, WSL_ROOT } from "./constants";
+import { ARCHIVE_EXT, DATE_OPTION, LINUX_SPECIAL_FOLDERS, LINUX_USER_ROOT_DIR, MIME_TYPE, OS, RECYCLE_BIN_ITEM, SEPARATOR, WIN_SPECIAL_FOLDERS, WIN_USER_ROOT_DIR, WSL_ROOT } from "./constants";
 import { t } from "./translation/useTranslation";
 
 const REGULAR_TYPES = [".ts", ".json", ".mjs", ".cjs"];
@@ -135,6 +135,7 @@ class Util {
     }
 
     toFile(dirent: Dirent): Mp.MediaFile {
+        const locale = window.lang;
         const fullPath = dirent.full_path;
         const attr = dirent.attributes;
         const extension = this.getExtension(fullPath, attr);
@@ -150,14 +151,18 @@ class Util {
             uuid: crypto.randomUUID(),
             name,
             mdate: attr.mtime_ms,
+            mdateString: new Date(attr.mtime_ms).toLocaleString(locale, DATE_OPTION),
             cdate: attr.birthtime_ms,
+            cdateString: new Date(attr.birthtime_ms).toLocaleString(locale, DATE_OPTION),
             size: Math.ceil(attr.size / 1024),
+            sizeString: `${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingPriority: "morePrecision" }).format(Math.ceil(attr.size / 1024))} KB`,
             isFile: attr.is_file,
             extension,
             fileType,
             linkPath: attr.link_path,
             entityType,
             ddate: 0,
+            ddateString: "",
             originalPath: "",
             mimeType: dirent.mime_type,
             actualExtension,
@@ -165,6 +170,7 @@ class Util {
     }
 
     toFileFromRecycleBinItem(dirent: RecycleBinItem): Mp.MediaFile {
+        const locale = window.lang;
         const fullPath = dirent.original_path;
         const attr = dirent.attributes;
         const extension = this.getExtension(fullPath, attr);
@@ -180,14 +186,18 @@ class Util {
             uuid: crypto.randomUUID(),
             name,
             mdate: attr.mtime_ms,
+            mdateString: new Date(attr.mtime_ms).toLocaleString(locale, DATE_OPTION),
             cdate: attr.birthtime_ms,
+            cdateString: new Date(attr.birthtime_ms).toLocaleString(locale, DATE_OPTION),
             size: Math.ceil(attr.size / 1024),
+            sizeString: `${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingPriority: "morePrecision" }).format(Math.ceil(attr.size / 1024))} KB`,
             isFile: attr.is_file,
             extension,
             fileType,
             linkPath: attr.link_path,
             entityType,
             ddate: dirent.deleted_date_ms,
+            ddateString: new Date(dirent.deleted_date_ms).toLocaleString(locale, DATE_OPTION),
             originalPath: fullPath,
             mimeType: dirent.mime_type,
             actualExtension,
@@ -195,6 +205,7 @@ class Util {
     }
 
     async toFileFromPath(fullPath: string): Promise<Mp.MediaFile> {
+        const locale = window.lang;
         const attr = await ipc.invoke("stat", fullPath);
         let mimeType = "";
         if (!attr.is_directory) {
@@ -213,14 +224,18 @@ class Util {
             uuid: crypto.randomUUID(),
             name,
             mdate: attr.mtime_ms,
+            mdateString: new Date(attr.mtime_ms).toLocaleString(locale, DATE_OPTION),
             cdate: attr.birthtime_ms,
+            cdateString: new Date(attr.birthtime_ms).toLocaleString(locale, DATE_OPTION),
             size: Math.ceil(attr.size / 1024),
+            sizeString: `${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingPriority: "morePrecision" }).format(Math.ceil(attr.size / 1024))} KB`,
             isFile: attr.is_file,
             extension,
             entityType,
             fileType,
             linkPath: attr.link_path,
             ddate: 0,
+            ddateString: "",
             originalPath: "",
             mimeType,
             actualExtension,
@@ -235,14 +250,18 @@ class Util {
             uuid: crypto.randomUUID(),
             name: decodeURIComponent(encodeURIComponent(path.basename(fullPath))),
             mdate: 0,
+            mdateString: "",
             cdate: 0,
+            cdateString: "",
             size: 0,
+            sizeString: "",
             extension: "",
             isFile: false,
             entityType: "Folder",
             fileType: "Folder",
             linkPath: "",
             ddate: 0,
+            ddateString: "",
             originalPath: "",
             mimeType: "",
             actualExtension: "",

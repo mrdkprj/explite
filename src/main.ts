@@ -66,7 +66,7 @@ class Main {
                 failed: false,
                 headers: this.settings.data.headerHistory[initialDirectory]
                     ? structuredClone(this.settings.data.headerHistory[initialDirectory].labels)
-                    : structuredClone(this.settings.data.headerLabels),
+                    : structuredClone(this.settings.data.columnLabels),
             },
             selectId,
             restorePosition: args.restore_position,
@@ -145,7 +145,7 @@ class Main {
             navigation,
             sortType: result.sortType,
             failed: !result.done,
-            headers: this.settings.data.headerHistory[directory] ? structuredClone(this.settings.data.headerHistory[directory].labels) : structuredClone(this.settings.data.headerLabels),
+            headers: this.settings.data.headerHistory[directory] ? structuredClone(this.settings.data.headerHistory[directory].labels) : structuredClone(this.settings.data.columnLabels),
         };
     };
 
@@ -219,7 +219,7 @@ class Main {
 
             const sortType = this.sortFiles(this.currentDir, this.files);
 
-            await this.startWatch();
+            this.startWatch();
 
             return {
                 done: true,
@@ -316,7 +316,7 @@ class Main {
         return applicableSort;
     };
 
-    private updateHeaderHistory = (directory: string, sortType: Mp.SortType | null, labels: Mp.HeaderLabel[] | null) => {
+    private updateHeaderHistory = (directory: string, sortType: Mp.SortType | null, labels: Mp.ColumnLabel[] | null) => {
         if (directory == HOME) return;
 
         if (Object.keys(this.settings.data.headerHistory).length == 100) {
@@ -329,7 +329,7 @@ class Main {
             this.settings.data.headerHistory[directory].sortType = sortType ?? this.settings.data.headerHistory[directory].sortType;
             this.settings.data.headerHistory[directory].labels = labels ?? this.settings.data.headerHistory[directory].labels;
         } else {
-            this.settings.data.headerHistory[directory] = { time: new Date().getTime(), sortType: sortType ?? DEFAULT_SORT_TYPE, labels: labels ?? this.settings.data.headerLabels };
+            this.settings.data.headerHistory[directory] = { time: new Date().getTime(), sortType: sortType ?? DEFAULT_SORT_TYPE, labels: labels ?? this.settings.data.columnLabels };
         }
     };
 
@@ -343,7 +343,7 @@ class Main {
         const date = new Date();
         date.setDate(date.getDate() - 30);
         const monthBefore = date.getTime();
-        const newHistory: { [key: string]: Mp.HeaderSetting } = {};
+        const newHistory: { [key: string]: Mp.ColumnLabel } = {};
         Object.entries(this.settings.data.headerHistory)
             .filter(([_, value]) => value.time > monthBefore)
             .forEach(([key, value]) => (newHistory[key] = value));
@@ -457,7 +457,7 @@ class Main {
             navigation: "Reload",
             sortType: result.sortType,
             failed: !result.done,
-            headers: this.settings.data.headerHistory[this.currentDir] ? structuredClone(this.settings.data.headerHistory[this.currentDir].labels) : structuredClone(this.settings.data.headerLabels),
+            headers: this.settings.data.headerHistory[this.currentDir] ? structuredClone(this.settings.data.headerHistory[this.currentDir].labels) : structuredClone(this.settings.data.columnLabels),
         };
     };
 

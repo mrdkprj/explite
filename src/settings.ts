@@ -1,7 +1,9 @@
-import { appDataDir, join } from "@tauri-apps/api/path";
+import { appDataDir } from "@tauri-apps/api/path";
 import { DEFAULT_LABLES, DEFAULT_SORTKEY_ORDER } from "./constants";
 import { IPC } from "./ipc";
 import { t } from "./translation/useTranslation";
+import { path } from "./path";
+
 const ipc = new IPC("View");
 const SETTING_FILE_NAME = "explite.settings.json";
 const EXCEPTION_KEYS = ["headerHistory"];
@@ -9,7 +11,7 @@ const EXCEPTION_KEYS = ["headerHistory"];
 const defaultSettings: Mp.Settings = {
     bounds: { width: 1200, height: 800, x: 0, y: 0 },
     isMaximized: false,
-    headerLabels: DEFAULT_LABLES,
+    columnLabels: DEFAULT_LABLES,
     favorites: [],
     leftAreaWidth: 0,
     headerHistory: {},
@@ -28,8 +30,8 @@ export default class Settings {
 
     async init() {
         this.dataDir = await appDataDir();
-        const settingPath = await join(this.dataDir, "temp");
-        this.file = await join(settingPath, SETTING_FILE_NAME);
+        const settingPath = path.join(this.dataDir, "temp");
+        this.file = path.join(settingPath, SETTING_FILE_NAME);
         const fileExists = await ipc.invoke("exists", this.file);
 
         if (fileExists) {
@@ -60,12 +62,12 @@ export default class Settings {
                         config[key][valueKey] = value[valueKey];
                     }
                 });
-            } else if (key == "headerLabels") {
-                const defaultLabels: { [key: string]: Mp.HeaderLabel } = {};
+            } else if (key == "columnLabels") {
+                const defaultLabels: { [key: string]: Mp.ColumnLabel } = {};
                 DEFAULT_LABLES.forEach((label) => (defaultLabels[label.sortKey] = label));
-                const currentLabels: { [key: string]: Mp.HeaderLabel } = {};
-                value.forEach((label: Mp.HeaderLabel) => (currentLabels[label.sortKey] = label));
-                const labels: Mp.HeaderLabel[] = [];
+                const currentLabels: { [key: string]: Mp.ColumnLabel } = {};
+                value.forEach((label: Mp.ColumnLabel) => (currentLabels[label.sortKey] = label));
+                const labels: Mp.ColumnLabel[] = [];
                 Object.entries(defaultLabels).forEach(([sortKey, defaultLabel]) => {
                     const label = sortKey in currentLabels ? currentLabels[sortKey] : defaultLabel;
                     label.label = this.getLabel(sortKey as Mp.SortKey);

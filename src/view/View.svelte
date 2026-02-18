@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount, tick } from "svelte";
-    import { appState, dispatch, renameState, listState, slideState, clipState, driveState, headerState, awaitContextMenu, resolveContextMenu } from "./appStateReducer.svelte";
+    import { appState, dispatch, renameState, listState, slideState, clipState, driveState, headerState, awaitContextMenu, resolveContextMenu, columnState } from "./appStateReducer.svelte";
     import TopBar from "./TopBar.svelte";
     import BottomBar from "./BottomBar.svelte";
     import Header from "./Header.svelte";
@@ -27,9 +27,7 @@
     let searchInterval = 0;
     let visibleStartIndex = $state(0);
     let visibleEndIndex = $state(0);
-
     let header: Header;
-
     let folderUpdatePromise: Deferred<number> | null;
     // Linux only
     let handleKeyUp = false;
@@ -90,6 +88,10 @@
         return listState.files.findIndex((file) => file.id == id);
     };
 
+    const onScroll = async () => {
+        await endEditFileName();
+    };
+
     const scrollToElement = async (id: string) => {
         if (!fileListContainer || !virtualList) return;
 
@@ -123,10 +125,34 @@
         }
     };
 
-    const onColSliderMousedown = (e: MouseEvent, key: Mp.SortKey) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dispatch({ type: "startSlide", value: { target: key, startX: e.clientX } });
+    const shouldHandleMouseEvent = (e: MouseEvent) => {
+        if (!e.target || !(e.target instanceof HTMLElement)) return false;
+        if ($appState.scrolling) {
+            dispatch({ type: "scrolling", value: false });
+            return false;
+        }
+
+        if (!fileListContainer) return false;
+        if (renameState.renaming) return false;
+        if ($appState.dragHandler != "View") return false;
+
+        /* Clipping must handle event outside of view */
+        if (clipState.clipping) return true;
+
+        if (e.target.hasAttribute("data-path") || e.target.classList.contains("button")) return false;
+
+        if (e.offsetX > e.target.clientWidth || e.offsetY > e.target.clientHeight) {
+            dispatch({ type: "scrolling", value: true });
+            return false;
+        }
+
+        const containerRect = fileListContainer.getBoundingClientRect();
+        if (containerRect.x > e.clientX || containerRect.y > e.clientY) {
+            dispatch({ type: "scrolling", value: true });
+            return false;
+        }
+
+        return true;
     };
 
     const onAreaSliderMousedown = (e: MouseEvent) => {
@@ -140,10 +166,6 @@
         if (e.ctrlKey || e.shiftKey) return;
 
         startClip(e);
-    };
-
-    const onScroll = async () => {
-        await endEditFileName();
     };
 
     /* Column item is selected on mousedown. Row is selected on click */
@@ -177,36 +199,6 @@
         }
     };
 
-    const shouldHandleMouseEvent = (e: MouseEvent) => {
-        if (!e.target || !(e.target instanceof HTMLElement)) return false;
-        if ($appState.scrolling) {
-            dispatch({ type: "scrolling", value: false });
-            return false;
-        }
-
-        if (!fileListContainer) return false;
-        if (renameState.renaming) return false;
-        if ($appState.dragHandler != "View") return false;
-
-        /* Clipping must handle event outside of view */
-        if (clipState.clipping) return true;
-
-        if (e.target.hasAttribute("data-path") || e.target.classList.contains("button")) return false;
-
-        if (e.offsetX > e.target.clientWidth || e.offsetY > e.target.clientHeight) {
-            dispatch({ type: "scrolling", value: true });
-            return false;
-        }
-
-        const containerRect = fileListContainer.getBoundingClientRect();
-        if (containerRect.x > e.clientX || containerRect.y > e.clientY) {
-            dispatch({ type: "scrolling", value: true });
-            return false;
-        }
-
-        return true;
-    };
-
     const onMouseUp = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
@@ -228,8 +220,30 @@
         endClip();
     };
 
+    const onColumnHeaderClick = (e: MouseEvent) => {
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+        if (slideState.sliding) return;
+
+        if (e.button != 2) {
+            const key = (e.target.getAttribute("data-sort-key") as Mp.SortKey) ?? "name";
+
+            const asc = $appState.sort.key == key ? !$appState.sort.asc : true;
+            const type: Mp.SortType = {
+                key,
+                asc,
+            };
+            dispatch({ type: "sort", value: type });
+            const result = main.sort({ files: listState.files, type });
+            onSorted(result);
+        }
+    };
+
+    const onRowClick = async (e: MouseEvent) => {
+        await toggleSelect(e);
+    };
+
     const onColumnHeaderChanged = () => {
-        main.onColumnHeaderChanged({ leftWidth: driveState.leftWidth, labels: $appState.headerLabels });
+        main.onColumnHeaderChanged({ leftWidth: driveState.leftWidth, labels: columnState.columnLabels });
     };
 
     const startDrag = async (e: DragEvent) => {
@@ -408,27 +422,6 @@
         if (clipState.clipping) {
             dispatch({ type: "endClip" });
         }
-    };
-
-    const onColumnHeaderClick = (e: MouseEvent) => {
-        if (!e.target || !(e.target instanceof HTMLElement)) return;
-
-        if (e.button != 2) {
-            const key = (e.target.getAttribute("data-sort-key") as Mp.SortKey) ?? "name";
-
-            const asc = $appState.sort.key == key ? !$appState.sort.asc : true;
-            const type: Mp.SortType = {
-                key,
-                asc,
-            };
-            dispatch({ type: "sort", value: type });
-            const result = main.sort({ files: listState.files, type });
-            onSorted(result);
-        }
-    };
-
-    const onRowClick = async (e: MouseEvent) => {
-        await toggleSelect(e);
     };
 
     const toggleSelect = async (e: MouseEvent) => {
@@ -976,6 +969,7 @@
         if (fullPath != listState.currentDir.fullPath) {
             const result = await main.onSelect({ fullPath, isFile, navigation });
             if (result) {
+                dispatch({ type: "calculateColumnWidths", value: result.files });
                 load(result);
             }
         }
@@ -1036,7 +1030,7 @@
         visibleStartIndex = 0;
         visibleEndIndex = 0;
         dispatch({ type: "toggleGridView", value: false });
-        dispatch({ type: "headerLabels", value: e.headers });
+        dispatch({ type: "columnLabels", value: e.headers });
         dispatch({ type: "sort", value: e.sortType });
         dispatch({ type: "load", value: { event: e } });
         dispatch({ type: "navigated", value: { canGoBack: BACKWARD.length > 0, canGoForward: FORWARD.length > 0 } });
@@ -1511,7 +1505,7 @@
                 rememberColumns: e.settings.rememberColumns,
             },
         });
-        dispatch({ type: "headerLabels", value: e.settings.headerLabels });
+        dispatch({ type: "columnLabels", value: e.settings.columnLabels });
         dispatch({ type: "leftWidth", value: e.settings.leftAreaWidth });
         dispatch({ type: "sort", value: DEFAULT_SORT_TYPE });
         dispatch({ type: "changeFavorites", value: e.settings.favorites });
@@ -1546,7 +1540,7 @@
 <svelte:window oncontextmenu={(e) => e.preventDefault()} />
 <svelte:document {onkeydown} {onkeyup} onmousemove={onMouseMove} onmousedown={onMouseDown} onmouseup={onMouseUp} ondragover={onDragOver} ondragenter={onDragEnter} ondragleave={onDragLeave} />
 
-<div class="viewport" class:full-screen={$appState.isFullScreen} class:sliding={slideState.sliding}>
+<div class="viewport" class:sliding={slideState.sliding}>
     <TopBar {minimize} {toggleMaximize} {launchNew} {close} />
     <div class="view">
         {#if $appState.prefVisible}
@@ -1607,7 +1601,6 @@
                         {onSelect}
                         {onColumnHeaderClick}
                         {colDetailMouseDown}
-                        {onColSliderMousedown}
                         columnHeaderChanged={onColumnHeaderChanged}
                         {onScroll}
                     />

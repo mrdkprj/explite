@@ -141,7 +141,6 @@
             showHiddenPaths = false;
             pendingPath = null;
         }
-        console.log(path);
         requestLoad(path, false, "PathSelect");
     };
 

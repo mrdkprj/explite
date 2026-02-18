@@ -235,11 +235,6 @@
     cursor: col-resize;
 }
 
-.sliding .main,
-.sliding .head{
-    pointer-events: none;
-}
-
 .sort-indicator{
     width: 100%;
     pointer-events: none;

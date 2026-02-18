@@ -99,7 +99,7 @@ declare global {
         type Settings = {
             bounds: Bounds;
             isMaximized: boolean;
-            headerLabels: Mp.HeaderLabel[];
+            columnLabels: Mp.ColumnLabel[];
             favorites: Mp.MediaFile[];
             leftAreaWidth: number;
             headerHistory: { [key: string]: Mp.HeaderSetting };
@@ -124,11 +124,11 @@ declare global {
             target: "File" | "Folder" | "Both";
         };
 
-        type HeaderSetting = {
-            time: number;
-            sortType: Mp.SortType;
-            labels: Mp.HeaderLabel[];
-        };
+        // type HeaderSetting = {
+        //     time: number;
+        //     sortType: Mp.SortType;
+        //     labels: Mp.ColumnLabel[];
+        // };
 
         type EntityType = "File" | "Folder" | "SymlinkFile" | "SymlinkFolder";
         type FileType = "Video" | "Audio" | "Image" | "App" | "Normal" | "Folder" | "HiddenFolder" | "Zip" | "Desktop" | "Documents" | "Downloads" | "Music" | "Pictures" | "Videos";
@@ -139,8 +139,11 @@ declare global {
             uuid: string;
             name: string;
             mdate: number;
+            mdateString: string;
             cdate: number;
+            cdateString: string;
             size: number;
+            sizeString: string;
             extension: string;
             actualExtension: string;
             isFile: boolean;
@@ -148,6 +151,7 @@ declare global {
             fileType: Mp.FileType;
             linkPath: string;
             ddate: number;
+            ddateString: string;
             originalPath: string;
             mimeType: string;
         };
@@ -159,7 +163,7 @@ declare global {
             navigation: Mp.Navigation;
             sortType: Mp.SortType;
             failed: boolean;
-            headers: Mp.HeaderLabel[];
+            headers: Mp.ColumnLabel[];
             iconCache?: Mp.IconCache;
         };
 
@@ -172,9 +176,9 @@ declare global {
             };
         };
 
-        type HeaderLabelMap = { [key in Mp.SortKey]: Mp.HeaderLabel };
+        type ColumnLabelMap = { [key in Mp.SortKey]: Mp.ColumnLabel };
 
-        type HeaderLabel = {
+        type ColumnLabel = {
             label: string;
             width: number;
             sortKey: Mp.SortKey;
@@ -227,7 +231,7 @@ declare global {
 
         type WidthChangeEvent = {
             leftWidth: number;
-            labels: Mp.HeaderLabel[];
+            labels: Mp.ColumnLabel[];
         };
 
         type CreateItemResult = {

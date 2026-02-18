@@ -24,7 +24,7 @@ export const DEFAULT_SORTKEY_ORDER: Mp.SortKey[] = ["name", "directory", "orig_p
 
 export const DATE_OPTION: Intl.DateTimeFormatOptions = { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "numeric", second: "numeric" };
 
-export const DEFAULT_LABLES: Mp.HeaderLabel[] = [
+export const DEFAULT_LABLES: Mp.ColumnLabel[] = [
     {
         label: "Name",
         width: 500,
