@@ -1,4 +1,6 @@
 import { writable } from "svelte/store";
+import Deferred from "../deferred";
+import { path } from "../path";
 import { load, updateFiles, reset, listState } from "../states/listState.svelte";
 import { HOME, RECYCLE_BIN } from "../constants";
 import { endRename, startRename } from "../states/renameState.svelte";
@@ -6,9 +8,8 @@ import { ClipPosition, endClip, moveClip, startClip } from "../states/clipState.
 import { driveState, updateDrives } from "../states/driveState.svelte";
 import { edit, headerState, resetSearch, startSearch } from "../states/headerState.svelte";
 import { startSlide, endSlide, slideState } from "../states/slideState.svelte";
-import { calculateColumnWidths, columnState, swithWidth } from "../states/columnState.svelte";
-import Deferred from "../deferred";
-import { path } from "../path";
+import { calculateColumnWidths, columnState, swithWidth, toggleVisibleColumn } from "../states/columnState.svelte";
+import { settings, updatePreference } from "../states/settingsState.svelte";
 export { listState } from "../states/listState.svelte";
 export { renameState } from "../states/renameState.svelte";
 export { clipState } from "../states/clipState.svelte";
@@ -16,6 +17,8 @@ export { driveState } from "../states/driveState.svelte";
 export { headerState } from "../states/headerState.svelte";
 export { slideState } from "../states/slideState.svelte";
 export { columnState } from "../states/columnState.svelte";
+export { settings } from "../states/settingsState.svelte";
+
 // Linux only
 type ContextMenuState = {
     deferred: Deferred<number> | null;
@@ -37,7 +40,6 @@ export const icons: Mp.IconCache = $state({ cache: {} });
 type DragHandlerType = "View" | "Column" | "Favorite";
 
 type AppState = {
-    isMaximized: boolean;
     sort: Mp.SortType;
     preventBlur: boolean;
     selection: Mp.ItemSelection;
@@ -51,19 +53,12 @@ type AppState = {
     dragHandler: DragHandlerType;
     incrementalKey: string;
     prefVisible: boolean;
-    theme: Mp.Theme;
-    allowMoveColumn: boolean;
-    appMenuItems: Mp.AppMenuItem[];
     symlinkVisible: boolean;
     isInGridView: boolean;
     scrolling: boolean;
-    useOSIcon: boolean;
-    rememberColumns: boolean;
-    autoAdjustColumn: boolean;
 };
 
 export const initialAppState: AppState = {
-    isMaximized: false,
     sort: {
         asc: true,
         key: "name",
@@ -80,15 +75,9 @@ export const initialAppState: AppState = {
     dragHandler: "View",
     incrementalKey: "",
     prefVisible: false,
-    theme: "system",
-    allowMoveColumn: true,
-    appMenuItems: [],
     symlinkVisible: false,
     isInGridView: false,
     scrolling: false,
-    useOSIcon: false,
-    rememberColumns: true,
-    autoAdjustColumn: false,
 };
 
 type AppAction =
@@ -100,6 +89,8 @@ type AppAction =
     | { type: "columnLabels"; value: Mp.ColumnLabel[] }
     | { type: "calculateColumnWidths"; value: Mp.MediaFile[] }
     | { type: "useCalculatedWidths"; value: Mp.SortKey }
+    | { type: "visibleColumns"; value: Mp.SortKey[] }
+    | { type: "toggleVisibleColumn"; value: Mp.SortKey }
     | { type: "navigated"; value: { canGoBack: boolean; canGoForward: boolean } }
     | { type: "sort"; value: Mp.SortType }
     | { type: "updateFiles"; value: { files: Mp.MediaFile[] } }
@@ -138,6 +129,7 @@ type AppAction =
     | { type: "scrolling"; value: boolean }
     | { type: "chunkSize"; value: number }
     | { type: "autoAdjustColumn"; value: boolean }
+    | { type: "settings"; value: Mp.Settings }
     | { type: "load"; value: { event: Mp.LoadEvent } };
 
 const updater = (state: AppState, action: AppAction): AppState => {
@@ -148,17 +140,12 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return state;
 
         case "setPreference":
-            return {
-                ...state,
-                theme: action.value.theme,
-                allowMoveColumn: action.value.allowMoveColumn,
-                appMenuItems: action.value.appMenuItems,
-                useOSIcon: action.value.useOSIcon,
-                rememberColumns: action.value.rememberColumns,
-            };
+            updatePreference(action.value);
+            return state;
 
         case "isMaximized":
-            return { ...state, isMaximized: action.value };
+            settings.data.isMaximized = action.value;
+            return state;
 
         case "pathEditing": {
             edit(action.value);
@@ -209,13 +196,18 @@ const updater = (state: AppState, action: AppAction): AppState => {
         case "columnLabels":
             columnState.columnLabels = action.value;
             return state;
-
         case "calculateColumnWidths":
             calculateColumnWidths(action.value);
             return state;
-
         case "useCalculatedWidths":
             swithWidth(action.value);
+            return state;
+        case "visibleColumns":
+            columnState.visibleColumns = action.value;
+            return state;
+        case "toggleVisibleColumn":
+            toggleVisibleColumn(action.value);
+            settings.data.visibleColumnLabels = columnState.visibleColumns;
             return state;
 
         case "navigated":
@@ -229,23 +221,17 @@ const updater = (state: AppState, action: AppAction): AppState => {
 
         case "selectedId":
             return { ...state, selection: { ...state.selection, selectedId: action.value } };
-
         case "setSelectedIds":
             return { ...state, selection: { ...state.selection, selectedIds: action.value } };
-
         case "clearSelection":
             return { ...state, selection: { ...state.selection, selectedId: "", selectedIds: [] }, selectionAnchor: "" };
-
         case "appendSelectedIds":
             return { ...state, selection: { ...state.selection, selectedIds: [...state.selection.selectedIds, ...action.value] } };
-
         case "removeSelectedIds":
             const ids = state.selection.selectedIds.filter((id) => !action.value.includes(id));
             return { ...state, selection: { ...state.selection, selectedIds: ids } };
-
         case "updateSelection":
             return { ...state, selection: { ...state.selection, selectedId: action.value.selectedId, selectedIds: action.value.selectedIds } };
-
         case "selectionAnchor":
             return { ...state, selectionAnchor: action.value };
 
@@ -255,6 +241,10 @@ const updater = (state: AppState, action: AppAction): AppState => {
         case "changeFavorites":
             driveState.favorites = action.value;
             return state;
+        case "hoverFavoriteId": {
+            driveState.hoverFavoriteId = action.value;
+            return state;
+        }
 
         case "leftWidth":
             driveState.leftWidth = action.value;
@@ -317,11 +307,6 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return state;
         }
 
-        case "hoverFavoriteId": {
-            driveState.hoverFavoriteId = action.value;
-            return state;
-        }
-
         case "startRename":
             startRename(action.value.rect, action.value.oldName, action.value.fullPath, action.value.uuid);
             return state;
@@ -344,7 +329,12 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return state;
 
         case "autoAdjustColumn":
-            return { ...state, autoAdjustColumn: action.value };
+            settings.data.autoAdjustColumn = action.value;
+            return state;
+
+        case "settings":
+            settings.data = action.value;
+            return state;
 
         default:
             return state;

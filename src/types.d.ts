@@ -99,12 +99,13 @@ declare global {
         type Settings = {
             bounds: Bounds;
             isMaximized: boolean;
-            columnLabels: Mp.ColumnLabel[];
+            visibleColumnLabels: Mp.SortKey[];
             favorites: Mp.MediaFile[];
             leftAreaWidth: number;
-            headerHistory: { [key: string]: Mp.HeaderSetting };
+            columnHistory: { [key: string]: Mp.ColumnSetting };
             theme: Mp.Theme;
             allowMoveColumn: boolean;
+            autoAdjustColumn: boolean;
             appMenuItems: AppMenuItem[];
             useOSIcon: boolean;
             rememberColumns: boolean;
@@ -124,11 +125,24 @@ declare global {
             target: "File" | "Folder" | "Both";
         };
 
-        // type HeaderSetting = {
-        //     time: number;
-        //     sortType: Mp.SortType;
-        //     labels: Mp.ColumnLabel[];
-        // };
+        type ColumnLabelMap = { [key in Mp.SortKey]: Mp.ColumnLabel };
+
+        type ColumnLabel = {
+            width: number;
+            sortKey: Mp.SortKey;
+        };
+
+        type ColumnSetting = {
+            time: number;
+            sortType: Mp.SortType;
+            labels: Mp.ColumnLabel[];
+        };
+
+        type VisibleColumnLabelMenu = {
+            key: Mp.SortKey;
+            label: string;
+            visible: boolean;
+        };
 
         type EntityType = "File" | "Folder" | "SymlinkFile" | "SymlinkFolder";
         type FileType = "Video" | "Audio" | "Image" | "App" | "Normal" | "Folder" | "HiddenFolder" | "Zip" | "Desktop" | "Documents" | "Downloads" | "Music" | "Pictures" | "Videos";
@@ -156,6 +170,13 @@ declare global {
             mimeType: string;
         };
 
+        type ReadyEvent = {
+            data: Mp.LoadEvent;
+            locale: Mp.LocaleName;
+            selectId?: string;
+            restorePosition: boolean;
+        };
+
         type LoadEvent = {
             files: Mp.MediaFile[];
             drives?: Mp.DriveInfo[];
@@ -163,7 +184,6 @@ declare global {
             navigation: Mp.Navigation;
             sortType: Mp.SortType;
             failed: boolean;
-            headers: Mp.ColumnLabel[];
             iconCache?: Mp.IconCache;
         };
 
@@ -174,14 +194,6 @@ declare global {
                     large: string;
                 };
             };
-        };
-
-        type ColumnLabelMap = { [key in Mp.SortKey]: Mp.ColumnLabel };
-
-        type ColumnLabel = {
-            label: string;
-            width: number;
-            sortKey: Mp.SortKey;
         };
 
         type DriveInfo = {
@@ -284,14 +296,6 @@ declare global {
             id: string;
             name: string;
             isFile: boolean;
-        };
-
-        type ReadyEvent = {
-            settings: Settings;
-            data: Mp.LoadEvent;
-            locale: Mp.LocaleName;
-            selectId?: string;
-            restorePosition: boolean;
         };
 
         type SelectionChanged = {

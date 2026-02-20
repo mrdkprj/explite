@@ -2,7 +2,7 @@
     import { COLUMN_HEADER_HEIGHT, handleKeyEvent, HEADER_DIVIDER_WIDTh, LIST_ITEM_HEIGHT, RECYCLE_BIN } from "../constants";
     import Column from "./Column.svelte";
     import VirtualList from "./VirtualList.svelte";
-    import { appState, columnState, listState, headerState, renameState } from "./appStateReducer.svelte";
+    import { appState, columnState, listState, headerState, renameState, settings } from "./appStateReducer.svelte";
     import FileIcon from "./FileIcon.svelte";
 
     let {
@@ -19,6 +19,7 @@
         colDetailMouseDown,
         columnHeaderChanged,
         onScroll,
+        onColumnContextMenu,
     }: {
         visibleStartIndex: number;
         visibleEndIndex: number;
@@ -33,6 +34,7 @@
         colDetailMouseDown: (e: MouseEvent) => void;
         columnHeaderChanged: () => void;
         onScroll: () => Promise<void>;
+        onColumnContextMenu: (e: MouseEvent) => Promise<void>;
     } = $props();
 
     const isRecycleBin = () => listState.currentDir.fullPath == RECYCLE_BIN;
@@ -63,7 +65,7 @@
         <div class="list-header nofocus" onkeydown={handleKeyEvent} role="button" tabindex="-1">
             {#each columnState.columnLabels as label}
                 {#if shouldDisplayLabel(label.sortKey)}
-                    <Column {label} {onColumnHeaderClick} {columnHeaderChanged} />
+                    <Column {label} {onColumnHeaderClick} {columnHeaderChanged} {onColumnContextMenu} />
                 {/if}
             {/each}
         </div>
@@ -90,7 +92,7 @@
         >
             {#each columnState.columnLabels as label}
                 {#if label.sortKey == "name"}
-                    <div class="col-detail" data-file-id={item.id} style={$appState.autoAdjustColumn ? `width: ${columnState.adjustedWidths.name}px;` : `width: ${label.width}px;`}>
+                    <div class="col-detail" data-file-id={item.id} style={settings.data.autoAdjustColumn ? `width: ${columnState.adjustedWidths.name}px;` : `width: ${label.width}px;`}>
                         <div
                             class="entry-name draggable"
                             title={headerState.search.searching ? item.fullPath : item.name}
@@ -120,7 +122,7 @@
                         <div
                             class="col-detail"
                             data-file-id={item.id}
-                            style={$appState.autoAdjustColumn ? `width: ${columnState.adjustedWidths.directory + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
+                            style={settings.data.autoAdjustColumn ? `width: ${columnState.adjustedWidths.directory + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
                         >
                             <div class="draggable" title={item.dir} data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.dir}</div>
                         </div>
@@ -130,7 +132,7 @@
                         <div
                             class="col-detail"
                             data-file-id={item.id}
-                            style={$appState.autoAdjustColumn ? `width: ${columnState.adjustedWidths.orig_path + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
+                            style={settings.data.autoAdjustColumn ? `width: ${columnState.adjustedWidths.orig_path + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
                         >
                             <div class="draggable" title={item.originalPath} data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.dir}</div>
                         </div>
@@ -140,7 +142,7 @@
                         <div
                             class="col-detail"
                             data-file-id={item.id}
-                            style={$appState.autoAdjustColumn ? `width: ${columnState.adjustedWidths.ddate + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
+                            style={settings.data.autoAdjustColumn ? `width: ${columnState.adjustedWidths.ddate + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
                         >
                             <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
                                 {item.ddateString}
@@ -151,7 +153,7 @@
                     <div
                         class="col-detail"
                         data-file-id={item.id}
-                        style={$appState.autoAdjustColumn ? `width: ${columnState.adjustedWidths.extension + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
+                        style={settings.data.autoAdjustColumn ? `width: ${columnState.adjustedWidths.extension + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
                     >
                         <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.extension}</div>
                     </div>
@@ -159,7 +161,7 @@
                     <div
                         class="col-detail"
                         data-file-id={item.id}
-                        style={$appState.autoAdjustColumn ? `width: ${columnState.adjustedWidths.mdate + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
+                        style={settings.data.autoAdjustColumn ? `width: ${columnState.adjustedWidths.mdate + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
                     >
                         <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
                             {item.mdateString}
@@ -169,7 +171,7 @@
                     <div
                         class="col-detail"
                         data-file-id={item.id}
-                        style={$appState.autoAdjustColumn ? `width: ${columnState.adjustedWidths.cdate + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
+                        style={settings.data.autoAdjustColumn ? `width: ${columnState.adjustedWidths.cdate + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
                     >
                         <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
                             {item.cdateString}
@@ -179,7 +181,7 @@
                     <div
                         class="col-detail size"
                         data-file-id={item.id}
-                        style={$appState.autoAdjustColumn ? `width: ${columnState.adjustedWidths.size + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
+                        style={settings.data.autoAdjustColumn ? `width: ${columnState.adjustedWidths.size + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
                     >
                         <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
                             {item.size > 0 || (item.size == 0 && item.isFile) ? item.sizeString : ""}

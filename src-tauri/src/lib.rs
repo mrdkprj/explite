@@ -205,10 +205,16 @@ fn write_text_file(payload: WriteFileInfo) -> Result<(), String> {
     std::fs::write(payload.fullPath, payload.data).map_err(|e| e.to_string())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct VisibleColumnLabelMenu {
+    key: String,
+    label: String,
+    visible: bool,
+}
 #[tauri::command]
-fn prepare_menu(window: WebviewWindow) {
+fn prepare_menu(window: WebviewWindow, payload: Vec<VisibleColumnLabelMenu>) {
     let window_handle = get_window_handel(&window);
-    menu::create(window.app_handle(), window_handle);
+    menu::create(window.app_handle(), window_handle, payload);
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -291,6 +297,11 @@ async fn open_fav_context_menu(window: WebviewWindow, payload: menu::Position) {
 #[tauri::command]
 async fn open_recycle_context_menu(window: WebviewWindow, payload: ContextMenuArg) {
     menu::popup_menu(window.app_handle(), window.label(), menu::RECYCLE_BIN, payload.position, Some(payload.full_path), false).await;
+}
+
+#[tauri::command]
+async fn open_column_context_menu(window: WebviewWindow, payload: menu::Position) {
+    menu::popup_menu(window.app_handle(), window.label(), menu::COLUMN, payload, None, false).await;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -524,6 +535,7 @@ pub fn run() {
             open_list_context_menu,
             open_fav_context_menu,
             open_recycle_context_menu,
+            open_column_context_menu,
             exists,
             open_path,
             open_path_with,

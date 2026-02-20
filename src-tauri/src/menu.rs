@@ -1,4 +1,4 @@
-use crate::AppMenuItem;
+use crate::{AppMenuItem, VisibleColumnLabelMenu};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::Path};
 use tauri::async_runtime::Mutex;
@@ -13,6 +13,7 @@ pub const LIST: &str = "list";
 pub const FAV: &str = "fav";
 pub const NO_ITEM: &str = "noitem";
 pub const RECYCLE_BIN: &str = "recyclebin";
+pub const COLUMN: &str = "column";
 const MENU_EVENT_NAME: &str = "contextmenu_event";
 const TARGET_FILE: &str = "File";
 const TARGET_FOLDER: &str = "Folder";
@@ -34,12 +35,13 @@ type MenusState = Mutex<Menus>;
 pub struct AppMenuItems(Vec<AppMenuItem>);
 type AppMenuItemsState = Mutex<AppMenuItems>;
 
-pub fn create(app_handle: &tauri::AppHandle, window_handle: isize) {
+pub fn create(app_handle: &tauri::AppHandle, window_handle: isize, visible_columns: Vec<VisibleColumnLabelMenu>) {
     let list = create_list_menu(window_handle);
     let fav = create_fav_menu(window_handle);
     let no_item = create_noitem_menu(window_handle);
     let recycle_bin = create_recycle_bin_menu(window_handle);
-    let menus = Menus(HashMap::from([(LIST.to_string(), list), (FAV.to_string(), fav), (NO_ITEM.to_string(), no_item), (RECYCLE_BIN.to_string(), recycle_bin)]));
+    let column_menu = create_column_menu(window_handle, visible_columns);
+    let menus = Menus(HashMap::from([(LIST.to_string(), list), (FAV.to_string(), fav), (NO_ITEM.to_string(), no_item), (RECYCLE_BIN.to_string(), recycle_bin), (COLUMN.to_string(), column_menu)]));
     app_handle.manage(Mutex::new(menus));
     app_handle.manage(Mutex::new(AppMenuItems(Vec::new())));
 }
@@ -83,6 +85,15 @@ pub async fn popup_menu(app_handle: &tauri::AppHandle, window_label: &str, menu_
             )
             .unwrap();
     };
+}
+
+pub fn change_menu_theme(app_handle: &tauri::AppHandle, theme: Theme) {
+    let state = app_handle.state::<MenusState>();
+    let menus = state.try_lock().unwrap();
+
+    for menu in menus.0.values() {
+        menu.set_theme(theme);
+    }
 }
 
 fn update_open_with(menu: &Menu, file_path: &str) {
@@ -192,15 +203,6 @@ pub fn change_app_menu_items(app_handle: &tauri::AppHandle, new_app_menu_items: 
     items.0 = new_app_menu_items;
 }
 
-pub fn change_menu_theme(app_handle: &tauri::AppHandle, theme: Theme) {
-    let state = app_handle.state::<MenusState>();
-    let menus = state.try_lock().unwrap();
-
-    for menu in menus.0.values() {
-        menu.set_theme(theme);
-    }
-}
-
 fn app_menu_item_id(app_path: &str) -> String {
     format!("{}{}", APP_MENU_ITEM_PREFIX, app_path)
 }
@@ -305,6 +307,18 @@ fn create_fav_menu(window_handle: isize) -> Menu {
     let mut builder = MenuBuilder::new_from_config(window_handle, config);
     builder.text("RemoveFromFavorite", "Remove From Favorite", false);
     builder.text("Property", "Property", false);
+    builder.separator();
+    builder.text("Refresh", "Refresh", false);
+
+    builder.build().unwrap()
+}
+
+fn create_column_menu(window_handle: isize, visible_columns: Vec<VisibleColumnLabelMenu>) -> Menu {
+    let config = get_menu_config(Theme::System);
+    let mut builder = MenuBuilder::new_from_config(window_handle, config);
+    visible_columns.iter().for_each(|column| {
+        builder.check(&column.key, &column.label, column.visible, false);
+    });
     builder.separator();
     builder.text("Refresh", "Refresh", false);
 

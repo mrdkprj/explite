@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { appState, dispatch, listState } from "./appStateReducer.svelte";
+    import { appState, dispatch, listState, settings } from "./appStateReducer.svelte";
     import { handleKeyEvent, OS } from "../constants";
     import LaunchSvg from "../svg/LaunchSvg.svelte";
     import PrefSvg from "../svg/PrefSvg.svelte";
@@ -26,7 +26,7 @@
     <div class="window-area">
         <div class="minimize" onclick={minimize} onkeydown={handleKeyEvent} role="button" tabindex="-1">&minus;</div>
         <div class="maximize" onclick={toggleMaximize} onkeydown={handleKeyEvent} role="button" tabindex="-1">
-            <div class:minbtn={$appState.isMaximized} class:maxbtn={!$appState.isMaximized}></div>
+            <div class:minbtn={settings.data.isMaximized} class:maxbtn={!settings.data.isMaximized}></div>
         </div>
         <div class="close" onclick={close} onkeydown={handleKeyEvent} role="button" tabindex="-1">&times;</div>
     </div>

@@ -1,19 +1,19 @@
 <script lang="ts">
     import Json from "../svg/JsonSvg.svelte";
     import { handleKeyEvent } from "../constants";
-    import { appState, dispatch } from "./appStateReducer.svelte";
+    import { dispatch, settings } from "./appStateReducer.svelte";
 
     let {
         preferenceChanged,
         openSettingsAsJson,
-        clearHeaderHistory,
-    }: { preferenceChanged: (isAppMenuItemChanged: boolean) => void; openSettingsAsJson: () => Promise<void>; clearHeaderHistory: () => void } = $props();
+        clearColumnHistory,
+    }: { preferenceChanged: (isAppMenuItemChanged: boolean) => void; openSettingsAsJson: () => Promise<void>; clearColumnHistory: () => void } = $props();
 
-    let theme = $state($state.snapshot($appState.theme));
-    let appMenuItems = $state($state.snapshot($appState.appMenuItems));
-    let allowMoveColumn = $state($state.snapshot($appState.allowMoveColumn));
-    let useOSIcon = $state($state.snapshot($appState.useOSIcon));
-    let rememberColumns = $state($state.snapshot($appState.rememberColumns));
+    let theme = $state($state.snapshot(settings.data.theme));
+    let appMenuItems = $state($state.snapshot(settings.data.appMenuItems));
+    let allowMoveColumn = $state($state.snapshot(settings.data.allowMoveColumn));
+    let useOSIcon = $state($state.snapshot(settings.data.useOSIcon));
+    let rememberColumns = $state($state.snapshot(settings.data.rememberColumns));
 
     const addMenuItem = () => {
         appMenuItems.push({
@@ -28,7 +28,7 @@
     };
 
     const removeHistory = () => {
-        clearHeaderHistory();
+        clearColumnHistory();
     };
 
     const onkeydown = (e: KeyboardEvent) => {
@@ -38,10 +38,10 @@
     };
 
     const isAppMenuItemChanged = (newAppMenuItems: Mp.AppMenuItem[]): boolean => {
-        if (newAppMenuItems.length != $appState.appMenuItems.length) return true;
+        if (newAppMenuItems.length != settings.data.appMenuItems.length) return true;
 
         return newAppMenuItems.some(
-            (item, index) => $appState.appMenuItems[index].label != item.label || $appState.appMenuItems[index].path != item.path || $appState.appMenuItems[index].target != item.target,
+            (item, index) => settings.data.appMenuItems[index].label != item.label || settings.data.appMenuItems[index].path != item.path || settings.data.appMenuItems[index].target != item.target,
         );
     };
 

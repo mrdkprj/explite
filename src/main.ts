@@ -1,18 +1,16 @@
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import Settings from "./settings";
 import util from "./util";
-import { DEFAULT_SORT_TYPE, HOME, OS, RECYCLE_BIN, RECYCLE_BIN_ITEM } from "./constants";
+import { DEFAULT_SORT_TYPE, HOME, OS, RECYCLE_BIN, RECYCLE_BIN_ITEM, DEFAULT_SORTKEY_ORDER } from "./constants";
 import { DeleteUndeleteRequest, Dirent, IPC, RecycleBinItem } from "./ipc";
 import { path } from "./path";
 import { History } from "./history";
 import { t } from "./translation/useTranslation";
 import { icons } from "./view/appStateReducer.svelte";
+import { settings } from "./view/appStateReducer.svelte";
 
 const ipc = new IPC("View");
 
 class Main {
     private initialized = false;
-    private settings = new Settings();
     private searchCache: { [key: string]: string[] } = { "": [] };
     private searchKeyword = "";
     private files: Mp.MediaFile[] = [];
@@ -22,8 +20,6 @@ class Main {
     private history = new History();
 
     onMainReady = async (dropTagetId: string): Promise<Mp.ReadyEvent> => {
-        this.cleanHeaderHistory();
-
         const drives = await util.getDriveInfo();
 
         const args = await ipc.invoke("get_args", undefined);
@@ -32,8 +28,7 @@ class Main {
         window.lang = locale;
 
         if (!this.initialized) {
-            await this.settings.init();
-            await ipc.invoke("prepare_menu", undefined);
+            await ipc.invoke("prepare_menu", this.createColumnMenuItesm());
             await ipc.invoke("listen_devices", undefined);
             await ipc.invoke("listen_file_drop", dropTagetId);
         }
@@ -55,7 +50,6 @@ class Main {
         this.initialized = true;
 
         return {
-            settings: structuredClone(this.settings.data),
             locale,
             data: {
                 files: this.files,
@@ -64,13 +58,20 @@ class Main {
                 navigation: "Direct",
                 sortType: DEFAULT_SORT_TYPE,
                 failed: false,
-                headers: this.settings.data.headerHistory[initialDirectory]
-                    ? structuredClone(this.settings.data.headerHistory[initialDirectory].labels)
-                    : structuredClone(this.settings.data.columnLabels),
             },
             selectId,
             restorePosition: args.restore_position,
         };
+    };
+
+    private createColumnMenuItesm = () => {
+        return DEFAULT_SORTKEY_ORDER.map((key) => {
+            return {
+                key,
+                label: util.getColumnLabel(key),
+                visible: settings.data.visibleColumnLabels.includes(key),
+            };
+        });
     };
 
     showErrorMessage = async (ex: any | string) => {
@@ -119,7 +120,7 @@ class Main {
         if (directory == HOME) {
             const result = await this.readFiles(HOME);
             const drives = await util.getDriveInfo();
-            return { files: this.files, directory: HOME, navigation, sortType: result.sortType, failed: !result.done, headers: [], drives };
+            return { files: this.files, directory: HOME, navigation, sortType: result.sortType, failed: !result.done, drives };
         }
 
         if (!this.isRecycleBin(directory)) {
@@ -129,8 +130,6 @@ class Main {
                 return null;
             }
         }
-
-        this.validateHeaderHistory(directory);
 
         const cacheKey = Object.keys(this.searchCache)[0];
         if (cacheKey != directory) {
@@ -145,12 +144,11 @@ class Main {
             navigation,
             sortType: result.sortType,
             failed: !result.done,
-            headers: this.settings.data.headerHistory[directory] ? structuredClone(this.settings.data.headerHistory[directory].labels) : structuredClone(this.settings.data.columnLabels),
         };
     };
 
     openPropertyDielog = async (fileOrId: Mp.MediaFile | string) => {
-        const file = typeof fileOrId == "string" ? this.settings.data.favorites.find((file) => file.id == fileOrId) : fileOrId;
+        const file = typeof fileOrId == "string" ? settings.data.favorites.find((file) => file.id == fileOrId) : fileOrId;
         if (!file) return;
         await ipc.invoke("open_property_dielog", file.fullPath);
     };
@@ -203,7 +201,7 @@ class Main {
                 .filter((dirent) => !dirent.attributes.is_system)
                 .map((dirent) => {
                     const file = this.isRecycleBin(this.currentDir) ? util.toFileFromRecycleBinItem(dirent as RecycleBinItem) : util.toFile(dirent as Dirent);
-                    if (this.settings.data.useOSIcon) {
+                    if (settings.data.useOSIcon) {
                         if (file.isFile && !(file.actualExtension in icons.cache)) {
                             file.fileType == "App" ? (fileMap[file.name] = file.fullPath) : (fileMap[file.actualExtension] = file.fullPath);
                         }
@@ -255,7 +253,7 @@ class Main {
     };
 
     sort = (e: Mp.SortRequest): Mp.SortResult => {
-        this.sortFiles(this.currentDir, this.files, { asc: e.type.asc, key: e.type.key });
+        this.sortFiles(this.currentDir, this.files);
         return { files: this.files, type: e.type };
     };
 
@@ -307,87 +305,16 @@ class Main {
         return { files: this.files };
     };
 
-    sortFiles = (directory: string, files: Mp.MediaFile[], sortType?: Mp.SortType): Mp.SortType => {
-        if (sortType) {
-            this.updateHeaderHistory(directory, sortType, null);
-        }
-        const applicableSort = this.settings.data.headerHistory[directory] ? this.settings.data.headerHistory[directory].sortType : DEFAULT_SORT_TYPE;
+    sortFiles = (directory: string, files: Mp.MediaFile[]): Mp.SortType => {
+        const applicableSort = settings.data.columnHistory[directory] ? settings.data.columnHistory[directory].sortType : DEFAULT_SORT_TYPE;
         util.sort(files, applicableSort.asc, applicableSort.key);
         return applicableSort;
     };
 
-    private updateHeaderHistory = (directory: string, sortType: Mp.SortType | null, labels: Mp.ColumnLabel[] | null) => {
-        if (directory == HOME) return;
-
-        if (Object.keys(this.settings.data.headerHistory).length == 100) {
-            const oldestEntry = Object.entries(this.settings.data.headerHistory).reduce((prev, curr) => (prev[1].time < curr[1].time ? prev : curr));
-            delete this.settings.data.headerHistory[oldestEntry[0]];
-        }
-
-        if (this.settings.data.headerHistory[directory]) {
-            this.settings.data.headerHistory[directory].time = new Date().getTime();
-            this.settings.data.headerHistory[directory].sortType = sortType ?? this.settings.data.headerHistory[directory].sortType;
-            this.settings.data.headerHistory[directory].labels = labels ?? this.settings.data.headerHistory[directory].labels;
-        } else {
-            this.settings.data.headerHistory[directory] = { time: new Date().getTime(), sortType: sortType ?? DEFAULT_SORT_TYPE, labels: labels ?? this.settings.data.columnLabels };
-        }
-    };
-
-    private validateHeaderHistory = (directory: string) => {
-        if (this.settings.data.headerHistory[directory]) {
-            this.settings.data.headerHistory[directory].time = new Date().getTime();
-        }
-    };
-
-    private cleanHeaderHistory = async () => {
-        const date = new Date();
-        date.setDate(date.getDate() - 30);
-        const monthBefore = date.getTime();
-        const newHistory: { [key: string]: Mp.ColumnLabel } = {};
-        Object.entries(this.settings.data.headerHistory)
-            .filter(([_, value]) => value.time > monthBefore)
-            .forEach(([key, value]) => (newHistory[key] = value));
-        this.settings.data.headerHistory = newHistory;
-    };
-
-    onUnmaximize = (): Mp.SettingsChangeEvent => {
-        this.settings.data.isMaximized = false;
-        return { settings: this.settings.data };
-    };
-
-    onMaximize = (): Mp.SettingsChangeEvent => {
-        this.settings.data.isMaximized = true;
-        return { settings: this.settings.data };
-    };
-
-    toggleMaximize = async (view: WebviewWindow) => {
-        const maximized = await view.isMaximized();
-        if (maximized) {
-            view.unmaximize();
-            view.setPosition(util.toPhysicalPosition(this.settings.data.bounds));
-        } else {
-            const position = await view.innerPosition();
-            const size = await view.innerSize();
-            this.settings.data.bounds = util.toBounds(position, size);
-            await view.maximize();
-        }
-        this.settings.data.isMaximized = !maximized;
-    };
-
-    closeWindow = async (view: WebviewWindow) => {
-        await this.abortWatch();
+    beforeCloseWindow = async () => {
+        this.abortWatch();
         await ipc.invoke("unlisten_devices", undefined);
         await ipc.invoke("unlisten_file_drop", undefined);
-
-        if (!this.settings.data.isMaximized) {
-            const position = await view.innerPosition();
-            const size = await view.innerSize();
-            this.settings.data.bounds = util.toBounds(position, size);
-        }
-
-        await this.settings.save();
-
-        await view.close();
     };
 
     openListContextMenu = async (e: Mp.Position, fullPath: string, showAdminRunAs: boolean, inRecycleBin: boolean) => {
@@ -402,13 +329,12 @@ class Main {
         await ipc.invoke("open_fav_context_menu", e);
     };
 
-    openConfigFileJson = async () => {
-        await ipc.invoke("open_path", this.settings.getFilePath());
+    openColumnContextMenu = async (e: Mp.Position) => {
+        await ipc.invoke("open_column_context_menu", e);
     };
 
-    onColumnHeaderChanged = (e: Mp.WidthChangeEvent) => {
-        this.settings.data.leftAreaWidth = e.leftWidth;
-        this.updateHeaderHistory(this.currentDir, null, e.labels);
+    openConfigFileJson = async (settingsPath: string) => {
+        await ipc.invoke("open_path", settingsPath);
     };
 
     changeTheme = async (theme: Mp.Theme) => {
@@ -417,19 +343,6 @@ class Main {
 
     changeAppMenuItems = async (appMenuItems: Mp.AppMenuItem[]) => {
         await ipc.invoke("change_app_menu_items", appMenuItems);
-    };
-
-    clearHeaderHistory = () => {
-        this.settings.data.headerHistory = {};
-    };
-
-    onPreferenceChanged = async (preference: Mp.Preference) => {
-        await this.changeTheme(preference.theme);
-        this.settings.data.theme = preference.theme;
-        this.settings.data.appMenuItems = preference.appMenuItems;
-        this.settings.data.allowMoveColumn = preference.allowMoveColumn;
-        this.settings.data.useOSIcon = preference.useOSIcon;
-        this.settings.data.rememberColumns = preference.rememberColumns;
     };
 
     showFileFolderDialog = async (title: string, defaultPath: string, folder: boolean): Promise<string | null> => {
@@ -457,7 +370,6 @@ class Main {
             navigation: "Reload",
             sortType: result.sortType,
             failed: !result.done,
-            headers: this.settings.data.headerHistory[this.currentDir] ? structuredClone(this.settings.data.headerHistory[this.currentDir].labels) : structuredClone(this.settings.data.columnLabels),
         };
     };
 
@@ -472,21 +384,6 @@ class Main {
 
     writeFullpathToClipboard = async (fullPaths: string) => {
         await ipc.invoke("write_text", fullPaths);
-    };
-
-    addFavorite = (favorite: Mp.MediaFile): Mp.MediaFile[] => {
-        this.settings.data.favorites.push(favorite);
-        return this.settings.data.favorites;
-    };
-
-    removeFavorite = (id: string): Mp.MediaFile[] => {
-        const newFavorites = this.settings.data.favorites.filter((file) => file.id != id);
-        this.settings.data.favorites = newFavorites;
-        return this.settings.data.favorites;
-    };
-
-    changeFavorites = (favorites: Mp.MediaFile[]) => {
-        this.settings.data.favorites = favorites;
     };
 
     openTerminal = async (dir: string, admin: boolean) => {

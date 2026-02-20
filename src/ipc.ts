@@ -135,10 +135,11 @@ type NotifyRequest = {
 };
 
 type TauriCommandMap = {
-    prepare_menu: TauriCommand<undefined, undefined>;
+    prepare_menu: TauriCommand<Mp.VisibleColumnLabelMenu[], undefined>;
     open_list_context_menu: TauriCommand<ContextMenuArg, undefined>;
     open_fav_context_menu: TauriCommand<Mp.Position, undefined>;
     open_recycle_context_menu: TauriCommand<ContextMenuArg, undefined>;
+    open_column_context_menu: TauriCommand<Mp.Position, undefined>;
     exists: TauriCommand<string, boolean>;
     open_path: TauriCommand<string, undefined>;
     open_path_with: TauriCommand<OpenWithArg, undefined>;

@@ -13,56 +13,62 @@ export const RECYCLE_BIN_ITEM = "Recycle Bin Item";
 
 export const SEPARATOR = navigator.userAgent.includes(OS.windows) ? "\\" : "/";
 
+export const DEFAULT_SORTKEY_ORDER: Mp.SortKey[] = ["name", "directory", "orig_path", "ddate", "extension", "mdate", "cdate", "size"];
 export const DEFAULT_SORT_TYPE: Mp.SortType = {
     asc: true,
     key: "name",
 };
 
-export const BROWSER_SHORTCUT_KEYS = ["f", "p", "r", "+", "-", "u", "g", "j"];
+export const DEFAULT_SETTINGS: Mp.Settings = {
+    bounds: { width: 1200, height: 800, x: 0, y: 0 },
+    isMaximized: false,
+    visibleColumnLabels: DEFAULT_SORTKEY_ORDER,
+    favorites: [],
+    leftAreaWidth: 0,
+    columnHistory: {},
+    theme: "system",
+    allowMoveColumn: true,
+    autoAdjustColumn: false,
+    appMenuItems: [],
+    useOSIcon: false,
+    rememberColumns: true,
+};
 
-export const DEFAULT_SORTKEY_ORDER: Mp.SortKey[] = ["name", "directory", "orig_path", "ddate", "extension", "mdate", "cdate", "size"];
+export const BROWSER_SHORTCUT_KEYS = ["f", "p", "r", "+", "-", "u", "g", "j"];
 
 export const DATE_OPTION: Intl.DateTimeFormatOptions = { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "numeric", second: "numeric" };
 
 export const DEFAULT_LABLES: Mp.ColumnLabel[] = [
     {
-        label: "Name",
-        width: 500,
+        width: 300,
         sortKey: "name",
     },
     {
-        label: "Directory",
-        width: 400,
+        width: 300,
         sortKey: "directory",
     },
     {
-        label: "Original Path",
-        width: 400,
+        width: 300,
         sortKey: "orig_path",
     },
     {
-        label: "Deleted Date",
-        width: 200,
+        width: 150,
         sortKey: "ddate",
     },
     {
-        label: "Type",
-        width: 200,
+        width: 100,
         sortKey: "extension",
     },
     {
-        label: "Modified Date",
-        width: 200,
+        width: 150,
         sortKey: "mdate",
     },
     {
-        label: "Created Date",
-        width: 200,
+        width: 150,
         sortKey: "cdate",
     },
     {
-        label: "Size",
-        width: 400,
+        width: 100,
         sortKey: "size",
     },
 ];

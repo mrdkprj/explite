@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount, tick } from "svelte";
-    import { appState, dispatch, renameState, listState, slideState, clipState, driveState, headerState, awaitContextMenu, resolveContextMenu, columnState } from "./appStateReducer.svelte";
+    import { appState, dispatch, renameState, listState, slideState, clipState, driveState, headerState, awaitContextMenu, resolveContextMenu, columnState, settings } from "./appStateReducer.svelte";
+    import { clearColumnHistory, getApplicableColumnLabels, updateColumnHistory, validateColumnHistory } from "../states/settingsState.svelte";
     import TopBar from "./TopBar.svelte";
     import BottomBar from "./BottomBar.svelte";
     import Header from "./Header.svelte";
@@ -20,6 +21,7 @@
     import util from "../util";
     import { path } from "../path";
     import Deferred from "../deferred";
+    import Settings from "../settings";
 
     let fileListContainer = $state<HTMLDivElement>();
     let clipRegion = $state<DOMRectReadOnly>();
@@ -33,6 +35,7 @@
     let handleKeyUp = false;
 
     const ipc = new IPC("View");
+    const settingsStore = new Settings();
     const BACKWARD: Mp.NavigationHistory[] = [];
     const FORWARD: Mp.NavigationHistory[] = [];
 
@@ -62,11 +65,24 @@
     };
 
     const onFavoriteContextMenu = async (e: MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
         if (navigator.userAgent.includes(OS.windows)) {
             await main.openFavContextMenu({ x: e.screenX, y: e.screenY });
         } else {
             await awaitContextMenu();
             await main.openFavContextMenu({ x: e.clientX, y: e.clientY });
+        }
+    };
+
+    const onColumnContextMenu = async (e: MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (navigator.userAgent.includes(OS.windows)) {
+            await main.openColumnContextMenu({ x: e.screenX, y: e.screenY });
+        } else {
+            await awaitContextMenu();
+            await main.openColumnContextMenu({ x: e.clientX, y: e.clientY });
         }
     };
 
@@ -226,16 +242,20 @@
 
         if (e.button != 2) {
             const key = (e.target.getAttribute("data-sort-key") as Mp.SortKey) ?? "name";
-
-            const asc = $appState.sort.key == key ? !$appState.sort.asc : true;
-            const type: Mp.SortType = {
-                key,
-                asc,
-            };
-            dispatch({ type: "sort", value: type });
-            const result = main.sort({ files: listState.files, type });
-            onSorted(result);
+            sortItems(key);
         }
+    };
+
+    const sortItems = (key: Mp.SortKey) => {
+        const asc = $appState.sort.key == key ? !$appState.sort.asc : true;
+        const type: Mp.SortType = {
+            key,
+            asc,
+        };
+        dispatch({ type: "sort", value: type });
+        updateColumnHistory(listState.currentDir.fullPath, type, null);
+        const result = main.sort({ files: listState.files, type });
+        onSorted(result);
     };
 
     const onRowClick = async (e: MouseEvent) => {
@@ -243,7 +263,8 @@
     };
 
     const onColumnHeaderChanged = () => {
-        main.onColumnHeaderChanged({ leftWidth: driveState.leftWidth, labels: columnState.columnLabels });
+        settings.data.leftAreaWidth = driveState.leftWidth;
+        updateColumnHistory(listState.currentDir.fullPath, null, columnState.columnLabels);
     };
 
     const startDrag = async (e: DragEvent) => {
@@ -731,12 +752,31 @@
         await selectMultiple(ids);
     };
 
-    const sendRemovingFavorite = () => {
+    const onAddToFavorite = () => {
+        const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+        if (!file) return;
+
+        if (!file.isFile) {
+            settings.data.favorites.push(file);
+            onFavoriteChanged();
+        }
+    };
+
+    const onRemoveFavorite = () => {
         if (driveState.hoverFavoriteId) {
-            const result = main.removeFavorite(driveState.hoverFavoriteId);
-            onFavoriteChanged(result);
+            const newFavorites = settings.data.favorites.filter((file) => file.id != driveState.hoverFavoriteId);
+            settings.data.favorites = newFavorites;
+            onFavoriteChanged();
             dispatch({ type: "hoverFavoriteId", value: "" });
         }
+    };
+
+    const onFavoriteChanged = () => {
+        dispatch({ type: "changeFavorites", value: settings.data.favorites });
+    };
+
+    const changeFavorites = () => {
+        settings.data.favorites = driveState.favorites;
     };
 
     const reload = async (includeDrive: boolean) => {
@@ -896,14 +936,6 @@
         }
     };
 
-    const onFavoriteChanged = (e: Mp.MediaFile[]) => {
-        dispatch({ type: "changeFavorites", value: e });
-    };
-
-    const changeFavorites = () => {
-        main.changeFavorites(driveState.favorites);
-    };
-
     const undo = async () => {
         await main.undo();
     };
@@ -969,6 +1001,7 @@
         if (fullPath != listState.currentDir.fullPath) {
             const result = await main.onSelect({ fullPath, isFile, navigation });
             if (result) {
+                validateColumnHistory(result.directory);
                 dispatch({ type: "calculateColumnWidths", value: result.files });
                 load(result);
             }
@@ -1030,7 +1063,7 @@
         visibleStartIndex = 0;
         visibleEndIndex = 0;
         dispatch({ type: "toggleGridView", value: false });
-        dispatch({ type: "columnLabels", value: e.headers });
+        dispatch({ type: "columnLabels", value: getApplicableColumnLabels(e.directory) });
         dispatch({ type: "sort", value: e.sortType });
         dispatch({ type: "load", value: { event: e } });
         dispatch({ type: "navigated", value: { canGoBack: BACKWARD.length > 0, canGoForward: FORWARD.length > 0 } });
@@ -1060,10 +1093,10 @@
     };
 
     const openSettingsAsJson = async () => {
-        await main.openConfigFileJson();
+        await main.openConfigFileJson(settingsStore.getFilePath());
     };
 
-    const handleContextMenuEvent = async (e: keyof Mp.MainContextMenuSubTypeMap | keyof Mp.FavContextMenuSubTypeMap) => {
+    const handleContextMenuEvent = async (e: keyof Mp.MainContextMenuSubTypeMap | keyof Mp.FavContextMenuSubTypeMap | Mp.SortKey) => {
         switch (e) {
             case "Open": {
                 const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
@@ -1149,13 +1182,7 @@
             }
 
             case "AddToFavorite": {
-                const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
-                if (!file) return;
-
-                if (!file.isFile) {
-                    const favorites = main.addFavorite(file);
-                    onFavoriteChanged(favorites);
-                }
+                onAddToFavorite();
                 break;
             }
 
@@ -1164,7 +1191,7 @@
                 break;
 
             case "RemoveFromFavorite":
-                sendRemovingFavorite();
+                onRemoveFavorite();
                 break;
 
             case "Refresh":
@@ -1178,6 +1205,16 @@
 
             case "AdminTerminal":
                 await main.openTerminal(listState.currentDir.fullPath, true);
+                break;
+
+            case "cdate":
+            case "ddate":
+            case "directory":
+            case "extension":
+            case "mdate":
+            case "orig_path":
+            case "size":
+                dispatch({ type: "toggleVisibleColumn", value: e });
                 break;
 
             default: {
@@ -1388,20 +1425,9 @@
         }
     };
 
-    const clearHeaderHistory = () => {
-        main.clearHeaderHistory();
-    };
-
     const onPreferenceChange = async (isAppMenuItemChanged: boolean) => {
-        await main.onPreferenceChanged({
-            theme: $appState.theme,
-            appMenuItems: $appState.appMenuItems,
-            allowMoveColumn: $appState.allowMoveColumn,
-            useOSIcon: $appState.useOSIcon,
-            rememberColumns: $appState.rememberColumns,
-        });
         if (isAppMenuItemChanged) {
-            await main.changeAppMenuItems($appState.appMenuItems);
+            await main.changeAppMenuItems(settings.data.appMenuItems);
         }
     };
 
@@ -1418,8 +1444,19 @@
     };
 
     const toggleMaximize = async () => {
-        await main.toggleMaximize(WebviewWindow.getCurrent());
-        dispatch({ type: "isMaximized", value: !$appState.isMaximized });
+        const view = WebviewWindow.getCurrent();
+        const maximized = await view.isMaximized();
+        if (maximized) {
+            view.unmaximize();
+            view.setPosition(util.toPhysicalPosition(settings.data.bounds));
+        } else {
+            const position = await view.innerPosition();
+            const size = await view.innerSize();
+            settings.data.bounds = util.toBounds(position, size);
+            await view.maximize();
+        }
+
+        dispatch({ type: "isMaximized", value: !maximized });
     };
 
     const launchNew = async () => {
@@ -1427,7 +1464,16 @@
     };
 
     const close = async () => {
-        await main.closeWindow(WebviewWindow.getCurrent());
+        const view = WebviewWindow.getCurrent();
+        if (!settings.data.isMaximized) {
+            const position = await view.innerPosition();
+            const size = await view.innerSize();
+            settings.data.bounds = util.toBounds(position, size);
+        }
+
+        // await settingsStore.save(settings.data);
+
+        await view.close();
     };
 
     const onDeviceEvent = async (e: Mp.DeviceEvent) => {
@@ -1491,24 +1537,22 @@
     };
 
     const prepare = async () => {
+        /* Must init settings before everyting */
+        const data = await settingsStore.init();
+        dispatch({ type: "settings", value: data });
+
         const e = await main.onMainReady("viewContent");
 
-        await main.changeTheme(e.settings.theme);
-        await main.changeAppMenuItems(e.settings.appMenuItems);
-        dispatch({
-            type: "setPreference",
-            value: {
-                theme: e.settings.theme,
-                appMenuItems: e.settings.appMenuItems,
-                allowMoveColumn: e.settings.allowMoveColumn,
-                useOSIcon: e.settings.useOSIcon,
-                rememberColumns: e.settings.rememberColumns,
-            },
-        });
-        dispatch({ type: "columnLabels", value: e.settings.columnLabels });
-        dispatch({ type: "leftWidth", value: e.settings.leftAreaWidth });
+        await main.changeTheme(data.theme);
+        await main.changeAppMenuItems(data.appMenuItems);
+
+        clearColumnHistory();
+        validateColumnHistory(e.data.directory);
+        dispatch({ type: "columnLabels", value: getApplicableColumnLabels(e.data.directory) });
+        dispatch({ type: "visibleColumns", value: data.visibleColumnLabels });
+        dispatch({ type: "leftWidth", value: data.leftAreaWidth });
         dispatch({ type: "sort", value: DEFAULT_SORT_TYPE });
-        dispatch({ type: "changeFavorites", value: e.settings.favorites });
+        dispatch({ type: "changeFavorites", value: data.favorites });
 
         await init(e.data);
         await tick();
@@ -1516,9 +1560,9 @@
             await select(e.selectId);
         }
         const webview = WebviewWindow.getCurrent();
-        await webview.setSize(util.toPhysicalSize(e.settings.bounds));
+        await webview.setSize(util.toPhysicalSize(data.bounds));
         if (e.restorePosition) {
-            await webview.setPosition(util.toPhysicalPosition(e.settings.bounds));
+            await webview.setPosition(util.toPhysicalPosition(data.bounds));
         }
         await webview.show();
     };
@@ -1544,7 +1588,7 @@
     <TopBar {minimize} {toggleMaximize} {launchNew} {close} />
     <div class="view">
         {#if $appState.prefVisible}
-            <Preference preferenceChanged={onPreferenceChange} {openSettingsAsJson} {clearHeaderHistory} />
+            <Preference preferenceChanged={onPreferenceChange} {openSettingsAsJson} {clearColumnHistory} />
         {/if}
         {#if $appState.symlinkVisible}
             <Symlink {showErrorMessage} {getSymlinkTargetItem} {createSymlink} />
@@ -1603,6 +1647,7 @@
                         {colDetailMouseDown}
                         columnHeaderChanged={onColumnHeaderChanged}
                         {onScroll}
+                        {onColumnContextMenu}
                     />
                 {/if}
             </div>

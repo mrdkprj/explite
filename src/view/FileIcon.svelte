@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { appState, icons } from "./appStateReducer.svelte";
+    import { icons, settings } from "./appStateReducer.svelte";
     import util from "../util";
     import AudioSvg from "../svg/AudioSvg.svelte";
     import VideoSvg from "../svg/VideoSvg.svelte";
@@ -18,7 +18,7 @@
     let { item, size, showThumbnail }: { item: Mp.MediaFile; size: number; showThumbnail: boolean } = $props();
 
     const showOSIcon = (item: Mp.MediaFile) => {
-        if (!$appState.useOSIcon) return false;
+        if (!settings.data.useOSIcon) return false;
 
         if (showThumbnail) {
             if (item.fileType == "Image" || item.fileType == "Video") {

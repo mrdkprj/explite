@@ -1,16 +1,16 @@
-import { DEFAULT_LABLES } from "../constants";
+import { DEFAULT_LABLES, DEFAULT_SORTKEY_ORDER } from "../constants";
 
 type MaxColumnWidths = { [key in Mp.SortKey]: number };
 type ColumnState = {
     columnLabels: Mp.ColumnLabel[];
+    visibleColumns: Mp.SortKey[];
     adjustedWidths: MaxColumnWidths;
 };
 
 export const state: ColumnState = $state({
     columnLabels: DEFAULT_LABLES,
+    visibleColumns: DEFAULT_SORTKEY_ORDER,
     adjustedWidths: { ddate: 0, directory: 0, name: 0, mdate: 0, cdate: 0, size: 0, extension: 0, orig_path: 0 },
-    allowMoveColumn: true,
-    autoAdjustColumn: false,
 });
 
 export { state as columnState };
@@ -48,4 +48,13 @@ export const swithWidth = (key: Mp.SortKey) => {
     const column = state.columnLabels.find((label) => label.sortKey == key);
     if (!column) return;
     column.width = state.adjustedWidths[key];
+};
+
+export const toggleVisibleColumn = (key: Mp.SortKey) => {
+    if (state.visibleColumns.includes(key)) {
+        const index = state.visibleColumns.indexOf(key);
+        state.visibleColumns.splice(index, 1);
+    } else {
+        state.visibleColumns.push(key);
+    }
 };

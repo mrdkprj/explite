@@ -376,6 +376,36 @@ class Util {
         const base64 = uint8.toBase64();
         return `data:image/jpeg;base64,${base64}`;
     };
+
+    getColumnLabel = (sortKey: Mp.SortKey) => {
+        switch (sortKey) {
+            case "cdate":
+                return t("colCreated");
+
+            case "ddate":
+                return t("colDeleted");
+
+            case "directory":
+                return t("colDirectory");
+
+            case "extension":
+                return t("colExtension");
+
+            case "mdate":
+                return t("colModified");
+
+            case "name":
+                return t("colName");
+
+            case "orig_path":
+                return t("colOrigPath");
+
+            case "size":
+                return t("colSize");
+            default:
+                return "";
+        }
+    };
 }
 
 const util = new Util();

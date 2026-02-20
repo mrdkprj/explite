@@ -1,10 +1,16 @@
 <script lang="ts">
+    import util from "../util";
     import { handleKeyEvent } from "../constants";
     import AscSvg from "../svg/AscSvg.svelte";
     import DescSvg from "../svg/DescSvg.svelte";
-    import { appState, columnState, dispatch } from "./appStateReducer.svelte";
+    import { appState, columnState, dispatch, settings } from "./appStateReducer.svelte";
 
-    let { label, onColumnHeaderClick, columnHeaderChanged }: { label: Mp.ColumnLabel; onColumnHeaderClick: (e: MouseEvent) => void; columnHeaderChanged: () => void } = $props();
+    let {
+        label,
+        onColumnHeaderClick,
+        columnHeaderChanged,
+        onColumnContextMenu,
+    }: { label: Mp.ColumnLabel; onColumnHeaderClick: (e: MouseEvent) => void; columnHeaderChanged: () => void; onColumnContextMenu: (e: MouseEvent) => Promise<void> } = $props();
 
     const ROW_LEFT_MARGIN = 10;
     const DETAIL_PADDING = 10;
@@ -20,7 +26,7 @@
     };
 
     const startDragColumn = (e: DragEvent) => {
-        if (!$appState.allowMoveColumn) return;
+        if (!settings.data.allowMoveColumn) return;
         if (!e.target || !(e.target instanceof HTMLElement)) return;
 
         e.stopPropagation();
@@ -28,7 +34,7 @@
     };
 
     const onDropColumn = (e: DragEvent) => {
-        if (!$appState.allowMoveColumn) return;
+        if (!settings.data.allowMoveColumn) return;
         if ($appState.dragHandler != "Column") return;
         if (!e.target || !(e.target instanceof HTMLElement)) return;
         const sourceId = $appState.dragTargetId;
@@ -64,7 +70,7 @@
     };
 </script>
 
-<div class="col-list-header" onmouseup={onColumnHeaderClick} style="width: {label.width + ROW_LEFT_MARGIN + DETAIL_PADDING}px;" role="button" tabindex="-1">
+<div class="col-list-header" onmouseup={onColumnHeaderClick} oncontextmenu={onColumnContextMenu} style="width: {label.width + ROW_LEFT_MARGIN + DETAIL_PADDING}px;" role="button" tabindex="-1">
     <div
         class="list-header-label nofocus"
         data-sort-key={label.sortKey}
@@ -87,7 +93,7 @@
             </div>
         {/if}
         <div class="nofocus" style="pointer-events: none;" data-sort-key={label.sortKey}>
-            {label.label}
+            {util.getColumnLabel(label.sortKey)}
         </div>
         <div
             class="divider nofocus"
