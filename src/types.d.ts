@@ -69,6 +69,7 @@ declare global {
             Undelete: null;
             EmptyRecycleBin: null;
             DeleteFromRecycleBin: null;
+            AutoAdjustColumnWidth: null;
         };
 
         type FavContextMenuSubTypeMap = {
@@ -99,13 +100,11 @@ declare global {
         type Settings = {
             bounds: Bounds;
             isMaximized: boolean;
-            visibleColumnLabels: Mp.SortKey[];
             favorites: Mp.MediaFile[];
             leftAreaWidth: number;
             columnHistory: { [key: string]: Mp.ColumnSetting };
             theme: Mp.Theme;
             allowMoveColumn: boolean;
-            autoAdjustColumn: boolean;
             appMenuItems: AppMenuItem[];
             useOSIcon: boolean;
             rememberColumns: boolean;
@@ -125,23 +124,18 @@ declare global {
             target: "File" | "Folder" | "Both";
         };
 
-        type ColumnLabelMap = { [key in Mp.SortKey]: Mp.ColumnLabel };
+        type ColumnMap = { [key in Mp.SortKey]: Mp.Column };
 
-        type ColumnLabel = {
+        type Column = {
             width: number;
             sortKey: Mp.SortKey;
+            visible: boolean;
         };
 
         type ColumnSetting = {
             time: number;
             sortType: Mp.SortType;
-            labels: Mp.ColumnLabel[];
-        };
-
-        type VisibleColumnLabelMenu = {
-            key: Mp.SortKey;
-            label: string;
-            visible: boolean;
+            columns: Mp.Column[];
         };
 
         type EntityType = "File" | "Folder" | "SymlinkFile" | "SymlinkFolder";
@@ -182,7 +176,6 @@ declare global {
             drives?: Mp.DriveInfo[];
             directory: string;
             navigation: Mp.Navigation;
-            sortType: Mp.SortType;
             failed: boolean;
             iconCache?: Mp.IconCache;
         };
@@ -205,6 +198,11 @@ declare global {
             virtual: boolean;
         };
 
+        type ReadResult = {
+            files: Mp.MediaFile[];
+            done: boolean;
+        };
+
         type RefreshResult = {
             disks: Mp.DriveInfo[];
         };
@@ -221,24 +219,10 @@ declare global {
             key: Mp.SortKey;
         };
 
-        type SortRequest = {
-            files: Mp.MediaFile[];
-            type: Mp.SortType;
-        };
-
-        type SortResult = {
-            files: Mp.MediaFile[];
-            type: Mp.SortType;
-        };
-
         type SearchRequest = {
             dir: string;
             key: string;
             refresh: boolean;
-        };
-
-        type SearchResult = {
-            files: Mp.MediaFile[];
         };
 
         type WidthChangeEvent = {
@@ -283,7 +267,6 @@ declare global {
 
         type PasteData = {
             fullPaths: string[];
-            dir: string;
             copy: boolean;
         };
 
@@ -352,6 +335,11 @@ declare global {
             operation: "Create" | "Remove" | "Rename";
             to_paths: string[];
             from_paths: string[];
+        };
+
+        type WatchEventResult = {
+            files: Mp.MediaFile[];
+            pending: boolean;
         };
 
         type Operation = "Copy" | "Move" | "Trash" | "Create" | "Undelete" | "Delete" | "Rename";

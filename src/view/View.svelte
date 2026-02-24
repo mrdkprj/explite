@@ -1,7 +1,6 @@
 <script lang="ts">
     import { onMount, tick } from "svelte";
-    import { appState, dispatch, renameState, listState, slideState, clipState, driveState, headerState, awaitContextMenu, resolveContextMenu, columnState, settings } from "./appStateReducer.svelte";
-    import { clearColumnHistory, getApplicableColumnLabels, updateColumnHistory, validateColumnHistory } from "../states/settingsState.svelte";
+    import { appState, dispatch, renameState, listState, slideState, clipState, driveState, headerState, awaitContextMenu, resolveContextMenu, settings } from "./appStateReducer.svelte";
     import TopBar from "./TopBar.svelte";
     import BottomBar from "./BottomBar.svelte";
     import Header from "./Header.svelte";
@@ -14,7 +13,7 @@
     import ListView from "./ListView.svelte";
     import Rename from "./Rename.svelte";
 
-    import { BROWSER_SHORTCUT_KEYS, COLUMN_HEADER_HEIGHT, DEFAULT_SORT_TYPE, GRID_VERTICAL_MARGIN, HOME, OS, RECYCLE_BIN, handleKeyEvent } from "../constants";
+    import { BROWSER_SHORTCUT_KEYS, COLUMN_HEADER_HEIGHT, GRID_VERTICAL_MARGIN, HOME, INPUT_TEXT_BORDER_WIDTH, OS, handleKeyEvent } from "../constants";
     import { IPC } from "../ipc";
     import main from "../main";
     import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -39,16 +38,12 @@
     const BACKWARD: Mp.NavigationHistory[] = [];
     const FORWARD: Mp.NavigationHistory[] = [];
 
-    const showErrorMessage = async (message: string) => {
-        await main.showErrorMessage(message);
-    };
-
     const onListContextMenu = async (e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
         if (renameState.renaming) return;
 
-        if (listState.currentDir.fullPath != HOME) {
+        if (!listState.isHome) {
             onRowClick(e);
             const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
             let itemPath = "";
@@ -56,10 +51,10 @@
                 itemPath = file.linkPath ? file.linkPath : file.fullPath;
             }
             if (navigator.userAgent.includes(OS.windows)) {
-                await main.openListContextMenu({ x: e.screenX, y: e.screenY }, itemPath, e.shiftKey, isRecycleBin());
+                await main.openListContextMenu({ x: e.screenX, y: e.screenY }, itemPath, e.shiftKey, listState.isRecycleBin);
             } else {
                 await awaitContextMenu();
-                await main.openListContextMenu({ x: e.clientX, y: e.clientY }, itemPath, e.shiftKey, isRecycleBin());
+                await main.openListContextMenu({ x: e.clientX, y: e.clientY }, itemPath, e.shiftKey, listState.isRecycleBin);
             }
         }
     };
@@ -78,6 +73,8 @@
     const onColumnContextMenu = async (e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        if (headerState.search.searching) return;
+
         if (navigator.userAgent.includes(OS.windows)) {
             await main.openColumnContextMenu({ x: e.screenX, y: e.screenY });
         } else {
@@ -133,11 +130,11 @@
         const containerBottom = containerRect.bottom - scrollHeight;
 
         if (rect.top <= containerTop) {
-            fileListContainer.scrollBy(0, rect.top - containerTop);
+            await virtualList.scrollBy(0, rect.top - containerTop);
         }
 
         if (rect.bottom > containerBottom) {
-            fileListContainer.scrollBy(0, rect.bottom - containerBottom);
+            await virtualList.scrollBy(0, rect.bottom - containerBottom);
         }
     };
 
@@ -150,6 +147,7 @@
 
         if (!fileListContainer) return false;
         if (renameState.renaming) return false;
+        if ($appState.dragTargetId) return false;
         if ($appState.dragHandler != "View") return false;
 
         /* Clipping must handle event outside of view */
@@ -224,7 +222,6 @@
             const dist = e.clientX - slideState.startX;
             dispatch({ type: "slide", value: dist });
             dispatch({ type: "endSlide" });
-            onColumnHeaderChanged();
         }
 
         if (!shouldHandleMouseEvent(e)) return;
@@ -240,31 +237,24 @@
         if (!e.target || !(e.target instanceof HTMLElement)) return;
         if (slideState.sliding) return;
 
-        if (e.button != 2) {
-            const key = (e.target.getAttribute("data-sort-key") as Mp.SortKey) ?? "name";
+        if (e.button != 2 && e.target.hasAttribute("data-sort-key")) {
+            const key = e.target.getAttribute("data-sort-key") as Mp.SortKey;
             sortItems(key);
         }
     };
 
-    const sortItems = (key: Mp.SortKey) => {
-        const asc = $appState.sort.key == key ? !$appState.sort.asc : true;
-        const type: Mp.SortType = {
-            key,
-            asc,
-        };
-        dispatch({ type: "sort", value: type });
-        updateColumnHistory(listState.currentDir.fullPath, type, null);
-        const result = main.sort({ files: listState.files, type });
-        onSorted(result);
+    const sortItems = async (key: Mp.SortKey) => {
+        dispatch({ type: "updateSortType", value: key });
+        dispatch({ type: "updateColumnSetting", value: { sortType: listState.sortType, columns: null } });
+        dispatch({ type: "sortInPlace", value: listState.files });
+        if ($appState.selection.selectedIds.length) {
+            await tick();
+            select($appState.selection.selectedIds[0]);
+        }
     };
 
     const onRowClick = async (e: MouseEvent) => {
         await toggleSelect(e);
-    };
-
-    const onColumnHeaderChanged = () => {
-        settings.data.leftAreaWidth = driveState.leftWidth;
-        updateColumnHistory(listState.currentDir.fullPath, null, columnState.columnLabels);
     };
 
     const startDrag = async (e: DragEvent) => {
@@ -321,7 +311,7 @@
 
         dispatch({ type: "dragLeave" });
 
-        if (listState.currentDir.fullPath == HOME || !e.paths) return;
+        if (listState.isHome || !e.paths) return;
 
         const destPath = getDropTarget(dragTargetId);
 
@@ -360,7 +350,7 @@
         if (e.button != 2) {
             dispatch({
                 type: "startClip",
-                value: { position: { startX: e.clientX - fileListContainer.parentElement!.offsetLeft, startY: e.clientY - fileListContainer.parentElement!.offsetTop }, startId: id },
+                value: { position: { x: e.clientX - fileListContainer.parentElement!.offsetLeft, y: e.clientY - fileListContainer.parentElement!.offsetTop }, startId: id },
             });
         }
     };
@@ -570,7 +560,7 @@
             return key === "ArrowRight" ? listState.files[currentIndex + 1]?.id : listState.files[currentIndex - 1]?.id;
         }
 
-        return key === "ArrowDown" ? listState.files[currentIndex + listState.chunkSize]?.id : listState.files[currentIndex - listState.chunkSize]?.id;
+        return key === "ArrowDown" ? listState.files[currentIndex + util.getChunkSize(listState.clientWidth)]?.id : listState.files[currentIndex - util.getChunkSize(listState.clientWidth)]?.id;
     };
 
     const selectUpto = async (e: KeyboardEvent) => {
@@ -596,7 +586,7 @@
     };
 
     const startEditFileName = () => {
-        if (isRecycleBin()) return;
+        if (listState.isRecycleBin) return;
 
         const file = listState.files.find((file) => file.id == $appState.selection.selectedId);
 
@@ -608,10 +598,14 @@
 
         const rect = selectedElement.getBoundingClientRect();
 
+        const gridColumnPaddings = 5;
+        const horizontalPadding = $appState.isInGridView ? gridColumnPaddings : INPUT_TEXT_BORDER_WIDTH;
+        const verticalPadding = $appState.isInGridView ? 0 : INPUT_TEXT_BORDER_WIDTH;
+
         const partialRect = {
-            top: $appState.isInGridView ? rect.top : rect.top - 2,
-            left: $appState.isInGridView ? rect.left - 4 : rect.left - 2,
-            width: $appState.isInGridView ? rect.width + 8 : rect.width,
+            top: rect.top - verticalPadding,
+            left: rect.left - horizontalPadding,
+            width: rect.width + horizontalPadding * 2,
             height: rect.height,
         };
 
@@ -743,7 +737,7 @@
     const pasteItems = async () => {
         const result = await main.getUrlsFromClipboard($appState.copyCutTargets.files, $appState.copyCutTargets.op);
         if (result.fullPaths.length) {
-            await moveItems(result.fullPaths, result.dir, result.copy);
+            await moveItems(result.fullPaths, listState.currentDir.fullPath, result.copy);
         }
     };
 
@@ -753,30 +747,12 @@
     };
 
     const onAddToFavorite = () => {
-        const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
-        if (!file) return;
-
-        if (!file.isFile) {
-            settings.data.favorites.push(file);
-            onFavoriteChanged();
-        }
+        dispatch({ type: "addToFavorites" });
     };
 
     const onRemoveFavorite = () => {
-        if (driveState.hoverFavoriteId) {
-            const newFavorites = settings.data.favorites.filter((file) => file.id != driveState.hoverFavoriteId);
-            settings.data.favorites = newFavorites;
-            onFavoriteChanged();
-            dispatch({ type: "hoverFavoriteId", value: "" });
-        }
-    };
-
-    const onFavoriteChanged = () => {
-        dispatch({ type: "changeFavorites", value: settings.data.favorites });
-    };
-
-    const changeFavorites = () => {
-        settings.data.favorites = driveState.favorites;
+        dispatch({ type: "removeFromFavorites" });
+        dispatch({ type: "hoverFavoriteId", value: "" });
     };
 
     const reload = async (includeDrive: boolean) => {
@@ -819,12 +795,12 @@
     const startSearch = async () => {
         dispatch({ type: "clearCopyCut" });
         dispatch({ type: "startSearch" });
-        const result = await main.search({ dir: listState.currentDir.fullPath, key: headerState.search.key, refresh: false });
-        await onSearched(result);
+        const files = await main.search($state.snapshot(listState.files), { dir: listState.currentDir.fullPath, key: headerState.search.key, refresh: false });
+        await onSearched(files);
     };
 
-    const onSearched = async (e: Mp.SearchResult) => {
-        dispatch({ type: "updateFiles", value: { files: e.files } });
+    const onSearched = async (files: Mp.MediaFile[]) => {
+        dispatch({ type: "replaceFiles", value: files });
         await tick();
     };
 
@@ -836,13 +812,13 @@
         clearSearchHighlight();
 
         if (reload) {
-            await main.onSearchEnd();
-            const result = await main.search({ dir: listState.currentDir.fullPath, key: headerState.search.key, refresh: false });
-            await onSearched(result);
+            main.onSearchEnd();
+            const files = await main.search($state.snapshot(listState.files), { dir: listState.currentDir.fullPath, key: headerState.search.key, refresh: false });
+            await onSearched(files);
         } else {
             dispatch({ type: "endSearch" });
-            const result = await main.onSearchEnd();
-            await onSearched(result);
+            const files = main.onSearchEnd();
+            await onSearched(files);
         }
     };
 
@@ -927,15 +903,6 @@
         });
     };
 
-    const onSorted = async (e: Mp.SortResult) => {
-        dispatch({ type: "updateFiles", value: { files: e.files } });
-
-        if ($appState.selection.selectedIds.length) {
-            await tick();
-            select($appState.selection.selectedIds[0]);
-        }
-    };
-
     const undo = async () => {
         await main.undo();
     };
@@ -946,8 +913,6 @@
 
     const onSelect = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
-
-        if (e.target.classList.contains("nofocus")) return;
 
         const id = e.target.getAttribute("data-file-id");
 
@@ -990,10 +955,10 @@
         if (!isFile && headerState.search.searching) {
             dispatch({ type: "endSearch" });
             if (fullPath == listState.currentDir.fullPath) {
-                const result = await main.onSearchEnd();
-                dispatch({ type: "updateFiles", value: { files: result.files } });
+                const files = main.onSearchEnd();
+                await onSearched(files);
             } else {
-                dispatch({ type: "updateFiles", value: { files: [] } });
+                await onSearched([]);
             }
             await tick();
         }
@@ -1001,7 +966,6 @@
         if (fullPath != listState.currentDir.fullPath) {
             const result = await main.onSelect({ fullPath, isFile, navigation });
             if (result) {
-                validateColumnHistory(result.directory);
                 dispatch({ type: "calculateColumnWidths", value: result.files });
                 load(result);
             }
@@ -1020,8 +984,6 @@
         const title = listState.currentDir.paths.length ? listState.currentDir.paths[listState.currentDir.paths.length - 1] : HOME;
         await WebviewWindow.getCurrent().setTitle(title);
     };
-
-    const isRecycleBin = () => listState.currentDir.fullPath == RECYCLE_BIN;
 
     const navigate = (e: Mp.LoadEvent) => {
         if (e.navigation == "Reload") {
@@ -1063,8 +1025,6 @@
         visibleStartIndex = 0;
         visibleEndIndex = 0;
         dispatch({ type: "toggleGridView", value: false });
-        dispatch({ type: "columnLabels", value: getApplicableColumnLabels(e.directory) });
-        dispatch({ type: "sort", value: e.sortType });
         dispatch({ type: "load", value: { event: e } });
         dispatch({ type: "navigated", value: { canGoBack: BACKWARD.length > 0, canGoForward: FORWARD.length > 0 } });
 
@@ -1084,12 +1044,6 @@
         if ($appState.selection.selectedIds.length) {
             await select($appState.selection.selectedIds[0]);
         }
-    };
-
-    const init = async (e: Mp.LoadEvent) => {
-        dispatch({ type: "sort", value: e.sortType });
-        dispatch({ type: "load", value: { event: e } });
-        await setTitle();
     };
 
     const openSettingsAsJson = async () => {
@@ -1209,12 +1163,15 @@
 
             case "cdate":
             case "ddate":
-            case "directory":
             case "extension":
             case "mdate":
             case "orig_path":
             case "size":
                 dispatch({ type: "toggleVisibleColumn", value: e });
+                break;
+
+            case "AutoAdjustColumnWidth":
+                dispatch({ type: "adjustAllColumnWidths" });
                 break;
 
             default: {
@@ -1338,7 +1295,7 @@
         }
 
         if (e.ctrlKey && e.key === "t") {
-            if (listState.currentDir.fullPath != HOME && !isRecycleBin()) {
+            if (!listState.isHome && !listState.isRecycleBin) {
                 e.preventDefault();
                 return dispatch({ type: "toggleGridView", value: !$appState.isInGridView });
             }
@@ -1425,12 +1382,6 @@
         }
     };
 
-    const onPreferenceChange = async (isAppMenuItemChanged: boolean) => {
-        if (isAppMenuItemChanged) {
-            await main.changeAppMenuItems(settings.data.appMenuItems);
-        }
-    };
-
     const getSymlinkTargetItem = async (currentDir: string, folder: boolean) => {
         return main.showFileFolderDialog("Select a file/folder", currentDir, folder);
     };
@@ -1452,7 +1403,7 @@
         } else {
             const position = await view.innerPosition();
             const size = await view.innerSize();
-            settings.data.bounds = util.toBounds(position, size);
+            dispatch({ type: "setBounds", value: util.toBounds(position, size) });
             await view.maximize();
         }
 
@@ -1471,7 +1422,7 @@
             settings.data.bounds = util.toBounds(position, size);
         }
 
-        // await settingsStore.save(settings.data);
+        await settingsStore.save(settings.data);
 
         await view.close();
     };
@@ -1509,11 +1460,11 @@
 
     const onWatchEvent = async (e: Mp.WatchEvent) => {
         dispatch({ type: "clearSelection" });
-        const files = await main.onWatchEvent(e);
-        if (files) {
-            dispatch({ type: "updateFiles", value: { files } });
-        }
 
+        const result = await main.onWatchEvent(e, $state.snapshot(listState.files));
+        if (result.pending) return;
+
+        dispatch({ type: "replaceFiles", value: result.files });
         await resolvePromise();
     };
 
@@ -1544,21 +1495,20 @@
         const e = await main.onMainReady("viewContent");
 
         await main.changeTheme(data.theme);
-        await main.changeAppMenuItems(data.appMenuItems);
+        await main.changeAppMenuItems();
 
-        clearColumnHistory();
-        validateColumnHistory(e.data.directory);
-        dispatch({ type: "columnLabels", value: getApplicableColumnLabels(e.data.directory) });
-        dispatch({ type: "visibleColumns", value: data.visibleColumnLabels });
-        dispatch({ type: "leftWidth", value: data.leftAreaWidth });
-        dispatch({ type: "sort", value: DEFAULT_SORT_TYPE });
+        dispatch({ type: "clearColumnHistory" });
         dispatch({ type: "changeFavorites", value: data.favorites });
 
-        await init(e.data);
+        dispatch({ type: "load", value: { event: e.data } });
+
+        await setTitle();
         await tick();
+
         if (e.selectId) {
             await select(e.selectId);
         }
+
         const webview = WebviewWindow.getCurrent();
         await webview.setSize(util.toPhysicalSize(data.bounds));
         if (e.restorePosition) {
@@ -1588,17 +1538,17 @@
     <TopBar {minimize} {toggleMaximize} {launchNew} {close} />
     <div class="view">
         {#if $appState.prefVisible}
-            <Preference preferenceChanged={onPreferenceChange} {openSettingsAsJson} {clearColumnHistory} />
+            <Preference changeAppMenuItems={main.changeAppMenuItems} {openSettingsAsJson} />
         {/if}
         {#if $appState.symlinkVisible}
-            <Symlink {showErrorMessage} {getSymlinkTargetItem} {createSymlink} />
+            <Symlink {getSymlinkTargetItem} {createSymlink} />
         {/if}
         {#if renameState.renaming}
             <Rename {endEditFileName} />
         {/if}
         <Header {requestLoad} {startSearch} {endSearch} {goBack} {goForward} {goUpward} {createItem} {reload} bind:this={header} />
         <div id="viewContent" class="body" ondragover={onDragOver} onkeydown={handleKeyEvent} role="button" tabindex="-1">
-            <Left {requestLoad} {changeFavorites} {onFavoriteContextMenu} />
+            <Left {requestLoad} {onFavoriteContextMenu} />
             <div class="area-divider" onmousedown={onAreaSliderMousedown} onkeydown={handleKeyEvent} role="button" tabindex="-1">
                 <div class="line"></div>
             </div>
@@ -1616,7 +1566,7 @@
                     <div bind:contentRect={clipRegion} class="clip-area" style={clipState.clipAreaStyle}></div>
                 {/if}
 
-                {#if listState.currentDir.fullPath == HOME}
+                {#if listState.isHome}
                     <Home {requestLoad} />
                 {:else if $appState.isInGridView}
                     <GridView
@@ -1645,7 +1595,6 @@
                         {onSelect}
                         {onColumnHeaderClick}
                         {colDetailMouseDown}
-                        columnHeaderChanged={onColumnHeaderChanged}
                         {onScroll}
                         {onColumnContextMenu}
                     />
@@ -1653,5 +1602,5 @@
             </div>
         </div>
     </div>
-    <BottomBar clientWidth={fileListContainer?.clientWidth} />
+    <BottomBar />
 </div>

@@ -1,4 +1,4 @@
-use crate::{AppMenuItem, VisibleColumnLabelMenu};
+use crate::{AppMenuItem, Column, ColumnWithLabel};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::Path};
 use tauri::async_runtime::Mutex;
@@ -35,12 +35,12 @@ type MenusState = Mutex<Menus>;
 pub struct AppMenuItems(Vec<AppMenuItem>);
 type AppMenuItemsState = Mutex<AppMenuItems>;
 
-pub fn create(app_handle: &tauri::AppHandle, window_handle: isize, visible_columns: Vec<VisibleColumnLabelMenu>) {
+pub fn create(app_handle: &tauri::AppHandle, window_handle: isize, columns: Vec<ColumnWithLabel>) {
     let list = create_list_menu(window_handle);
     let fav = create_fav_menu(window_handle);
     let no_item = create_noitem_menu(window_handle);
     let recycle_bin = create_recycle_bin_menu(window_handle);
-    let column_menu = create_column_menu(window_handle, visible_columns);
+    let column_menu = create_column_menu(window_handle, columns);
     let menus = Menus(HashMap::from([(LIST.to_string(), list), (FAV.to_string(), fav), (NO_ITEM.to_string(), no_item), (RECYCLE_BIN.to_string(), recycle_bin), (COLUMN.to_string(), column_menu)]));
     app_handle.manage(Mutex::new(menus));
     app_handle.manage(Mutex::new(AppMenuItems(Vec::new())));
@@ -66,6 +66,44 @@ pub async fn popup_menu(app_handle: &tauri::AppHandle, window_label: &str, menu_
     #[cfg(target_os = "windows")]
     if let Some(mut terminal) = menu.get_menu_item_by_id("AdminTerminal") {
         terminal.set_visible(show_admin_runas);
+    }
+
+    let result = menu.popup_at_async(position.x, position.y).await;
+
+    if let Some(item) = result {
+        app_handle
+            .emit_to(
+                EventTarget::WebviewWindow {
+                    label: window_label.to_string(),
+                },
+                MENU_EVENT_NAME,
+                if item.id.starts_with(APP_MENU_ITEM_PREFIX) {
+                    item.id.replace(APP_MENU_ITEM_PREFIX, "")
+                } else {
+                    item.id
+                },
+            )
+            .unwrap();
+    };
+}
+
+pub async fn open_column_context_menu(app_handle: &tauri::AppHandle, window_label: &str, position: Position, items: Vec<Column>, is_recycle_bin: bool) {
+    let state = app_handle.state::<MenusState>();
+    let menus = state.try_lock().unwrap();
+    let menu = menus.0.get(COLUMN).unwrap();
+
+    if is_recycle_bin {
+        menu.get_menu_item_by_id("orig_path").unwrap().set_visible(true);
+        menu.get_menu_item_by_id("ddate").unwrap().set_visible(true);
+    } else {
+        menu.get_menu_item_by_id("orig_path").unwrap().set_visible(false);
+        menu.get_menu_item_by_id("ddate").unwrap().set_visible(false);
+    }
+
+    for item in items {
+        if let Some(mut menu_item) = menu.get_menu_item_by_id(&item.sortKey) {
+            menu_item.set_checked(item.visible);
+        }
     }
 
     let result = menu.popup_at_async(position.x, position.y).await;
@@ -313,14 +351,14 @@ fn create_fav_menu(window_handle: isize) -> Menu {
     builder.build().unwrap()
 }
 
-fn create_column_menu(window_handle: isize, visible_columns: Vec<VisibleColumnLabelMenu>) -> Menu {
+fn create_column_menu(window_handle: isize, columns: Vec<ColumnWithLabel>) -> Menu {
     let config = get_menu_config(Theme::System);
     let mut builder = MenuBuilder::new_from_config(window_handle, config);
-    visible_columns.iter().for_each(|column| {
-        builder.check(&column.key, &column.label, column.visible, false);
+    columns.iter().for_each(|column| {
+        builder.check(&column.sortKey, &column.label, column.visible, false);
     });
     builder.separator();
-    builder.text("Refresh", "Refresh", false);
+    builder.text("AutoAdjustColumnWidth", "Adjust All Column Widths", false);
 
     builder.build().unwrap()
 }

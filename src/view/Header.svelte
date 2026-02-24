@@ -1,4 +1,8 @@
 <script lang="ts">
+    import { dispatch, listState, headerState } from "./appStateReducer.svelte";
+    import { handleKeyEvent, SEPARATOR } from "../constants";
+    import util from "../util";
+    import { path } from "../path";
     import BackSvg from "../svg/BackSvg.svelte";
     import FowardSvg from "../svg/FowardSvg.svelte";
     import UpwardSvg from "../svg/UpwardSvg.svelte";
@@ -11,16 +15,6 @@
     import ClearSvg from "../svg/ClearSvg.svelte";
     import ThreeDotsSvg from "../svg/ThreeDotsSvg.svelte";
     import DisplaySvg from "../svg/DisplaySvg.svelte";
-    import { dispatch, listState, headerState } from "./appStateReducer.svelte";
-    import { handleKeyEvent, HOME, RECYCLE_BIN, SEPARATOR } from "../constants";
-    import util from "../util";
-    import { path } from "../path";
-
-    type Paths = {
-        overflownPaths: string[];
-        visiblePaths: string[];
-        overflown: string;
-    };
 
     let {
         startSearch,
@@ -58,6 +52,13 @@
     let dropdownPosition = $state({ left: 0, top: 0 });
     let showHiddenPaths = $state(false);
     let showCreateDir = $state(false);
+
+    type Paths = {
+        overflownPaths: string[];
+        visiblePaths: string[];
+        overflown: string;
+    };
+
     let paths: Paths = $derived.by(() => {
         const _canvas = canvas || (canvas = document.createElement("canvas"));
         const context = _canvas.getContext("2d");
@@ -70,25 +71,26 @@
         }
         context.font = 'normal 14px "Segoe UI"';
         let width = 200;
-        const _visiblePaths: string[] = [];
-        const _overflownPaths: string[] = [];
+        const visiblePaths: string[] = [];
+        const overflownPaths: string[] = [];
 
         // Prevent listState update
-        const paths = listState.currentDir.paths.slice();
+        const paths = $state.snapshot(listState.currentDir.paths);
         paths.reverse().forEach((path, index) => {
             const metrics = context.measureText(path);
             width += metrics.width + COMPONENT_PADDINGS + COMPONENT_RIGHT_MARGIN + DIVIDER_WIDTH;
             if (width > pathWidth && index > 0) {
-                _overflownPaths.push(path);
+                overflownPaths.push(path);
             } else {
-                _visiblePaths.push(path);
+                visiblePaths.push(path);
             }
         });
 
-        const overflownPaths = _overflownPaths.reverse();
+        visiblePaths.reverse();
+        overflownPaths.reverse();
 
         return {
-            visiblePaths: _visiblePaths.reverse(),
+            visiblePaths,
             overflownPaths,
             overflown: overflownPaths.join(SEPARATOR),
         };
@@ -121,7 +123,7 @@
     };
 
     const setPathInputFocus = (node: HTMLInputElement) => {
-        pathValue = listState.currentDir.fullPath == HOME || listState.currentDir.fullPath == RECYCLE_BIN ? "" : listState.currentDir.fullPath;
+        pathValue = listState.isHome || listState.isRecycleBin ? "" : listState.currentDir.fullPath;
         node.value = pathValue;
         node.focus();
         node.setSelectionRange(0, pathValue.length);
@@ -260,11 +262,11 @@
         <div class="button {headerState.canGoUpward ? '' : 'disabled'}" onclick={goUpward} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <UpwardSvg />
         </div>
-        <div class="button {listState.currentDir.fullPath == HOME ? 'disabled' : ''}" onclick={() => reload(true)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div class="button {listState.isHome ? 'disabled' : ''}" onclick={() => reload(true)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <ReloadSvg />
         </div>
         <div
-            class="button {listState.currentDir.fullPath == HOME || headerState.search.searching ? 'disabled' : ''}"
+            class="button {listState.isHome || headerState.search.searching ? 'disabled' : ''}"
             class:btn-active={showCreateDir}
             onclick={showCreateDirDialog}
             onkeydown={handleKeyEvent}
@@ -382,7 +384,7 @@
             bind:value={headerState.search.key}
             onfocus={focusSearchInput}
             onkeydown={onSearchInputKeyDown}
-            disabled={listState.currentDir.fullPath == HOME}
+            disabled={listState.isHome}
             autocomplete="one-time-code"
         />
         {#if headerState.search.searching}

@@ -3854,9 +3854,9 @@ checksum = "0c6a884d2998352bb4daf0183589aec883f16a6da1f4dde84d8e2e9a5409a1ce"
 
 [[package]]
 name = "rs-vips"
-version = "0.3.1"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "227c0163a1f2cfaa4470fbe0f0f92821f04834061e8e82cb838693fc98acf2a1"
+checksum = "e0c8356b8f35812dcebd5b5f2544099caaf0a0142006e3a96c28deb717c8e700"
 dependencies = [
  "num-derive",
  "num-traits",

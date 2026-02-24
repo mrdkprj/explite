@@ -19,6 +19,7 @@
         onScroll = undefined,
         thumbnail = false,
         vmargin = 0,
+        clientWidth = $bindable(0),
     }: {
         id?: string;
         items: T[];
@@ -35,6 +36,7 @@
         onScroll?: () => Promise<void>;
         thumbnail?: boolean;
         vmargin?: number;
+        clientWidth?: number;
     } = $props();
 
     let height_map: number[] = [];
@@ -186,6 +188,15 @@
         return await scrollPromise.promise;
     }
 
+    export async function scrollBy(x: number, y: number) {
+        // Should calculate and update padding-top before scroll
+        await handle_scroll();
+        viewport.scrollBy(x, y);
+        // Should await scrollend
+        scrollPromise = new Deferred();
+        return await scrollPromise.promise;
+    }
+
     // trigger initial refresh
     onMount(() => {
         rows = contents.getElementsByTagName("svelte-virtual-list-row");
@@ -193,7 +204,7 @@
     });
 </script>
 
-<svelte-virtual-list-viewport {id} data-v-list bind:this={viewport} bind:offsetHeight={viewport_height} onscroll={handle_scroll} style="height: {height};">
+<svelte-virtual-list-viewport {id} data-v-list bind:this={viewport} bind:clientWidth bind:offsetHeight={viewport_height} onscroll={handle_scroll} style="height: {height};">
     <svelte-virtual-list-contents data-v-list bind:this={contents} style="padding-top: {top}px; padding-bottom: {bottom}px;" class:thumbnail>
         {#if header.length}
             {@render header()}
@@ -215,7 +226,7 @@
 <style>
     svelte-virtual-list-viewport {
         position: relative;
-        overflow-y: auto;
+        overflow: auto;
         -webkit-overflow-scrolling: touch;
         display: block;
     }
@@ -223,10 +234,7 @@
     svelte-virtual-list-contents,
     svelte-virtual-list-row {
         display: block;
-    }
-
-    svelte-virtual-list-row {
-        overflow: hidden;
+        width: fit-content;
     }
 
     .thumbnail {

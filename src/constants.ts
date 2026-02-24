@@ -22,13 +22,11 @@ export const DEFAULT_SORT_TYPE: Mp.SortType = {
 export const DEFAULT_SETTINGS: Mp.Settings = {
     bounds: { width: 1200, height: 800, x: 0, y: 0 },
     isMaximized: false,
-    visibleColumnLabels: DEFAULT_SORTKEY_ORDER,
     favorites: [],
     leftAreaWidth: 0,
     columnHistory: {},
     theme: "system",
     allowMoveColumn: true,
-    autoAdjustColumn: false,
     appMenuItems: [],
     useOSIcon: false,
     rememberColumns: true,
@@ -38,38 +36,46 @@ export const BROWSER_SHORTCUT_KEYS = ["f", "p", "r", "+", "-", "u", "g", "j"];
 
 export const DATE_OPTION: Intl.DateTimeFormatOptions = { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "numeric", second: "numeric" };
 
-export const DEFAULT_LABLES: Mp.ColumnLabel[] = [
+export const DEFAULT_LABLES: Mp.Column[] = [
     {
         width: 300,
         sortKey: "name",
+        visible: true,
     },
     {
         width: 300,
         sortKey: "directory",
+        visible: true,
     },
     {
         width: 300,
         sortKey: "orig_path",
+        visible: true,
     },
     {
         width: 150,
         sortKey: "ddate",
+        visible: true,
     },
     {
         width: 100,
         sortKey: "extension",
+        visible: true,
     },
     {
         width: 150,
         sortKey: "mdate",
+        visible: true,
     },
     {
         width: 150,
         sortKey: "cdate",
+        visible: true,
     },
     {
         width: 100,
         sortKey: "size",
+        visible: true,
     },
 ];
 
@@ -106,6 +112,7 @@ export const LINUX_SPECIAL_FOLDERS = {
 
 export const WSL_ROOT = "\\\\wsl.localhost";
 
+export const INPUT_TEXT_BORDER_WIDTH = 2;
 export const COLUMN_HEADER_HEIGHT = 30;
 export const GRID_VERTICAL_MARGIN = 10;
 export const LIST_ITEM_HEIGHT = 30;

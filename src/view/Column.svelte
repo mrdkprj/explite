@@ -3,14 +3,9 @@
     import { handleKeyEvent } from "../constants";
     import AscSvg from "../svg/AscSvg.svelte";
     import DescSvg from "../svg/DescSvg.svelte";
-    import { appState, columnState, dispatch, settings } from "./appStateReducer.svelte";
+    import { appState, listState, dispatch, settings } from "./appStateReducer.svelte";
 
-    let {
-        label,
-        onColumnHeaderClick,
-        columnHeaderChanged,
-        onColumnContextMenu,
-    }: { label: Mp.ColumnLabel; onColumnHeaderClick: (e: MouseEvent) => void; columnHeaderChanged: () => void; onColumnContextMenu: (e: MouseEvent) => Promise<void> } = $props();
+    let { column, onColumnHeaderClick, onColumnContextMenu }: { column: Mp.Column; onColumnHeaderClick: (e: MouseEvent) => void; onColumnContextMenu: (e: MouseEvent) => Promise<void> } = $props();
 
     const ROW_LEFT_MARGIN = 10;
     const DETAIL_PADDING = 10;
@@ -22,7 +17,7 @@
     };
 
     const onSliderDblClick = (key: Mp.SortKey) => {
-        dispatch({ type: "useCalculatedWidths", value: key });
+        dispatch({ type: "adjustColumnWidth", value: key });
     };
 
     const startDragColumn = (e: DragEvent) => {
@@ -37,6 +32,7 @@
         if (!settings.data.allowMoveColumn) return;
         if ($appState.dragHandler != "Column") return;
         if (!e.target || !(e.target instanceof HTMLElement)) return;
+
         const sourceId = $appState.dragTargetId;
         dispatch({ type: "endDrag" });
 
@@ -46,64 +42,65 @@
         e.preventDefault();
         e.stopPropagation();
 
-        const columnLabels = $state.snapshot(columnState.columnLabels);
+        const columns = $state.snapshot(listState.columns);
 
-        /* Remove directory label first */
-        const dirLabelIndex = columnLabels.findIndex((label) => label.sortKey == "directory");
-        const dirLabel = columnLabels.splice(dirLabelIndex, 1)[0];
+        /* Remove directory column first */
+        const dircolumnIndex = columns.findIndex((column) => column.sortKey == "directory");
+        const dircolumn = columns.splice(dircolumnIndex, 1)[0];
 
         const sourceSortKey = atob(sourceId);
-        const sourceIndex = columnLabels.findIndex((label) => label.sortKey == sourceSortKey);
-        const source = columnLabels.splice(sourceIndex, 1)[0];
+        const sourceIndex = columns.findIndex((column) => column.sortKey == sourceSortKey);
+        const source = columns.splice(sourceIndex, 1)[0];
 
         const targetSortKey = atob(e.target.id);
-        const targetIndex = columnLabels.findIndex((label) => label.sortKey == targetSortKey);
+        const targetIndex = columns.findIndex((column) => column.sortKey == targetSortKey);
         const shouldAppend = targetIndex >= sourceIndex;
-        columnLabels.splice(shouldAppend ? targetIndex + 1 : targetIndex, 0, source);
+        columns.splice(shouldAppend ? targetIndex + 1 : targetIndex, 0, source);
 
-        /* Append directory label after name label */
-        const nameLabelIndex = columnLabels.findIndex((label) => label.sortKey == "name");
-        columnLabels.splice(nameLabelIndex + 1, 0, dirLabel);
+        /* Append directory column after name column */
+        const namecolumnIndex = columns.findIndex((column) => column.sortKey == "name");
+        columns.splice(namecolumnIndex + 1, 0, dircolumn);
 
-        dispatch({ type: "columnLabels", value: columnLabels });
-        columnHeaderChanged();
+        dispatch({ type: "columns", value: columns });
     };
 </script>
 
-<div class="col-list-header" onmouseup={onColumnHeaderClick} oncontextmenu={onColumnContextMenu} style="width: {label.width + ROW_LEFT_MARGIN + DETAIL_PADDING}px;" role="button" tabindex="-1">
-    <div
-        class="list-header-label nofocus"
-        data-sort-key={label.sortKey}
-        id={btoa(label.sortKey)}
-        data-column
-        draggable="true"
-        ondragover={(e) => e.preventDefault()}
-        ondragstart={startDragColumn}
-        ondrop={onDropColumn}
-        role="button"
-        tabindex="-1"
-    >
-        {#if $appState.sort.key == label.sortKey}
-            <div class="sort-indicator">
-                {#if $appState.sort.asc}
-                    <AscSvg />
-                {:else}
-                    <DescSvg />
-                {/if}
-            </div>
-        {/if}
-        <div class="nofocus" style="pointer-events: none;" data-sort-key={label.sortKey}>
-            {util.getColumnLabel(label.sortKey)}
-        </div>
+{#if column.visible}
+    <div class="col-list-header" onmouseup={onColumnHeaderClick} oncontextmenu={onColumnContextMenu} style="width: {column.width + ROW_LEFT_MARGIN + DETAIL_PADDING}px;" role="button" tabindex="-1">
         <div
-            class="divider nofocus"
-            onmousedown={(e) => onColSliderMousedown(e, label.sortKey)}
-            ondblclick={() => onSliderDblClick(label.sortKey)}
-            onkeydown={handleKeyEvent}
+            class="list-header-column"
+            data-sort-key={column.sortKey}
+            id={btoa(column.sortKey)}
+            data-column
+            draggable="true"
+            ondragover={(e) => e.preventDefault()}
+            ondragstart={startDragColumn}
+            ondrop={onDropColumn}
             role="button"
             tabindex="-1"
         >
-            <div class="line"></div>
+            {#if listState.sortType.key == column.sortKey}
+                <div class="sort-indicator">
+                    {#if listState.sortType.asc}
+                        <AscSvg />
+                    {:else}
+                        <DescSvg />
+                    {/if}
+                </div>
+            {/if}
+            <div data-sort-key={column.sortKey}>
+                {util.getColumnLabel(column.sortKey)}
+            </div>
+            <div
+                class="divider"
+                onmousedown={(e) => onColSliderMousedown(e, column.sortKey)}
+                ondblclick={() => onSliderDblClick(column.sortKey)}
+                onkeydown={handleKeyEvent}
+                role="button"
+                tabindex="-1"
+            >
+                <div class="line"></div>
+            </div>
         </div>
     </div>
-</div>
+{/if}

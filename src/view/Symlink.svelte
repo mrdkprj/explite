@@ -3,16 +3,16 @@
     import { dispatch, listState } from "./appStateReducer.svelte";
     import { path } from "../path";
     import util from "../util";
+    import { scale } from "svelte/transition";
 
     let {
-        showErrorMessage,
         getSymlinkTargetItem,
         createSymlink,
     }: {
-        showErrorMessage: (message: string) => Promise<void>;
         getSymlinkTargetItem: (currentDir: string, folder: boolean) => Promise<string | null>;
         createSymlink: (path: string, linkPath: string) => Promise<void>;
     } = $props();
+
     let symlinkTarget = $state("");
     let symlinkName = $state("");
     let page = $state(0);
@@ -39,7 +39,7 @@
             symlinkName = path.basename(symlinkTarget);
             page = 1;
         } else {
-            await showErrorMessage("Selected item does not exist");
+            await util.showErrorMessage("Selected item does not exist");
         }
     };
 
@@ -54,7 +54,7 @@
     };
 </script>
 
-<div class="dialog-overlay" {onkeydown} role="button" tabindex="-1" use:setKeyboardFocus>
+<div class="dialog-overlay" {onkeydown} role="button" tabindex="-1" use:setKeyboardFocus transition:scale={{ delay: 0, duration: 100 }}>
     <div class="dialog-container">
         <div class="dialog-header">
             <div class="dialog-close" onclick={close} onkeydown={handleKeyEvent} role="button" tabindex="-1">&times;</div>
@@ -92,7 +92,7 @@
     </div>
 </div>
 
-<style scoped>
+<style>
     .dialog-container {
         background-color: var(--main-bgcolor);
         color: var(--menu-color);

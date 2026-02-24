@@ -1,4 +1,4 @@
-export type HeaderState = {
+type HeaderState = {
     pathEditing: boolean;
     canGoBack: boolean;
     canGoForward: boolean;
@@ -24,14 +24,12 @@ const state: HeaderState = $state({
 
 export { state as headerState };
 
-export const edit = (value: boolean) => {
-    state.pathEditing = value;
-};
+export class HeaderUpdater {
+    static resetSearch = () => {
+        state.search = { ...state.search, searching: false, key: "" };
+    };
 
-export const resetSearch = () => {
-    state.search = { ...state.search, searching: false, key: "" };
-};
-
-export const startSearch = () => {
-    state.search = { ...state.search, searching: true, key: state.search.key.trim() };
-};
+    static startSearch = () => {
+        state.search = { ...state.search, searching: true, key: state.search.key.trim() };
+    };
+}

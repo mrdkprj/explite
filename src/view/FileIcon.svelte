@@ -17,6 +17,8 @@
 
     let { item, size, showThumbnail }: { item: Mp.MediaFile; size: number; showThumbnail: boolean } = $props();
 
+    const imageCache: { [key: string]: string } = {};
+
     const showOSIcon = (item: Mp.MediaFile) => {
         if (!settings.data.useOSIcon) return false;
 
@@ -40,6 +42,16 @@
             return showThumbnail ? icons.cache[item.actualExtension].large : icons.cache[item.actualExtension].small;
         }
     };
+
+    const toThumbnail = async (url: string, isVideo: boolean) => {
+        if (url in imageCache) {
+            return imageCache[url];
+        }
+
+        const data = isVideo ? await util.toVideoThumbnail(url) : await util.toImageThumbnail(url);
+        imageCache[url] = data;
+        return data;
+    };
 </script>
 
 {#if item.isFile}
@@ -49,7 +61,7 @@
         <AudioSvg />
     {:else if item.fileType == "Video"}
         {#if showThumbnail}
-            {#await util.toVideoThumbnail(item.fullPath)}
+            {#await toThumbnail(item.fullPath, true)}
                 <div class="pending"></div>
             {:then data}
                 <div class="cover">
@@ -63,7 +75,7 @@
         {/if}
     {:else if item.fileType == "Image"}
         {#if showThumbnail}
-            {#await util.toImageThumbnail(item.fullPath)}
+            {#await toThumbnail(item.fullPath, false)}
                 <div class="pending"></div>
             {:then data}
                 <img src={data} class="thumbnail-img" alt="" loading="lazy" decoding="async" />

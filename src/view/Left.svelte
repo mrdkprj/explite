@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { appState, dispatch, driveState, listState, settings } from "./appStateReducer.svelte";
+    import { handleKeyEvent, HOME, RECYCLE_BIN } from "../constants";
     import DriveSvg from "../svg/DriveSvg.svelte";
     import FolderSvg from "../svg/FolderSvg.svelte";
     import RecycleSvg from "../svg/RecycleSvg.svelte";
@@ -9,14 +11,9 @@
     import DirImageSvg from "../svg/DirImageSvg.svelte";
     import DirVideoSvg from "../svg/DirVideoSvg.svelte";
     import LinuxSvg from "../svg/LinuxSvg.svelte";
-    import { appState, dispatch, driveState, listState } from "./appStateReducer.svelte";
-    import { handleKeyEvent, HOME, RECYCLE_BIN } from "../constants";
 
-    let {
-        requestLoad,
-        changeFavorites,
-        onFavoriteContextMenu,
-    }: { requestLoad: (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => void; changeFavorites: () => void; onFavoriteContextMenu: (e: MouseEvent) => Promise<void> } = $props();
+    let { requestLoad, onFavoriteContextMenu }: { requestLoad: (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => void; onFavoriteContextMenu: (e: MouseEvent) => Promise<void> } =
+        $props();
 
     const onContextMenu = async (e: MouseEvent) => {
         e.preventDefault();
@@ -54,7 +51,7 @@
         e.preventDefault();
         e.stopPropagation();
 
-        const favorites = $state.snapshot(driveState.favorites);
+        const favorites = $state.snapshot(settings.data.favorites);
 
         const sourceIndex = favorites.findIndex((label) => label.id == sourceId);
         const source = favorites.splice(sourceIndex, 1)[0];
@@ -63,13 +60,12 @@
         const shouldAppend = targetIndex >= sourceIndex;
         favorites.splice(shouldAppend ? targetIndex + 1 : targetIndex, 0, source);
         dispatch({ type: "changeFavorites", value: favorites });
-        changeFavorites();
     };
 </script>
 
-<div class="left" style="flex-basis: {driveState.leftWidth}px">
+<div class="left" style="flex-basis: {settings.data.leftAreaWidth}px">
     <div class="left-content" ondragover={(e) => e.preventDefault()} role="button" tabindex="-1">
-        {#each driveState.favorites as favorite}
+        {#each settings.data.favorites as favorite}
             <div
                 data-id={favorite.id}
                 data-full-path={favorite.fullPath}

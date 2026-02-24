@@ -1,23 +1,22 @@
 import { writable } from "svelte/store";
 import Deferred from "../deferred";
 import { path } from "../path";
-import { load, updateFiles, reset, listState } from "../states/listState.svelte";
 import { HOME, RECYCLE_BIN } from "../constants";
-import { endRename, startRename } from "../states/renameState.svelte";
-import { ClipPosition, endClip, moveClip, startClip } from "../states/clipState.svelte";
-import { driveState, updateDrives } from "../states/driveState.svelte";
-import { edit, headerState, resetSearch, startSearch } from "../states/headerState.svelte";
-import { startSlide, endSlide, slideState } from "../states/slideState.svelte";
-import { calculateColumnWidths, columnState, swithWidth, toggleVisibleColumn } from "../states/columnState.svelte";
-import { settings, updatePreference } from "../states/settingsState.svelte";
+import { ListUpdater, listState } from "../states/listState.svelte";
+import { RenameUpdater } from "../states/renameState.svelte";
+import { ClipUpdater } from "../states/clipState.svelte";
+import { driveState, DriveUpdater } from "../states/driveState.svelte";
+import { headerState, HeaderUpdater } from "../states/headerState.svelte";
+import { SlidUpdater, slideState } from "../states/slideState.svelte";
+import { settings, SettingsUpdater } from "../states/settingsState.svelte";
 export { listState } from "../states/listState.svelte";
 export { renameState } from "../states/renameState.svelte";
 export { clipState } from "../states/clipState.svelte";
 export { driveState } from "../states/driveState.svelte";
 export { headerState } from "../states/headerState.svelte";
 export { slideState } from "../states/slideState.svelte";
-export { columnState } from "../states/columnState.svelte";
 export { settings } from "../states/settingsState.svelte";
+export const icons: Mp.IconCache = $state({ cache: {} });
 
 // Linux only
 type ContextMenuState = {
@@ -35,12 +34,9 @@ export const resolveContextMenu = () => {
     }
 };
 
-export const icons: Mp.IconCache = $state({ cache: {} });
-
 type DragHandlerType = "View" | "Column" | "Favorite";
 
 type AppState = {
-    sort: Mp.SortType;
     preventBlur: boolean;
     selection: Mp.ItemSelection;
     selectionAnchor: string;
@@ -59,10 +55,6 @@ type AppState = {
 };
 
 export const initialAppState: AppState = {
-    sort: {
-        asc: true,
-        key: "name",
-    },
     preventBlur: false,
     selection: { selectedId: "", selectedIds: [] },
     selectionAnchor: "",
@@ -83,17 +75,17 @@ export const initialAppState: AppState = {
 type AppAction =
     | { type: "reset" }
     | { type: "isMaximized"; value: boolean }
+    | { type: "setBounds"; value: Mp.Bounds }
     | { type: "pathEditing"; value: boolean }
     | { type: "startSearch" }
     | { type: "endSearch" }
-    | { type: "columnLabels"; value: Mp.ColumnLabel[] }
     | { type: "calculateColumnWidths"; value: Mp.MediaFile[] }
-    | { type: "useCalculatedWidths"; value: Mp.SortKey }
-    | { type: "visibleColumns"; value: Mp.SortKey[] }
+    | { type: "adjustColumnWidth"; value: Mp.SortKey }
     | { type: "toggleVisibleColumn"; value: Mp.SortKey }
     | { type: "navigated"; value: { canGoBack: boolean; canGoForward: boolean } }
-    | { type: "sort"; value: Mp.SortType }
-    | { type: "updateFiles"; value: { files: Mp.MediaFile[] } }
+    | { type: "updateSortType"; value: Mp.SortKey }
+    | { type: "replaceFiles"; value: Mp.MediaFile[] }
+    | { type: "sortInPlace"; value: Mp.MediaFile[] }
     | { type: "preventBlur"; value: boolean }
     | { type: "selectedId"; value: string }
     | { type: "setSelectedIds"; value: string[] }
@@ -102,8 +94,9 @@ type AppAction =
     | { type: "appendSelectedIds"; value: string[] }
     | { type: "updateSelection"; value: Mp.ItemSelection }
     | { type: "selectionAnchor"; value: string }
+    | { type: "addToFavorites" }
+    | { type: "removeFromFavorites" }
     | { type: "changeFavorites"; value: Mp.MediaFile[] }
-    | { type: "leftWidth"; value: number }
     | { type: "startSlide"; value: { target: "Area" | Mp.SortKey; startX: number } }
     | { type: "slide"; value: number }
     | { type: "endSlide" }
@@ -111,7 +104,7 @@ type AppAction =
     | { type: "clearCopyCut" }
     | { type: "dragEnter"; value: string }
     | { type: "dragLeave" }
-    | { type: "startClip"; value: { position: ClipPosition; startId: string } }
+    | { type: "startClip"; value: { position: Mp.Position; startId: string } }
     | { type: "moveClip"; value: { x: number; y: number } }
     | { type: "endClip" }
     | { type: "incremental"; value: string }
@@ -127,36 +120,35 @@ type AppAction =
     | { type: "toggleCreateSymlink" }
     | { type: "toggleGridView"; value: boolean }
     | { type: "scrolling"; value: boolean }
-    | { type: "chunkSize"; value: number }
-    | { type: "autoAdjustColumn"; value: boolean }
+    | { type: "adjustAllColumnWidths" }
     | { type: "settings"; value: Mp.Settings }
+    | { type: "clearColumnHistory" }
+    | { type: "updateColumnSetting"; value: { sortType: Mp.SortType | null; columns: Mp.Column[] | null } }
+    | { type: "columns"; value: Mp.Column[] }
+    | { type: "updateIconCache"; value: { key: string; small: string; large: string } }
     | { type: "load"; value: { event: Mp.LoadEvent } };
 
 const updater = (state: AppState, action: AppAction): AppState => {
     switch (action.type) {
         case "reset":
-            reset();
-            edit(false);
+            ListUpdater.reset();
+            headerState.pathEditing = false;
             return state;
 
         case "setPreference":
-            updatePreference(action.value);
-            return state;
-
-        case "isMaximized":
-            settings.data.isMaximized = action.value;
+            SettingsUpdater.updatePreference(action.value);
             return state;
 
         case "pathEditing": {
-            edit(action.value);
+            headerState.pathEditing = action.value;
             return state;
         }
 
         case "load": {
-            load(action.value.event);
-            edit(false);
-            updateDrives(action.value.event.drives);
-            resetSearch();
+            ListUpdater.load(action.value.event);
+            headerState.pathEditing = false;
+            DriveUpdater.updateDrives(action.value.event.drives);
+            HeaderUpdater.resetSearch();
             if (action.value.event.navigation == "Reload") {
                 return {
                     ...state,
@@ -170,21 +162,23 @@ const updater = (state: AppState, action: AppAction): AppState => {
 
             return state;
         }
-
-        case "updateFiles":
-            updateFiles(action.value.files);
+        case "replaceFiles":
+            ListUpdater.replaceFiles(action.value);
+            return state;
+        case "sortInPlace":
+            ListUpdater.sort(action.value);
             return state;
 
         case "drives":
-            updateDrives(action.value);
+            DriveUpdater.updateDrives(action.value);
             return state;
 
         case "startSearch":
-            startSearch();
+            HeaderUpdater.startSearch();
             return state;
 
         case "endSearch":
-            resetSearch();
+            HeaderUpdater.resetSearch();
             return state;
 
         case "incremental":
@@ -193,31 +187,11 @@ const updater = (state: AppState, action: AppAction): AppState => {
         case "clearIncremental":
             return { ...state, incrementalKey: "" };
 
-        case "columnLabels":
-            columnState.columnLabels = action.value;
-            return state;
-        case "calculateColumnWidths":
-            calculateColumnWidths(action.value);
-            return state;
-        case "useCalculatedWidths":
-            swithWidth(action.value);
-            return state;
-        case "visibleColumns":
-            columnState.visibleColumns = action.value;
-            return state;
-        case "toggleVisibleColumn":
-            toggleVisibleColumn(action.value);
-            settings.data.visibleColumnLabels = columnState.visibleColumns;
-            return state;
-
         case "navigated":
             headerState.canGoBack = action.value.canGoBack;
             headerState.canGoForward = action.value.canGoForward;
             headerState.canGoUpward = !!path.dirname(listState.currentDir.fullPath) && listState.currentDir.fullPath != HOME && listState.currentDir.fullPath != RECYCLE_BIN;
             return state;
-
-        case "sort":
-            return { ...state, sort: action.value };
 
         case "selectedId":
             return { ...state, selection: { ...state.selection, selectedId: action.value } };
@@ -239,37 +213,39 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return { ...state, preventBlur: action.value };
 
         case "changeFavorites":
-            driveState.favorites = action.value;
+            settings.data.favorites = action.value;
+            return state;
+        case "addToFavorites":
+            const file = listState.files.find((file) => file.id == state.selection.selectedIds[0]);
+            if (file && !file.isFile) {
+                settings.data.favorites.push(file);
+            }
+            return state;
+        case "removeFromFavorites":
+            if (driveState.hoverFavoriteId) {
+                const newFavorites = settings.data.favorites.filter((file) => file.id != driveState.hoverFavoriteId);
+                settings.data.favorites = newFavorites;
+            }
             return state;
         case "hoverFavoriteId": {
             driveState.hoverFavoriteId = action.value;
             return state;
         }
 
-        case "leftWidth":
-            driveState.leftWidth = action.value;
-            return state;
-
         case "startSlide": {
-            startSlide(columnState.columnLabels, action.value.target, action.value.startX);
+            SlidUpdater.startSlide(listState.columns, action.value.target, action.value.startX);
             return state;
         }
         case "slide": {
             if (slideState.target == "Area") {
-                driveState.leftWidth = slideState.initial + action.value;
+                settings.data.leftAreaWidth = slideState.initial + action.value;
                 return state;
             }
-
-            const label = columnState.columnLabels.filter((label) => label.sortKey == slideState.target)[0];
-            const newWidth = slideState.initial + action.value;
-            if (newWidth <= 50) {
-                return state;
-            }
-            label.width = slideState.initial + action.value;
+            ListUpdater.updateWidth(action.value);
             return state;
         }
         case "endSlide": {
-            endSlide();
+            SlidUpdater.endSlide();
             return state;
         }
 
@@ -292,26 +268,26 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return { ...state, dragTargetId: "", dragHandler: "View" };
 
         case "startClip": {
-            startClip(action.value.startId, action.value.position);
+            ClipUpdater.startClip(action.value.startId, action.value.position);
             return {
                 ...state,
                 selection: { ...state.selection, selectedId: action.value.startId },
             };
         }
         case "moveClip": {
-            moveClip(action.value.x, action.value.y);
+            ClipUpdater.moveClip(action.value.x, action.value.y);
             return state;
         }
         case "endClip": {
-            endClip();
+            ClipUpdater.endClip();
             return state;
         }
 
         case "startRename":
-            startRename(action.value.rect, action.value.oldName, action.value.fullPath, action.value.uuid);
+            RenameUpdater.startRename(action.value.rect, action.value.oldName, action.value.fullPath, action.value.uuid);
             return state;
         case "endRename":
-            endRename();
+            RenameUpdater.endRename();
             return state;
 
         case "togglePreference":
@@ -324,16 +300,44 @@ const updater = (state: AppState, action: AppAction): AppState => {
         case "scrolling":
             return { ...state, scrolling: action.value };
 
-        case "chunkSize":
-            listState.chunkSize = action.value;
+        case "columns":
+            listState.columns = action.value;
             return state;
-
-        case "autoAdjustColumn":
-            settings.data.autoAdjustColumn = action.value;
+        case "calculateColumnWidths":
+            ListUpdater.calculateColumnWidths(action.value);
+            return state;
+        case "toggleVisibleColumn":
+            SettingsUpdater.updateColumnSetting(null, null);
+            ListUpdater.toggleVisibleColumn(action.value);
+            return state;
+        case "adjustColumnWidth":
+            ListUpdater.swichWidth(action.value);
+            return state;
+        case "adjustAllColumnWidths":
+            ListUpdater.swichAllWidths();
+            return state;
+        case "updateSortType":
+            ListUpdater.updateSortType(action.value);
             return state;
 
         case "settings":
             settings.data = action.value;
+            return state;
+        case "isMaximized":
+            settings.data.isMaximized = action.value;
+            return state;
+        case "setBounds":
+            settings.data.bounds = action.value;
+            return state;
+        case "clearColumnHistory":
+            settings.data.columnHistory = {};
+            return state;
+        case "updateColumnSetting":
+            SettingsUpdater.updateColumnSetting(action.value.sortType, action.value.columns);
+            return state;
+
+        case "updateIconCache":
+            icons.cache[action.value.key] = { small: action.value.small, large: action.value.large };
             return state;
 
         default:

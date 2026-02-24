@@ -205,14 +205,15 @@ fn write_text_file(payload: WriteFileInfo) -> Result<(), String> {
     std::fs::write(payload.fullPath, payload.data).map_err(|e| e.to_string())
 }
 
+#[allow(non_snake_case)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct VisibleColumnLabelMenu {
-    key: String,
+struct ColumnWithLabel {
+    sortKey: String,
     label: String,
     visible: bool,
 }
 #[tauri::command]
-fn prepare_menu(window: WebviewWindow, payload: Vec<VisibleColumnLabelMenu>) {
+fn prepare_menu(window: WebviewWindow, payload: Vec<ColumnWithLabel>) {
     let window_handle = get_window_handel(&window);
     menu::create(window.app_handle(), window_handle, payload);
 }
@@ -237,31 +238,6 @@ fn change_theme(window: WebviewWindow, payload: String) {
     };
     let _ = window.set_theme(Some(tauri_them));
     menu::change_menu_theme(window.app_handle(), menu_theme);
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct OpenFileFolderOption {
-    title: String,
-    default_path: String,
-    select_folder: bool,
-}
-#[tauri::command]
-async fn show_file_folder_dialog(payload: OpenFileFolderOption) -> Option<String> {
-    if payload.select_folder {
-        dialog::show_folder_dialog(payload.title, payload.default_path).await
-    } else {
-        dialog::show_file_dialog(payload.title, payload.default_path).await
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct SymlinkRequest {
-    path: String,
-    link_path: String,
-}
-#[tauri::command]
-fn create_symlink(payload: SymlinkRequest) -> Result<(), String> {
-    zouni::fs::create_symlink(payload.path, payload.link_path)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -299,9 +275,46 @@ async fn open_recycle_context_menu(window: WebviewWindow, payload: ContextMenuAr
     menu::popup_menu(window.app_handle(), window.label(), menu::RECYCLE_BIN, payload.position, Some(payload.full_path), false).await;
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ColumnMenuArg {
+    position: menu::Position,
+    items: Vec<Column>,
+    is_recycle_bin: bool,
+}
+#[allow(non_snake_case)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Column {
+    sortKey: String,
+    visible: bool,
+}
 #[tauri::command]
-async fn open_column_context_menu(window: WebviewWindow, payload: menu::Position) {
-    menu::popup_menu(window.app_handle(), window.label(), menu::COLUMN, payload, None, false).await;
+async fn open_column_context_menu(window: WebviewWindow, payload: ColumnMenuArg) {
+    menu::open_column_context_menu(window.app_handle(), window.label(), payload.position, payload.items, payload.is_recycle_bin).await;
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct OpenFileFolderOption {
+    title: String,
+    default_path: String,
+    select_folder: bool,
+}
+#[tauri::command]
+async fn show_file_folder_dialog(payload: OpenFileFolderOption) -> Option<String> {
+    if payload.select_folder {
+        dialog::show_folder_dialog(payload.title, payload.default_path).await
+    } else {
+        dialog::show_file_dialog(payload.title, payload.default_path).await
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SymlinkRequest {
+    path: String,
+    link_path: String,
+}
+#[tauri::command]
+fn create_symlink(payload: SymlinkRequest) -> Result<(), String> {
+    zouni::fs::create_symlink(payload.path, payload.link_path)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,8 +1,8 @@
 <script lang="ts">
-    import { COLUMN_HEADER_HEIGHT, handleKeyEvent, HEADER_DIVIDER_WIDTh, LIST_ITEM_HEIGHT, RECYCLE_BIN } from "../constants";
+    import { COLUMN_HEADER_HEIGHT, handleKeyEvent, HEADER_DIVIDER_WIDTh, LIST_ITEM_HEIGHT } from "../constants";
     import Column from "./Column.svelte";
     import VirtualList from "./VirtualList.svelte";
-    import { appState, columnState, listState, headerState, renameState, settings } from "./appStateReducer.svelte";
+    import { appState, listState, headerState, renameState } from "./appStateReducer.svelte";
     import FileIcon from "./FileIcon.svelte";
 
     let {
@@ -17,7 +17,6 @@
         onSelect,
         onColumnHeaderClick,
         colDetailMouseDown,
-        columnHeaderChanged,
         onScroll,
         onColumnContextMenu,
     }: {
@@ -32,19 +31,16 @@
         onSelect: (e: MouseEvent) => void;
         onColumnHeaderClick: (e: MouseEvent) => void;
         colDetailMouseDown: (e: MouseEvent) => void;
-        columnHeaderChanged: () => void;
         onScroll: () => Promise<void>;
         onColumnContextMenu: (e: MouseEvent) => Promise<void>;
     } = $props();
 
-    const isRecycleBin = () => listState.currentDir.fullPath == RECYCLE_BIN;
+    const shouldDisplayColumn = (key: Mp.SortKey) => {
+        if (key == "directory" && (!headerState.search.searching || listState.isRecycleBin)) return false;
 
-    const shouldDisplayLabel = (key: Mp.SortKey) => {
-        if (key == "directory" && (!headerState.search.searching || isRecycleBin())) return false;
+        if (key == "ddate" && !listState.isRecycleBin) return false;
 
-        if (key == "ddate" && !isRecycleBin()) return false;
-
-        if (key == "orig_path" && !isRecycleBin()) return false;
+        if (key == "orig_path" && !listState.isRecycleBin) return false;
 
         return true;
     };
@@ -62,10 +58,10 @@
     {onScroll}
 >
     {#snippet header()}
-        <div class="list-header nofocus" onkeydown={handleKeyEvent} role="button" tabindex="-1">
-            {#each columnState.columnLabels as label}
-                {#if shouldDisplayLabel(label.sortKey)}
-                    <Column {label} {onColumnHeaderClick} {columnHeaderChanged} {onColumnContextMenu} />
+        <div class="list-header" onkeydown={handleKeyEvent} role="button" tabindex="-1">
+            {#each listState.columns as column}
+                {#if shouldDisplayColumn(column.sortKey)}
+                    <Column {column} {onColumnHeaderClick} {onColumnContextMenu} />
                 {/if}
             {/each}
         </div>
@@ -90,9 +86,9 @@
             role="button"
             tabindex="-1"
         >
-            {#each columnState.columnLabels as label}
-                {#if label.sortKey == "name"}
-                    <div class="col-detail" data-file-id={item.id} style={settings.data.autoAdjustColumn ? `width: ${columnState.adjustedWidths.name}px;` : `width: ${label.width}px;`}>
+            {#each listState.columns as column}
+                {#if column.sortKey == "name"}
+                    <div class="col-detail" data-file-id={item.id} style="width: {column.width}px;">
                         <div
                             class="entry-name draggable"
                             title={headerState.search.searching ? item.fullPath : item.name}
@@ -117,72 +113,44 @@
                             </div>
                         </div>
                     </div>
-                {:else if label.sortKey == "directory"}
-                    {#if headerState.search.searching && !isRecycleBin()}
-                        <div
-                            class="col-detail"
-                            data-file-id={item.id}
-                            style={settings.data.autoAdjustColumn ? `width: ${columnState.adjustedWidths.directory + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
-                        >
+                {:else if column.sortKey == "directory"}
+                    {#if headerState.search.searching && !listState.isRecycleBin}
+                        <div class="col-detail" data-file-id={item.id} style="width: {column.width + HEADER_DIVIDER_WIDTh}px;">
                             <div class="draggable" title={item.dir} data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.dir}</div>
                         </div>
                     {/if}
-                {:else if label.sortKey == "orig_path"}
-                    {#if isRecycleBin()}
-                        <div
-                            class="col-detail"
-                            data-file-id={item.id}
-                            style={settings.data.autoAdjustColumn ? `width: ${columnState.adjustedWidths.orig_path + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
-                        >
+                {:else if column.sortKey == "orig_path" && column.visible}
+                    {#if listState.isRecycleBin}
+                        <div class="col-detail" data-file-id={item.id} style="width: {column.width + HEADER_DIVIDER_WIDTh}px;">
                             <div class="draggable" title={item.originalPath} data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.dir}</div>
                         </div>
                     {/if}
-                {:else if label.sortKey == "ddate"}
-                    {#if isRecycleBin()}
-                        <div
-                            class="col-detail"
-                            data-file-id={item.id}
-                            style={settings.data.autoAdjustColumn ? `width: ${columnState.adjustedWidths.ddate + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
-                        >
+                {:else if column.sortKey == "ddate" && column.visible}
+                    {#if listState.isRecycleBin}
+                        <div class="col-detail" data-file-id={item.id} style="width: {column.width + HEADER_DIVIDER_WIDTh}px;">
                             <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
                                 {item.ddateString}
                             </div>
                         </div>
                     {/if}
-                {:else if label.sortKey == "extension"}
-                    <div
-                        class="col-detail"
-                        data-file-id={item.id}
-                        style={settings.data.autoAdjustColumn ? `width: ${columnState.adjustedWidths.extension + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
-                    >
+                {:else if column.sortKey == "extension" && column.visible}
+                    <div class="col-detail" data-file-id={item.id} style="width: {column.width + HEADER_DIVIDER_WIDTh}px;">
                         <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.extension}</div>
                     </div>
-                {:else if label.sortKey == "mdate"}
-                    <div
-                        class="col-detail"
-                        data-file-id={item.id}
-                        style={settings.data.autoAdjustColumn ? `width: ${columnState.adjustedWidths.mdate + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
-                    >
+                {:else if column.sortKey == "mdate" && column.visible}
+                    <div class="col-detail" data-file-id={item.id} style="width: {column.width + HEADER_DIVIDER_WIDTh}px;">
                         <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
                             {item.mdateString}
                         </div>
                     </div>
-                {:else if label.sortKey == "cdate"}
-                    <div
-                        class="col-detail"
-                        data-file-id={item.id}
-                        style={settings.data.autoAdjustColumn ? `width: ${columnState.adjustedWidths.cdate + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
-                    >
+                {:else if column.sortKey == "cdate" && column.visible}
+                    <div class="col-detail" data-file-id={item.id} style="width: {column.width + HEADER_DIVIDER_WIDTh}px;">
                         <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
                             {item.cdateString}
                         </div>
                     </div>
-                {:else if label.sortKey == "size"}
-                    <div
-                        class="col-detail size"
-                        data-file-id={item.id}
-                        style={settings.data.autoAdjustColumn ? `width: ${columnState.adjustedWidths.size + HEADER_DIVIDER_WIDTh}px;` : `width: ${label.width + HEADER_DIVIDER_WIDTh}px;`}
-                    >
+                {:else if column.sortKey == "size" && column.visible}
+                    <div class="col-detail size" data-file-id={item.id} style="width: {column.width + HEADER_DIVIDER_WIDTh}px;">
                         <div class="draggable" data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">
                             {item.size > 0 || (item.size == 0 && item.isFile) ? item.sizeString : ""}
                         </div>

@@ -73,6 +73,18 @@ type ContextMenuArg = {
     show_admin_runas: boolean;
 };
 
+type ColumnWithLabel = {
+    label: string;
+    sortKey: Mp.SortKey;
+    visible: boolean;
+};
+
+type ColumnMenuArg = {
+    position: Mp.Position;
+    items: Mp.Column[];
+    is_recycle_bin: boolean;
+};
+
 type TerminalArgs = {
     path: string;
     admin: boolean;
@@ -135,11 +147,11 @@ type NotifyRequest = {
 };
 
 type TauriCommandMap = {
-    prepare_menu: TauriCommand<Mp.VisibleColumnLabelMenu[], undefined>;
+    prepare_menu: TauriCommand<ColumnWithLabel[], undefined>;
     open_list_context_menu: TauriCommand<ContextMenuArg, undefined>;
     open_fav_context_menu: TauriCommand<Mp.Position, undefined>;
     open_recycle_context_menu: TauriCommand<ContextMenuArg, undefined>;
-    open_column_context_menu: TauriCommand<Mp.Position, undefined>;
+    open_column_context_menu: TauriCommand<ColumnMenuArg, undefined>;
     exists: TauriCommand<string, boolean>;
     open_path: TauriCommand<string, undefined>;
     open_path_with: TauriCommand<OpenWithArg, undefined>;

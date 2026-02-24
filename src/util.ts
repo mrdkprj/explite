@@ -1,7 +1,22 @@
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
 import { Dirent, FileAttribute, IPCBase, RecycleBinItem } from "./ipc";
 import { path } from "./path";
-import { ARCHIVE_EXT, DATE_OPTION, LINUX_SPECIAL_FOLDERS, LINUX_USER_ROOT_DIR, MIME_TYPE, OS, RECYCLE_BIN_ITEM, SEPARATOR, WIN_SPECIAL_FOLDERS, WIN_USER_ROOT_DIR, WSL_ROOT } from "./constants";
+import {
+    ARCHIVE_EXT,
+    DATE_OPTION,
+    GRID_ITEM_WIDTH,
+    HOME,
+    LINUX_SPECIAL_FOLDERS,
+    LINUX_USER_ROOT_DIR,
+    MIME_TYPE,
+    OS,
+    RECYCLE_BIN,
+    RECYCLE_BIN_ITEM,
+    SEPARATOR,
+    WIN_SPECIAL_FOLDERS,
+    WIN_USER_ROOT_DIR,
+    WSL_ROOT,
+} from "./constants";
 import { t } from "./translation/useTranslation";
 
 const REGULAR_TYPES = [".ts", ".json", ".mjs", ".cjs"];
@@ -15,6 +30,14 @@ class Util {
     isWsl(fullPath: string | undefined) {
         if (!fullPath) return false;
         return fullPath.startsWith(WSL_ROOT);
+    }
+
+    async showErrorMessage(ex: any | string) {
+        if (typeof ex == "string") {
+            await ipc.invoke("message", { dialog_type: "message", message: ex, kind: "error" });
+        } else {
+            await ipc.invoke("message", { dialog_type: "message", message: ex.message, kind: "error" });
+        }
     }
 
     async exists(target: string | undefined | null, createIfNotFound = false) {
@@ -306,6 +329,12 @@ class Util {
         return asc ? files.sort((a, b) => this.localCompareName(a, b, sortKey)) : files.sort((a, b) => this.localCompareName(b, a, sortKey));
     }
 
+    toSorted(files: Mp.MediaFile[], asc: boolean, sortKey: Mp.SortKey) {
+        if (!files.length) return files;
+
+        return asc ? files.toSorted((a, b) => this.localCompareName(a, b, sortKey)) : files.toSorted((a, b) => this.localCompareName(b, a, sortKey));
+    }
+
     async getDriveInfo(): Promise<Mp.DriveInfo[]> {
         const volumes = await ipc.invoke("list_volumes", undefined);
 
@@ -342,6 +371,9 @@ class Util {
         return drives;
     }
 
+    isHome = (directory: string) => directory == HOME;
+    isRecycleBin = (directory: string) => directory == RECYCLE_BIN;
+
     getRootDirectory(fullPath: string) {
         return path.root(fullPath);
     }
@@ -352,6 +384,10 @@ class Util {
 
     toPhysicalSize = (bounds: Mp.Bounds) => {
         return new PhysicalSize(bounds.width, bounds.height);
+    };
+
+    getChunkSize = (width: number) => {
+        return Math.floor(width / GRID_ITEM_WIDTH);
     };
 
     toBounds = (position: PhysicalPosition, size: PhysicalSize): Mp.Bounds => {

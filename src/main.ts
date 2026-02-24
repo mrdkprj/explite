@@ -1,11 +1,10 @@
 import util from "./util";
-import { DEFAULT_SORT_TYPE, HOME, OS, RECYCLE_BIN, RECYCLE_BIN_ITEM, DEFAULT_SORTKEY_ORDER } from "./constants";
+import { HOME, OS, RECYCLE_BIN_ITEM, DEFAULT_LABLES } from "./constants";
 import { DeleteUndeleteRequest, Dirent, IPC, RecycleBinItem } from "./ipc";
 import { path } from "./path";
 import { History } from "./history";
 import { t } from "./translation/useTranslation";
-import { icons } from "./view/appStateReducer.svelte";
-import { settings } from "./view/appStateReducer.svelte";
+import { dispatch, icons, listState, settings } from "./view/appStateReducer.svelte";
 
 const ipc = new IPC("View");
 
@@ -13,11 +12,10 @@ class Main {
     private initialized = false;
     private searchCache: { [key: string]: string[] } = { "": [] };
     private searchKeyword = "";
-    private files: Mp.MediaFile[] = [];
     private searchBackup: Mp.MediaFile[] = [];
-    private currentDir = HOME;
     private watchTarget = HOME;
     private history = new History();
+    private pendingRenameFrom = "";
 
     onMainReady = async (dropTagetId: string): Promise<Mp.ReadyEvent> => {
         const drives = await util.getDriveInfo();
@@ -34,16 +32,19 @@ class Main {
         }
 
         let selectId;
-        let initialDirectory = "";
         const item = args.urls.length ? await util.toFileFromPath(args.urls[0]) : null;
+        let files: Mp.MediaFile[] = [];
+        let directory = HOME;
         if (item) {
             if (item.isFile) {
                 selectId = item.id;
-                initialDirectory = item.dir;
-                await this.readFiles(item.dir);
+                directory = item.dir;
+                const result = await this.readFiles(item.dir);
+                files = result.files;
             } else {
-                initialDirectory = item.fullPath;
-                await this.readFiles(item.fullPath);
+                directory = item.fullPath;
+                const result = await this.readFiles(item.fullPath);
+                files = result.files;
             }
         }
 
@@ -52,11 +53,10 @@ class Main {
         return {
             locale,
             data: {
-                files: this.files,
+                files,
                 drives,
-                directory: this.currentDir,
+                directory,
                 navigation: "Direct",
-                sortType: DEFAULT_SORT_TYPE,
                 failed: false,
             },
             selectId,
@@ -65,24 +65,14 @@ class Main {
     };
 
     private createColumnMenuItesm = () => {
-        return DEFAULT_SORTKEY_ORDER.map((key) => {
+        return DEFAULT_LABLES.filter((column) => column.sortKey != "name" && column.sortKey != "directory").map((column) => {
             return {
-                key,
-                label: util.getColumnLabel(key),
-                visible: settings.data.visibleColumnLabels.includes(key),
+                sortKey: column.sortKey,
+                label: util.getColumnLabel(column.sortKey),
+                visible: true,
             };
         });
     };
-
-    showErrorMessage = async (ex: any | string) => {
-        if (typeof ex == "string") {
-            await ipc.invoke("message", { dialog_type: "message", message: ex, kind: "error" });
-        } else {
-            await ipc.invoke("message", { dialog_type: "message", message: ex.message, kind: "error" });
-        }
-    };
-
-    private isRecycleBin = (directory: string) => directory == RECYCLE_BIN;
 
     onSelect = async (e: Mp.SelectEvent): Promise<Mp.LoadEvent | null> => {
         if (e.fullPath == RECYCLE_BIN_ITEM) return null;
@@ -98,35 +88,22 @@ class Main {
     private openFile = async (fullPath: string) => {
         const found = await util.exists(fullPath);
         if (!found) {
-            await this.showErrorMessage(`"${fullPath}" does not exist.`);
+            await util.showErrorMessage(`"${fullPath}" does not exist.`);
             return;
         }
         await ipc.invoke("open_path", fullPath);
     };
 
-    openFileWith = async (fullPath: string, appPath: string) => {
-        await ipc.invoke("open_path_with", { full_path: `"${fullPath}"`, app_path: appPath });
-    };
-
-    openInNewWindow = async (fullPath: string) => {
-        await ipc.invoke("open_in_new_window", fullPath);
-    };
-
-    showAppSelector = async (fullPath: string) => {
-        await ipc.invoke("show_app_selector", fullPath);
-    };
-
     private openFolder = async (directory: string, navigation: Mp.Navigation): Promise<Mp.LoadEvent | null> => {
-        if (directory == HOME) {
-            const result = await this.readFiles(HOME);
+        if (util.isHome(directory)) {
             const drives = await util.getDriveInfo();
-            return { files: this.files, directory: HOME, navigation, sortType: result.sortType, failed: !result.done, drives };
+            return { files: [], directory, navigation, failed: false, drives };
         }
 
-        if (!this.isRecycleBin(directory)) {
+        if (!util.isRecycleBin(directory)) {
             const found = await util.exists(directory);
             if (!found) {
-                await this.showErrorMessage(`"${directory}" does not exist.`);
+                await util.showErrorMessage(`"${directory}" does not exist.`);
                 return null;
             }
         }
@@ -139,68 +116,32 @@ class Main {
         const result = await this.readFiles(directory);
 
         return {
-            files: this.files,
+            files: result.files,
             directory,
             navigation,
-            sortType: result.sortType,
             failed: !result.done,
         };
     };
 
-    openPropertyDielog = async (fileOrId: Mp.MediaFile | string) => {
-        const file = typeof fileOrId == "string" ? settings.data.favorites.find((file) => file.id == fileOrId) : fileOrId;
-        if (!file) return;
-        await ipc.invoke("open_property_dielog", file.fullPath);
-    };
-
-    isWatchable = () => {
-        if (!this.watchTarget) return false;
-        if (this.watchTarget == HOME) return false;
-        if (this.isRecycleBin(this.watchTarget)) return false;
-
-        return true;
-    };
-
-    isNetwork = () => {
-        return util.isWsl(this.watchTarget);
-    };
-
-    startWatch = () => {
-        this.abortWatch();
-        this.watchTarget = this.currentDir;
-
-        if (this.isWatchable()) {
-            ipc.invoke("watch", { path: this.watchTarget, network: this.isNetwork() });
-        }
-    };
-
-    abortWatch = () => {
-        if (!this.isWatchable()) return;
-        ipc.invoke("unwatch", { path: this.watchTarget, network: this.isNetwork() });
-        this.watchTarget = "";
-    };
-
-    readFiles = async (directory: string) => {
+    readFiles = async (directory: string): Promise<Mp.ReadResult> => {
         this.searchBackup = [];
-        this.currentDir = directory;
 
-        if (this.currentDir == HOME) {
+        if (util.isHome(directory)) {
             this.abortWatch();
-            this.files = [];
-            this.watchTarget = this.currentDir;
+            this.watchTarget = directory;
             return {
                 done: true,
-                sortType: DEFAULT_SORT_TYPE,
+                files: [],
             };
         }
 
         try {
             const fileMap: { [key: string]: string } = {};
-            const allDirents = this.isRecycleBin(this.currentDir) ? await ipc.invoke("read_recycle_bin", undefined) : await ipc.invoke("readdir", { directory: this.currentDir, recursive: false });
-            this.files = allDirents
+            const allDirents = util.isRecycleBin(directory) ? await ipc.invoke("read_recycle_bin", undefined) : await ipc.invoke("readdir", { directory, recursive: false });
+            const files = allDirents
                 .filter((dirent) => !dirent.attributes.is_system)
                 .map((dirent) => {
-                    const file = this.isRecycleBin(this.currentDir) ? util.toFileFromRecycleBinItem(dirent as RecycleBinItem) : util.toFile(dirent as Dirent);
+                    const file = util.isRecycleBin(directory) ? util.toFileFromRecycleBinItem(dirent as RecycleBinItem) : util.toFile(dirent as Dirent);
                     if (settings.data.useOSIcon) {
                         if (file.isFile && !(file.actualExtension in icons.cache)) {
                             file.fileType == "App" ? (fileMap[file.name] = file.fullPath) : (fileMap[file.actualExtension] = file.fullPath);
@@ -215,70 +156,79 @@ class Main {
                 });
             }
 
-            const sortType = this.sortFiles(this.currentDir, this.files);
-
-            this.startWatch();
+            this.startWatch(directory);
 
             return {
                 done: true,
-                sortType,
+                files,
             };
         } catch (ex: any) {
-            this.showErrorMessage(ex);
+            util.showErrorMessage(ex);
             return {
                 done: false,
-                sortType: DEFAULT_SORT_TYPE,
+                files: [],
             };
         }
     };
 
     private getFileIcon = async (fileMap: { [key: string]: string }) => {
         const iconInfoMap = await ipc.invoke("assoc_icons", Object.values(fileMap));
-        Object.keys(iconInfoMap).forEach((key) => {
-            const small = Uint8Array.from(iconInfoMap[key].small);
-            const smallBase64 = small.toBase64();
 
-            if (navigator.userAgent.includes(OS.windows)) {
-                const large = Uint8Array.from(iconInfoMap[key].large);
-                const largeBase64 = large.toBase64();
-                icons.cache[key] = { small: `data:image/png;base64,${smallBase64}`, large: `data:image/png;base64,${largeBase64}` };
+        Object.keys(iconInfoMap).forEach((key) => {
+            const smallArray = Uint8Array.from(iconInfoMap[key].small);
+            const smallBase64 = smallArray.toBase64();
+
+            if (iconInfoMap[key].full_path?.toLowerCase().endsWith("svg")) {
+                const small = `data:image/svg+xml;base64,${smallBase64}`;
+                const large = `data:image/svg+xml;base64,${smallBase64}`;
+                dispatch({ type: "updateIconCache", value: { key, small, large } });
             } else {
-                if (iconInfoMap[key].full_path!.toLowerCase().endsWith("svg")) {
-                    icons.cache[key] = { small: `data:image/svg+xml;base64,${smallBase64}`, large: `data:image/svg+xml;base64,${smallBase64}` };
-                } else {
-                    icons.cache[key] = { small: `data:image/png;base64,${smallBase64}`, large: `data:image/png;base64,${smallBase64}` };
-                }
+                const small = `data:image/png;base64,${smallBase64}`;
+                const largeArray = Uint8Array.from(iconInfoMap[key].large);
+                const largeBase64 = largeArray.toBase64();
+                const large = navigator.userAgent.includes(OS.windows) ? `data:image/png;base64,${largeBase64}` : `data:image/png;base64,${smallBase64}`;
+                dispatch({ type: "updateIconCache", value: { key, small, large } });
             }
         });
     };
 
-    sort = (e: Mp.SortRequest): Mp.SortResult => {
-        this.sortFiles(this.currentDir, this.files);
-        return { files: this.files, type: e.type };
+    reload = async (includeDrive: boolean): Promise<Mp.LoadEvent | null> => {
+        if (util.isHome(listState.currentDir.fullPath)) {
+            return null;
+        }
+        const result = await this.readFiles(listState.currentDir.fullPath);
+        const drives = includeDrive ? await util.getDriveInfo() : undefined;
+        return {
+            files: result.files,
+            drives,
+            directory: listState.currentDir.fullPath,
+            navigation: "Reload",
+            failed: !result.done,
+        };
     };
 
-    search = async (e: Mp.SearchRequest): Promise<Mp.SearchResult> => {
+    search = async (files: Mp.MediaFile[], e: Mp.SearchRequest): Promise<Mp.MediaFile[]> => {
         if (!this.searchBackup.length) {
-            this.searchBackup = structuredClone(this.files);
+            this.searchBackup = structuredClone(files);
         }
 
         const key = e.key.toLocaleLowerCase();
         this.searchKeyword = key;
         if (e.dir in this.searchCache) {
-            this.files = await this.filterCache(e.dir, key);
-            return { files: this.files };
+            return await this.filterCache(e.dir, key);
         }
 
-        if (this.isRecycleBin(e.dir)) {
-            this.files = this.filterRecycleBin(key);
+        let searchResult: Mp.MediaFile[] = [];
+        if (util.isRecycleBin(e.dir)) {
+            searchResult = this.filterRecycleBin(files, key);
         } else {
             const allDirents = await ipc.invoke("readdir", { directory: e.dir, recursive: true });
             this.searchCache[e.dir] = allDirents.filter((direcnt) => !direcnt.attributes.is_system).map((dirent) => path.join(dirent.parent_path, dirent.name));
-            this.files = await this.filterCache(e.dir, key);
+            searchResult = await this.filterCache(e.dir, key);
         }
 
-        this.sortFiles(this.currentDir, this.files);
-        return { files: this.files };
+        util.sort(searchResult, true, "name");
+        return searchResult;
     };
 
     private filterCache = async (dir: string, key: string) => {
@@ -286,8 +236,8 @@ class Main {
         return await Promise.all(fildtered.map(async (fullPath) => await util.toFileFromPath(fullPath)));
     };
 
-    private filterRecycleBin = (key: string) => {
-        return this.files.filter((file) => this.isSearchFileFound(file.name, key));
+    private filterRecycleBin = (files: Mp.MediaFile[], key: string) => {
+        return files.filter((file) => this.isSearchFileFound(file.name, key));
     };
 
     private isSearchFileFound = (value: string, key: string) => {
@@ -296,19 +246,57 @@ class Main {
         return strippedText.includes(strippedKey);
     };
 
-    onSearchEnd = async (): Promise<Mp.SearchResult> => {
-        this.sortFiles(this.currentDir, this.searchBackup);
-        this.files = structuredClone(this.searchBackup);
+    onSearchEnd = (): Mp.MediaFile[] => {
+        const files = structuredClone(this.searchBackup);
         this.searchBackup = [];
         this.searchKeyword = "";
 
-        return { files: this.files };
+        return files;
     };
 
-    sortFiles = (directory: string, files: Mp.MediaFile[]): Mp.SortType => {
-        const applicableSort = settings.data.columnHistory[directory] ? settings.data.columnHistory[directory].sortType : DEFAULT_SORT_TYPE;
-        util.sort(files, applicableSort.asc, applicableSort.key);
-        return applicableSort;
+    openFileWith = async (fullPath: string, appPath: string) => {
+        await ipc.invoke("open_path_with", { full_path: `"${fullPath}"`, app_path: appPath });
+    };
+
+    openInNewWindow = async (fullPath: string) => {
+        await ipc.invoke("open_in_new_window", fullPath);
+    };
+
+    showAppSelector = async (fullPath: string) => {
+        await ipc.invoke("show_app_selector", fullPath);
+    };
+
+    openPropertyDielog = async (fileOrId: Mp.MediaFile | string) => {
+        const file = typeof fileOrId == "string" ? settings.data.favorites.find((file) => file.id == fileOrId) : fileOrId;
+        if (!file) return;
+        await ipc.invoke("open_property_dielog", file.fullPath);
+    };
+
+    isWatchable = () => {
+        if (!this.watchTarget) return false;
+        if (util.isHome(this.watchTarget)) return false;
+        if (util.isRecycleBin(this.watchTarget)) return false;
+
+        return true;
+    };
+
+    isNetwork = () => {
+        return util.isWsl(this.watchTarget);
+    };
+
+    startWatch = (target: string) => {
+        this.abortWatch();
+        this.watchTarget = target;
+
+        if (this.isWatchable()) {
+            ipc.invoke("watch", { path: this.watchTarget, network: this.isNetwork() });
+        }
+    };
+
+    abortWatch = () => {
+        if (!this.isWatchable()) return;
+        ipc.invoke("unwatch", { path: this.watchTarget, network: this.isNetwork() });
+        this.watchTarget = "";
     };
 
     beforeCloseWindow = async () => {
@@ -329,8 +317,8 @@ class Main {
         await ipc.invoke("open_fav_context_menu", e);
     };
 
-    openColumnContextMenu = async (e: Mp.Position) => {
-        await ipc.invoke("open_column_context_menu", e);
+    openColumnContextMenu = async (position: Mp.Position) => {
+        await ipc.invoke("open_column_context_menu", { position, items: listState.columns, is_recycle_bin: listState.isRecycleBin });
     };
 
     openConfigFileJson = async (settingsPath: string) => {
@@ -341,8 +329,8 @@ class Main {
         await ipc.invoke("change_theme", theme);
     };
 
-    changeAppMenuItems = async (appMenuItems: Mp.AppMenuItem[]) => {
-        await ipc.invoke("change_app_menu_items", appMenuItems);
+    changeAppMenuItems = async () => {
+        await ipc.invoke("change_app_menu_items", settings.data.appMenuItems);
     };
 
     showFileFolderDialog = async (title: string, defaultPath: string, folder: boolean): Promise<string | null> => {
@@ -353,24 +341,8 @@ class Main {
         try {
             await ipc.invoke("create_symlink", { path, link_path: linkPath });
         } catch (ex: any) {
-            await this.showErrorMessage(ex);
+            await util.showErrorMessage(ex);
         }
-    };
-
-    reload = async (includeDrive: boolean): Promise<Mp.LoadEvent | null> => {
-        if (this.currentDir == HOME) {
-            return null;
-        }
-        const result = await this.readFiles(this.currentDir);
-        const drives = includeDrive ? await util.getDriveInfo() : undefined;
-        return {
-            files: this.files,
-            drives,
-            directory: this.currentDir,
-            navigation: "Reload",
-            sortType: result.sortType,
-            failed: !result.done,
-        };
     };
 
     startDrag = async (files: string[]) => {
@@ -396,13 +368,13 @@ class Main {
 
     private getNewName = async (isFile: boolean) => {
         const name = isFile ? t("newFile") : t("newFolder");
-        const found = await util.exists(path.join(this.currentDir, isFile ? `${name}.txt` : name));
+        const found = await util.exists(path.join(listState.currentDir.fullPath, isFile ? `${name}.txt` : name));
         if (!found) return name;
 
         let number = 1;
         for (const _ of [...Array(100)]) {
             const uniqueName = `${name}(${number})`;
-            const found = await util.exists(path.join(this.currentDir, isFile ? `${uniqueName}.txt` : uniqueName));
+            const found = await util.exists(path.join(listState.currentDir.fullPath, isFile ? `${uniqueName}.txt` : uniqueName));
             if (!found) return uniqueName;
             number++;
         }
@@ -411,7 +383,7 @@ class Main {
 
     createItem = async (isFile: boolean): Promise<Mp.CreateItemResult> => {
         const itemName = await this.getNewName(isFile);
-        const fullPath = path.join(this.currentDir, isFile ? `${itemName}.txt` : itemName);
+        const fullPath = path.join(listState.currentDir.fullPath, isFile ? `${itemName}.txt` : itemName);
 
         try {
             if (isFile) {
@@ -425,34 +397,30 @@ class Main {
             const newItemId = encodeURIComponent(fullPath);
             return { newItemId, success: true };
         } catch (ex: any) {
-            this.showErrorMessage(ex);
+            util.showErrorMessage(ex);
             return { newItemId: "", success: false };
         }
     };
 
-    renameItem = async (fullPath: string, newName: string): Promise<Mp.RenameResult> => {
-        const fileIndex = this.files.findIndex((file) => file.fullPath == fullPath);
-
-        const file = this.files[fileIndex];
-        const filePath = file.fullPath;
-
-        const newPath = path.join(path.dirname(filePath), newName);
+    renameItem = async (fullPath: string, rawNewName: string): Promise<Mp.RenameResult> => {
+        const newName = rawNewName.trimEnd();
+        const newPath = path.join(path.dirname(fullPath), newName);
 
         try {
             const found = await util.exists(newPath);
             if (found) {
                 throw new Error(`File name "${newName}" exists`);
             }
-            await ipc.invoke("rename", { new: newPath, old: filePath });
+            await ipc.invoke("rename", { new: newPath, old: fullPath });
 
-            this.trackOperation("Rename", [filePath], newPath, []);
+            this.trackOperation("Rename", [fullPath], newPath, []);
 
             return {
                 done: true,
                 newId: encodeURIComponent(newPath),
             };
         } catch (ex) {
-            this.showErrorMessage(ex);
+            util.showErrorMessage(ex);
             return {
                 done: false,
                 newId: "",
@@ -467,7 +435,7 @@ class Main {
 
             this.trackOperation("Trash", [], "", fullPaths);
         } catch (ex: any) {
-            this.showErrorMessage(ex);
+            util.showErrorMessage(ex);
         }
     };
 
@@ -479,7 +447,7 @@ class Main {
             const fullPaths = e.files.map((file) => file.fullPath);
             await ipc.invoke("delete", fullPaths);
         } catch (ex: any) {
-            this.showErrorMessage(ex);
+            util.showErrorMessage(ex);
         }
     };
 
@@ -490,10 +458,10 @@ class Main {
 
     undeleteItems = async (e: Mp.UndeleteItemRequest) => {
         if (e.undeleteSpecific && !e.items) {
-            return this.showErrorMessage("Invalid undelete arguments");
+            return util.showErrorMessage("Invalid undelete arguments");
         }
         if (!e.undeleteSpecific && !e.fullPaths) {
-            return this.showErrorMessage("Invalid undelete arguments");
+            return util.showErrorMessage("Invalid undelete arguments");
         }
 
         try {
@@ -510,13 +478,13 @@ class Main {
                 await ipc.invoke("undelete", fullPaths);
             }
         } catch (ex: any) {
-            this.showErrorMessage(ex);
+            util.showErrorMessage(ex);
         }
     };
 
     deleteFromRecycleBin = async (e: Mp.UndeleteItemRequest) => {
         if (e.undeleteSpecific && !e.items) {
-            return this.showErrorMessage("Invalid undelete arguments");
+            return util.showErrorMessage("Invalid undelete arguments");
         }
 
         if (navigator.userAgent.includes(OS.linux)) {
@@ -592,8 +560,7 @@ class Main {
     };
 
     getUrlsFromClipboard = async (targets: Mp.MediaFile[], operation: Mp.ClipboardOperation): Promise<Mp.PasteData> => {
-        const failedResult = { fullPaths: [], dir: this.currentDir, copy: true };
-        if (!this.currentDir) return failedResult;
+        const failedResult = { fullPaths: [], copy: true };
 
         const uriAvailable = await ipc.invoke("is_uris_available", undefined);
 
@@ -603,7 +570,7 @@ class Main {
         if (!data.urls.length) return failedResult;
 
         let isCopy = this.isClipboardCopy(targets, operation, data.urls, data.operation);
-        return { fullPaths: data.urls, dir: this.currentDir, copy: isCopy };
+        return { fullPaths: data.urls, copy: isCopy };
     };
 
     private isClipboardCopy(targets: Mp.MediaFile[], internalOperation: Mp.ClipboardOperation, externalUrls: string[], externalOperation: Mp.ClipboardOperation): boolean {
@@ -647,28 +614,28 @@ class Main {
                 done: true,
             };
         } catch (ex: any) {
-            this.showErrorMessage(ex);
+            util.showErrorMessage(ex);
             return { fullPaths: [], done: true };
         }
     };
 
-    onWatchEvent = async (e: Mp.WatchEvent) => {
-        const hasSearchCache = this.currentDir in this.searchCache;
+    onWatchEvent = async (e: Mp.WatchEvent, files: Mp.MediaFile[]): Promise<Mp.WatchEventResult> => {
+        const hasSearchCache = listState.currentDir.fullPath in this.searchCache;
 
         switch (e.operation) {
             case "Create": {
                 if (hasSearchCache) {
                     // Add to cache anyway
-                    this.searchCache[this.currentDir].push(...e.to_paths);
+                    this.searchCache[listState.currentDir.fullPath].push(...e.to_paths);
                 }
 
                 if (this.searchBackup.length) {
                     const pathsInSearch = e.to_paths.filter((fullPath) => this.isSearchFileFound(path.basename(fullPath), this.searchKeyword));
-                    const pathsInCurrent = e.to_paths.filter((fullPath) => path.dirname(fullPath) == this.currentDir);
+                    const pathsInCurrent = e.to_paths.filter((fullPath) => path.dirname(fullPath) == listState.currentDir.fullPath);
                     // Add to files only if the paths match the search keyword
                     if (pathsInSearch.length) {
                         const newItems = await Promise.all(pathsInSearch.map(async (fullPath) => await util.toFileFromPath(fullPath)));
-                        this.files.push(...newItems);
+                        files.push(...newItems);
                     }
 
                     // Add to backup only if the paths belongs to current dir
@@ -678,44 +645,53 @@ class Main {
                     }
                 } else {
                     const newItems = await Promise.all(e.to_paths.map(async (fullPath) => await util.toFileFromPath(fullPath)));
-                    this.files.push(...newItems);
+                    files.push(...newItems);
                 }
 
                 break;
             }
             case "Remove": {
-                this.files = this.files.filter((file) => !e.to_paths.includes(file.fullPath));
+                files = files.filter((file) => !e.to_paths.includes(file.fullPath));
 
                 if (this.searchBackup.length) {
                     this.searchBackup = this.searchBackup.filter((file) => !e.to_paths.includes(file.fullPath));
                 }
 
                 if (hasSearchCache) {
-                    this.searchCache[this.currentDir] = this.searchCache[this.currentDir].filter((fullPath) => !e.to_paths.includes(fullPath));
+                    this.searchCache[listState.currentDir.fullPath] = this.searchCache[listState.currentDir.fullPath].filter((fullPath) => !e.to_paths.includes(fullPath));
                 }
                 break;
             }
             case "Rename": {
+                // Sometimes "from" and "to" come separately. Do not process until "to" comes
+                if (!e.to_paths.length) {
+                    this.pendingRenameFrom = e.from_paths[0];
+                    break;
+                }
                 const newFullPath = e.to_paths[0];
-                const oldFullPath = e.from_paths[0];
-                const fileIndex = this.files.findIndex((file) => file.fullPath == oldFullPath);
+                const oldFullPath = this.pendingRenameFrom ? this.pendingRenameFrom : e.from_paths[0];
+                const fileIndex = files.findIndex((file) => file.fullPath == oldFullPath);
                 const newMediaFile = await util.toFileFromPath(newFullPath);
-                this.files[fileIndex] = newMediaFile;
+                files[fileIndex] = newMediaFile;
 
                 if (this.searchBackup.length) {
                     const fileIndex = this.searchBackup.findIndex((file) => file.fullPath == oldFullPath);
                     this.searchBackup[fileIndex] = newMediaFile;
                 }
                 if (hasSearchCache) {
-                    const index = this.searchCache[this.currentDir].findIndex((fullPath) => fullPath == oldFullPath);
-                    this.searchCache[this.currentDir][index] = newFullPath;
+                    const index = this.searchCache[listState.currentDir.fullPath].findIndex((fullPath) => fullPath == oldFullPath);
+                    this.searchCache[listState.currentDir.fullPath][index] = newFullPath;
                 }
+
+                this.pendingRenameFrom = "";
                 break;
             }
         }
 
-        this.sortFiles(this.currentDir, this.files);
-        return this.files;
+        return {
+            files,
+            pending: !!this.pendingRenameFrom,
+        };
     };
 
     private trackOperation = (operation: Mp.Operation, from: string[], to: string, target: string[], isFile = true) => {
@@ -756,7 +732,7 @@ class Main {
             /* Remove operation includes both of trash and delete. So ignore undelete error. */
             if (fileOperation.operation != "Undelete") {
                 this.history.rollback();
-                this.showErrorMessage(ex);
+                util.showErrorMessage(ex);
             }
         }
     };
@@ -793,7 +769,7 @@ class Main {
             }
         } catch (ex: any) {
             this.history.rollback();
-            this.showErrorMessage(ex);
+            util.showErrorMessage(ex);
         }
     };
 }

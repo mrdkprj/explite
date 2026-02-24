@@ -1,13 +1,10 @@
 <script lang="ts">
-    import Json from "../svg/JsonSvg.svelte";
     import { handleKeyEvent } from "../constants";
     import { dispatch, settings } from "./appStateReducer.svelte";
+    import JsonSvg from "../svg/JsonSvg.svelte";
+    import { scale } from "svelte/transition";
 
-    let {
-        preferenceChanged,
-        openSettingsAsJson,
-        clearColumnHistory,
-    }: { preferenceChanged: (isAppMenuItemChanged: boolean) => void; openSettingsAsJson: () => Promise<void>; clearColumnHistory: () => void } = $props();
+    let { changeAppMenuItems, openSettingsAsJson }: { changeAppMenuItems: () => Promise<void>; openSettingsAsJson: () => Promise<void> } = $props();
 
     let theme = $state($state.snapshot(settings.data.theme));
     let appMenuItems = $state($state.snapshot(settings.data.appMenuItems));
@@ -28,7 +25,7 @@
     };
 
     const removeHistory = () => {
-        clearColumnHistory();
+        dispatch({ type: "clearColumnHistory" });
     };
 
     const onkeydown = (e: KeyboardEvent) => {
@@ -50,7 +47,9 @@
             const newAppMenuItems = appMenuItems.filter((item) => item.path != "");
             const appMenuItemChanged = isAppMenuItemChanged(newAppMenuItems);
             dispatch({ type: "setPreference", value: { theme, appMenuItems: appMenuItems.filter((item) => item.path != ""), allowMoveColumn, useOSIcon, rememberColumns } });
-            preferenceChanged(appMenuItemChanged);
+            if (appMenuItemChanged) {
+                changeAppMenuItems();
+            }
         }
 
         dispatch({ type: "togglePreference" });
@@ -65,10 +64,10 @@
     };
 </script>
 
-<div class="dialog-overlay" {onkeydown} role="button" tabindex="-1" use:setKeyboardFocus>
+<div class="dialog-overlay" {onkeydown} role="button" tabindex="-1" use:setKeyboardFocus transition:scale={{ delay: 0, duration: 100 }}>
     <div class="dialog-container">
         <div class="dialog-header">
-            <div class="pref-json" onclick={openSettings} onkeydown={handleKeyEvent} role="button" tabindex="-1"><Json /></div>
+            <div class="pref-json" onclick={openSettings} onkeydown={handleKeyEvent} role="button" tabindex="-1"><JsonSvg /></div>
             <div class="dialog-close" onclick={() => close(false)} onkeydown={handleKeyEvent} role="button" tabindex="-1">&times;</div>
         </div>
         <div class="dialog">
@@ -147,7 +146,7 @@
     </div>
 </div>
 
-<style scoped>
+<style>
     .dialog-container {
         background-color: var(--main-bgcolor);
         color: var(--menu-color);

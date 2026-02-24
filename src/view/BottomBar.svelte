@@ -1,20 +1,14 @@
 <script lang="ts">
     import { appState, dispatch, listState } from "./appStateReducer.svelte";
-    import { GRID_ITEM_WIDTH, handleKeyEvent, HOME, RECYCLE_BIN } from "../constants";
+    import { handleKeyEvent } from "../constants";
     import ListSvg from "../svg/ListSvg.svelte";
     import TileSvg from "../svg/TileSvg.svelte";
-
-    let { clientWidth }: { clientWidth: number | undefined } = $props();
 
     const MB = 1024;
     const GB = 1.049e6;
 
     const toggleViewMode = () => {
         dispatch({ type: "toggleGridView", value: !$appState.isInGridView });
-        if (clientWidth) {
-            const chunkSize = $appState.isInGridView ? Math.floor(clientWidth / GRID_ITEM_WIDTH) : -1;
-            dispatch({ type: "chunkSize", value: chunkSize });
-        }
     };
 
     let fileCount = $derived.by(() => {
@@ -55,25 +49,11 @@
     </div>
     <div class="mode-area">
         {#if $appState.isInGridView}
-            <div
-                class="button"
-                class:disabled={listState.currentDir.fullPath == HOME || listState.currentDir.fullPath == RECYCLE_BIN}
-                onclick={toggleViewMode}
-                onkeydown={handleKeyEvent}
-                role="button"
-                tabindex="-1"
-            >
+            <div class="button" class:disabled={listState.isHome || listState.isRecycleBin} onclick={toggleViewMode} onkeydown={handleKeyEvent} role="button" tabindex="-1">
                 <ListSvg />
             </div>
         {:else}
-            <div
-                class="button"
-                class:disabled={listState.currentDir.fullPath == HOME || listState.currentDir.fullPath == RECYCLE_BIN}
-                onclick={toggleViewMode}
-                onkeydown={handleKeyEvent}
-                role="button"
-                tabindex="-1"
-            >
+            <div class="button" class:disabled={listState.isHome || listState.isRecycleBin} onclick={toggleViewMode} onkeydown={handleKeyEvent} role="button" tabindex="-1">
                 <TileSvg />
             </div>
         {/if}

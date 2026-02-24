@@ -1,6 +1,7 @@
 <script lang="ts">
     import { appState, listState, renameState, headerState } from "./appStateReducer.svelte";
     import { GRID_ITEM_HEIGHT, GRID_VERTICAL_MARGIN, handleKeyEvent, LARGE_ICON_SIZE } from "../constants";
+    import util from "../util";
     import VirtualList from "./VirtualList.svelte";
     import FileIcon from "./FileIcon.svelte";
 
@@ -31,16 +32,17 @@
     } = $props();
 
     const toChunk = () => {
-        if (!fileListContainer) return [];
+        if (!fileListContainer || listState.clientWidth <= 0) return [];
 
         const chunks = [];
-        const files = listState.files;
-        const chunkSize = listState.chunkSize;
+        const files = $state.snapshot(listState.files);
+        const chunkSize = util.getChunkSize(listState.clientWidth);
 
         for (let i = 0; i < files.length; i += chunkSize) {
             const chunk = files.slice(i, i + chunkSize);
             chunks.push(chunk);
         }
+
         return chunks;
     };
 </script>
@@ -48,6 +50,7 @@
 <VirtualList
     items={toChunk()}
     bind:this={virtualList}
+    bind:clientWidth={listState.clientWidth}
     bind:viewport={fileListContainer}
     bind:start={visibleStartIndex}
     bind:end={visibleEndIndex}

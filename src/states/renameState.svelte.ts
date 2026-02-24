@@ -1,4 +1,4 @@
-export type RenameState = {
+type RenameState = {
     renaming: boolean;
     newName: string;
     oldName: string;
@@ -7,7 +7,7 @@ export type RenameState = {
     targetUUID: string;
 };
 
-export const state: RenameState = $state({
+const state: RenameState = $state({
     renaming: false,
     oldName: "",
     newName: "",
@@ -23,16 +23,18 @@ export const state: RenameState = $state({
 
 export { state as renameState };
 
-export const startRename = (rect: Mp.PartialRect, oldName: string, fullPath: string, uuid: string) => {
-    state.renaming = true;
-    state.rect = rect;
-    state.oldName = oldName;
-    state.newName = oldName;
-    state.fullPath = fullPath;
-    state.targetUUID = uuid;
-};
+export class RenameUpdater {
+    static startRename = (rect: Mp.PartialRect, oldName: string, fullPath: string, uuid: string) => {
+        state.renaming = true;
+        state.rect = rect;
+        state.oldName = oldName;
+        state.newName = oldName;
+        state.fullPath = fullPath;
+        state.targetUUID = uuid;
+    };
 
-export const endRename = () => {
-    state.renaming = false;
-    state.targetUUID = "";
-};
+    static endRename = () => {
+        state.renaming = false;
+        state.targetUUID = "";
+    };
+}

@@ -270,7 +270,7 @@
     background: var(--divier-bgcolor);
 }
 
-.list-header-label{
+.list-header-column{
     display: flex;
     position: relative;
     justify-content: space-between;
@@ -278,7 +278,16 @@
     line-height: 20px;
     font-family: var(--font);
     font-size: var(--font-size);
+
+}
+
+.col-list-header:first-child .list-header-column{
     padding: 5px 5px 5px 20px;
+
+}
+
+.col-list-header:not(:first-child) .list-header-column{
+    padding: 5px 5px 5px 5px;
 }
 
 .clip-area {
@@ -323,10 +332,10 @@
     position: relative;
     display: flex;
     margin-left: 10px;
-    margin-right: 10px;
+    margin-right: 5px;
     align-items: center;
     justify-content: flex-start;
-    width: fit-content;
+    width: auto;
     outline: 1px solid transparent;
     border-radius: 2px;
     outline-offset: -1px;

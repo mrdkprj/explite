@@ -105,7 +105,7 @@ fn handle_event(app_handle: &tauri::AppHandle, event: DebouncedEvent) {
     let event_type = get_event_type(event.kind);
 
     match event_type {
-        EventType::Create | EventType::Remove | EventType::Rename => {
+        EventType::Create | EventType::Remove | EventType::Rename | EventType::RenameFrom | EventType::RenameTo => {
             let operation = if event_type == EventType::Create {
                 CREATE.to_string()
             } else if event_type == EventType::Remove {
@@ -115,10 +115,11 @@ fn handle_event(app_handle: &tauri::AppHandle, event: DebouncedEvent) {
             };
 
             let paths: Vec<String> = event.paths.iter().map(|p| p.to_string_lossy().to_string()).collect();
-            let (from, to) = if event_type == EventType::Rename {
-                (vec![paths.first().cloned().unwrap_or_default()], vec![paths.get(1).cloned().unwrap_or_default()])
-            } else {
-                (Vec::new(), paths)
+            let (from, to) = match event_type {
+                EventType::RenameFrom => (vec![paths.first().cloned().unwrap_or_default()], Vec::new()),
+                EventType::RenameTo => (Vec::new(), vec![paths.first().cloned().unwrap_or_default()]),
+                EventType::Rename => (vec![paths.first().cloned().unwrap_or_default()], vec![paths.get(1).cloned().unwrap_or_default()]),
+                _ => (Vec::new(), paths),
             };
 
             app_handle
@@ -143,6 +144,8 @@ enum EventType {
     Create,
     None,
     Rename,
+    RenameTo,
+    RenameFrom,
 }
 
 fn get_event_type(event_kind: EventKind) -> EventType {
@@ -154,8 +157,11 @@ fn get_event_type(event_kind: EventKind) -> EventType {
         return EventType::Remove;
     }
 
+    // Notify may not emit RenameMode::Both
     match event_kind {
         EventKind::Modify(ModifyKind::Any) => EventType::ModifyAny,
+        EventKind::Modify(ModifyKind::Name(RenameMode::From)) => EventType::RenameFrom,
+        EventKind::Modify(ModifyKind::Name(RenameMode::To)) => EventType::RenameTo,
         EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => EventType::Rename,
         _ => EventType::None,
     }

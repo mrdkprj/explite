@@ -1,8 +1,8 @@
 <script lang="ts">
     import { driveState, listState } from "./appStateReducer.svelte";
-    import LargeDriveSvg from "../svg/LargeDriveSvg.svelte";
     import { handleKeyEvent } from "../constants";
     import { t } from "../translation/useTranslation";
+    import LargeDriveSvg from "../svg/LargeDriveSvg.svelte";
 
     let { requestLoad }: { requestLoad: (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => void } = $props();
 

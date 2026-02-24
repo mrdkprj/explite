@@ -1,4 +1,4 @@
-import { driveState } from "./driveState.svelte";
+import { settings } from "./settingsState.svelte";
 
 export type SlideState = {
     target: "Area" | Mp.SortKey;
@@ -16,15 +16,17 @@ export const state: SlideState = $state({
 
 export { state as slideState };
 
-export const startSlide = (headerLabels: Mp.ColumnLabel[], target: "Area" | Mp.SortKey, startX: number) => {
-    const width = target == "Area" ? driveState.leftWidth : headerLabels.filter((label) => label.sortKey == target)[0].width;
-    state.sliding = true;
-    state.target = target;
-    state.initial = width;
-    state.startX = startX;
-};
+export class SlidUpdater {
+    static startSlide = (columns: Mp.Column[], target: "Area" | Mp.SortKey, startX: number) => {
+        const width = target == "Area" ? settings.data.leftAreaWidth : columns.filter((column) => column.sortKey == target)[0].width;
+        state.sliding = true;
+        state.target = target;
+        state.initial = width;
+        state.startX = startX;
+    };
 
-export const endSlide = () => {
-    state.sliding = false;
-    state.target = "Area";
-};
+    static endSlide = () => {
+        state.sliding = false;
+        state.target = "Area";
+    };
+}
