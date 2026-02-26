@@ -14,7 +14,7 @@ serde = { version = "1", features = ["derive"] }
 crossbeam-channel = "0.5.15"
 notify-debouncer-full = "0.6.0"
 zouni = { version = "0.1.25", features = ["webview2"] }
-wcpopup = { version = "0.8.0", features = ["webview"] }
+wcpopup = { version = "0.8.1", features = ["webview"] }
 rs-vips = "0.4.0"
 
 [target.'cfg(target_os = "windows")'.dependencies.windows]

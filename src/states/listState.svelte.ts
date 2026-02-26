@@ -68,9 +68,9 @@ export class ListUpdater {
     };
 
     static load = (e: Mp.LoadEvent) => {
+        ListUpdater.changeDirectory(e.directory);
         ListUpdater.sort(e.files);
         state.files = e.files;
-        ListUpdater.changeDirectory(e.directory);
     };
 
     static updateFiles = (files: Mp.MediaFile[]) => {
@@ -79,6 +79,7 @@ export class ListUpdater {
 
     static swichColumns = () => {
         state.columns = state.currentDir.fullPath in settings.data.columnHistory ? settings.data.columnHistory[state.currentDir.fullPath].columns : DEFAULT_LABLES;
+        state.sortType = state.currentDir.fullPath in settings.data.columnHistory ? settings.data.columnHistory[state.currentDir.fullPath].sortType : DEFAULT_SORT_TYPE;
     };
 
     static calculateColumnWidths = (items: Mp.MediaFile[]) => {

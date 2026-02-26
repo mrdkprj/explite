@@ -1497,7 +1497,6 @@
         await main.changeTheme(data.theme);
         await main.changeAppMenuItems();
 
-        dispatch({ type: "clearColumnHistory" });
         dispatch({ type: "changeFavorites", value: data.favorites });
 
         dispatch({ type: "load", value: { event: e.data } });
