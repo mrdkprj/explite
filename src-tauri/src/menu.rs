@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::Path};
 use tauri::async_runtime::Mutex;
 use tauri::{Emitter, EventTarget, Manager};
+use wcpopup::config::IconSettings;
 use wcpopup::{
     config::{ColorScheme, Config, MenuSize, Theme, ThemeColor, DEFAULT_DARK_COLOR_SCHEME},
     Menu, MenuBuilder, MenuIcon, MenuItem, MenuItemType,
@@ -21,6 +22,11 @@ const APP_MENU_ITEM_PREFIX: &str = "app_menu_item:";
 const TERMINAL_SVG: &str = r#"
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
     <path d="M0 3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm9.5 5.5h-3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1m-6.354-.354a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708l-2-2a.5.5 0 1 0-.708.708L4.793 6.5z"/>
+    </svg>
+"#;
+const CHECK_MARK: &str = r#"
+    <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor"  viewBox="0 0 16 16">
+    <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0"/>
     </svg>
 "#;
 
@@ -182,14 +188,41 @@ fn update_open_with(menu: &Menu, file_path: &str) {
                     },
                 )
                 .unwrap();
-                item.set_icon(Some(MenuIcon::from_rgba(icon.raw_pixels, width, height)));
+                item.set_icon(Some(MenuIcon::from_data(icon.raw_pixels, width, height)));
             } else {
-                item.set_icon(Some(MenuIcon::new(app.icon_path)));
+                item.set_icon(Some(MenuIcon::new(app.icon_path, width, height)));
             }
         }
         #[cfg(target_os = "linux")]
         {
-            item.set_icon(Some(MenuIcon::new(app.icon_path)));
+            item.set_icon(Some(MenuIcon::new(app.icon_path, width, height)));
+        }
+    }
+}
+
+fn toggle_app_items(app_handle: &tauri::AppHandle, menu: &Menu, file_path: &str) {
+    let is_dir = Path::new(file_path).is_dir();
+    let state = app_handle.state::<AppMenuItemsState>();
+    let app_items = state.try_lock().unwrap();
+    for app_item in &app_items.0 {
+        let menu_id = app_menu_item_id(&app_item.path);
+        let mut menu_item = menu.get_menu_item_by_id(&menu_id).unwrap();
+        match app_item.target.as_str() {
+            TARGET_FILE => {
+                if is_dir {
+                    menu_item.set_visible(false);
+                } else {
+                    menu_item.set_visible(true);
+                }
+            }
+            TARGET_FOLDER => {
+                if is_dir {
+                    menu_item.set_visible(true);
+                } else {
+                    menu_item.set_visible(false);
+                }
+            }
+            _ => menu_item.set_visible(true),
         }
     }
 }
@@ -229,9 +262,9 @@ pub fn change_app_menu_items(app_handle: &tauri::AppHandle, new_app_menu_items: 
             },
         ) {
             #[cfg(target_os = "windows")]
-            let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, Some(MenuIcon::from_rgba(icon.raw_pixels, width, height)));
+            let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, Some(MenuIcon::from_data(icon.raw_pixels, width, height)));
             #[cfg(target_os = "linux")]
-            let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, Some(MenuIcon::new(icon.file)));
+            let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, Some(MenuIcon::new(icon.file, width, height)));
             menu.insert(item, start_index + i as u32);
         } else {
             let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, None);
@@ -243,33 +276,6 @@ pub fn change_app_menu_items(app_handle: &tauri::AppHandle, new_app_menu_items: 
 
 fn app_menu_item_id(app_path: &str) -> String {
     format!("{}{}", APP_MENU_ITEM_PREFIX, app_path)
-}
-
-fn toggle_app_items(app_handle: &tauri::AppHandle, menu: &Menu, file_path: &str) {
-    let is_dir = Path::new(file_path).is_dir();
-    let state = app_handle.state::<AppMenuItemsState>();
-    let app_items = state.try_lock().unwrap();
-    for app_item in &app_items.0 {
-        let menu_id = app_menu_item_id(&app_item.path);
-        let mut menu_item = menu.get_menu_item_by_id(&menu_id).unwrap();
-        match app_item.target.as_str() {
-            TARGET_FILE => {
-                if is_dir {
-                    menu_item.set_visible(false);
-                } else {
-                    menu_item.set_visible(true);
-                }
-            }
-            TARGET_FOLDER => {
-                if is_dir {
-                    menu_item.set_visible(true);
-                } else {
-                    menu_item.set_visible(false);
-                }
-            }
-            _ => menu_item.set_visible(true),
-        }
-    }
 }
 
 fn get_menu_config(theme: Theme) -> Config {
@@ -287,6 +293,10 @@ fn get_menu_config(theme: Theme) -> Config {
             item_horizontal_padding: 20,
             ..Default::default()
         },
+        icon: Some(IconSettings {
+            check: Some(MenuIcon::from_svg(CHECK_MARK.to_string(), 16, 16)),
+            ..Default::default()
+        }),
         ..Default::default()
     }
 }
