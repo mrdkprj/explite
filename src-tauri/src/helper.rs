@@ -47,6 +47,14 @@ pub fn assoc_icons(full_paths: Vec<String>) -> Result<HashMap<String, IconInfo>,
     let mut icons = HashMap::new();
 
     for full_path in full_paths {
+        zouni::shell::extract_icon(
+            &full_path,
+            Size {
+                width: 100,
+                height: 100,
+            },
+        )
+        .unwrap();
         if let Ok(icon) = zouni::shell::extract_icon(
             &full_path,
             Size {

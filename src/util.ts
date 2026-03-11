@@ -11,13 +11,17 @@ import {
     MIME_TYPE,
     OS,
     RECYCLE_BIN,
-    RECYCLE_BIN_ITEM,
     SEPARATOR,
     WIN_SPECIAL_FOLDERS,
     WIN_USER_ROOT_DIR,
     WSL_ROOT,
 } from "./constants";
 import { t } from "./translation/useTranslation";
+
+type FileSize = {
+    size: number;
+    sizeString: string;
+};
 
 const REGULAR_TYPES = [".ts", ".json", ".mjs", ".cjs"];
 const ipc = new IPCBase();
@@ -166,6 +170,7 @@ class Util {
         const fileType = this.getFileType(fullPath, attr, dirent.mime_type, extension);
         const name = this.getName(fullPath);
         const actualExtension = attr.is_directory ? "" : attr.link_path ? path.extname(attr.link_path) : path.extname(fullPath);
+        const size = this.getFileSize(attr.size);
 
         return {
             id: encodeURIComponent(fullPath),
@@ -177,8 +182,8 @@ class Util {
             mdateString: new Date(attr.mtime_ms).toLocaleString(locale, DATE_OPTION),
             cdate: attr.birthtime_ms,
             cdateString: new Date(attr.birthtime_ms).toLocaleString(locale, DATE_OPTION),
-            size: Math.ceil(attr.size / 1024),
-            sizeString: `${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingPriority: "morePrecision" }).format(Math.ceil(attr.size / 1024))} KB`,
+            size: size.size,
+            sizeString: size.sizeString,
             isFile: attr.is_file,
             extension,
             fileType,
@@ -194,26 +199,27 @@ class Util {
 
     toFileFromRecycleBinItem(dirent: RecycleBinItem): Mp.MediaFile {
         const locale = window.lang;
-        const fullPath = dirent.original_path;
+        const originalPath = dirent.original_path;
         const attr = dirent.attributes;
-        const extension = this.getExtension(fullPath, attr);
+        const extension = this.getExtension(originalPath, attr);
         const entityType = this.getEntityType(attr);
-        const fileType = this.getFileType(fullPath, attr, dirent.mime_type, extension);
-        const name = this.getName(fullPath);
-        const actualExtension = attr.is_directory ? "" : attr.link_path ? path.extname(attr.link_path) : path.extname(fullPath);
+        const fileType = this.getFileType(originalPath, attr, dirent.mime_type, extension);
+        const name = this.getName(originalPath);
+        const actualExtension = attr.is_directory ? "" : attr.link_path ? path.extname(attr.link_path) : path.extname(originalPath);
+        const size = this.getFileSize(attr.size);
 
         return {
-            id: encodeURIComponent(fullPath),
-            fullPath: RECYCLE_BIN_ITEM,
-            dir: path.dirname(fullPath),
+            id: encodeURIComponent(originalPath),
+            fullPath: fileType == "App" ? originalPath : name,
+            dir: RECYCLE_BIN,
             uuid: crypto.randomUUID(),
             name,
             mdate: attr.mtime_ms,
             mdateString: new Date(attr.mtime_ms).toLocaleString(locale, DATE_OPTION),
             cdate: attr.birthtime_ms,
             cdateString: new Date(attr.birthtime_ms).toLocaleString(locale, DATE_OPTION),
-            size: Math.ceil(attr.size / 1024),
-            sizeString: `${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingPriority: "morePrecision" }).format(Math.ceil(attr.size / 1024))} KB`,
+            size: size.size,
+            sizeString: size.sizeString,
             isFile: attr.is_file,
             extension,
             fileType,
@@ -221,7 +227,7 @@ class Util {
             entityType,
             ddate: dirent.deleted_date_ms,
             ddateString: new Date(dirent.deleted_date_ms).toLocaleString(locale, DATE_OPTION),
-            originalPath: fullPath,
+            originalPath,
             mimeType: dirent.mime_type,
             actualExtension,
         };
@@ -239,6 +245,7 @@ class Util {
         const fileType = this.getFileType(fullPath, attr, mimeType, extension);
         const name = this.getName(fullPath);
         const actualExtension = attr.is_directory ? "" : attr.link_path ? path.extname(attr.link_path) : path.extname(fullPath);
+        const size = this.getFileSize(attr.size);
 
         return {
             id: encodeURIComponent(fullPath),
@@ -250,8 +257,8 @@ class Util {
             mdateString: new Date(attr.mtime_ms).toLocaleString(locale, DATE_OPTION),
             cdate: attr.birthtime_ms,
             cdateString: new Date(attr.birthtime_ms).toLocaleString(locale, DATE_OPTION),
-            size: Math.ceil(attr.size / 1024),
-            sizeString: `${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingPriority: "morePrecision" }).format(Math.ceil(attr.size / 1024))} KB`,
+            size: size.size,
+            sizeString: size.sizeString,
             isFile: attr.is_file,
             extension,
             entityType,
@@ -262,6 +269,13 @@ class Util {
             originalPath: "",
             mimeType,
             actualExtension,
+        };
+    }
+
+    getFileSize(size: number): FileSize {
+        return {
+            size: Math.ceil(size / 1024),
+            sizeString: `${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingPriority: "morePrecision" }).format(Math.ceil(size / 1024))} KB`,
         };
     }
 

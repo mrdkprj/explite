@@ -4,6 +4,7 @@
     import VirtualList from "./VirtualList.svelte";
     import { appState, listState, headerState, renameState } from "./appStateReducer.svelte";
     import FileIcon from "./FileIcon.svelte";
+    import { path } from "../path";
 
     let {
         visibleStartIndex = $bindable(0),
@@ -122,7 +123,7 @@
                 {:else if column.sortKey == "orig_path" && column.visible}
                     {#if listState.isRecycleBin}
                         <div class="col-detail" data-file-id={item.id} style="width: {column.width + HEADER_DIVIDER_WIDTh}px;">
-                            <div class="draggable" title={item.originalPath} data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{item.dir}</div>
+                            <div class="draggable" title={item.originalPath} data-file-id={item.id} onmousedown={colDetailMouseDown} role="button" tabindex="-1">{path.dirname(item.originalPath)}</div>
                         </div>
                     {/if}
                 {:else if column.sortKey == "ddate" && column.visible}

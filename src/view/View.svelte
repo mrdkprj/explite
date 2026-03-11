@@ -917,16 +917,17 @@
         const id = e.target.getAttribute("data-file-id");
 
         if (!id) {
-            dispatch({ type: "reset" });
             return;
         }
 
         const file = listState.files.find((file) => file.id == id);
 
-        if (file) {
+        if (!file) {
+            return;
+        }
+
+        if (!util.isRecycleBin(file.dir)) {
             requestLoad(file.linkPath ? file.linkPath : file.fullPath, file.isFile, "Direct");
-        } else {
-            dispatch({ type: "reset" });
         }
     };
 

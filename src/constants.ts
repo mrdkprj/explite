@@ -9,7 +9,6 @@ export const OS = {
 
 export const HOME = "PC";
 export const RECYCLE_BIN = "Recycle Bin";
-export const RECYCLE_BIN_ITEM = "Recycle Bin Item";
 
 export const SEPARATOR = navigator.userAgent.includes(OS.windows) ? "\\" : "/";
 

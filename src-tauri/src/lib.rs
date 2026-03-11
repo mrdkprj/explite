@@ -10,6 +10,7 @@ mod gtk_thumb;
 mod helper;
 mod menu;
 mod session;
+mod translate;
 mod watcher;
 use watcher::WatchTx;
 

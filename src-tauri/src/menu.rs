@@ -1,3 +1,4 @@
+use crate::translate::t;
 use crate::{AppMenuItem, Column, ColumnWithLabel};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::Path};
@@ -158,7 +159,7 @@ fn update_open_with(menu: &Menu, file_path: &str) {
 
     if Path::new(file_path).is_dir() {
         select_app_item.set_visible(false);
-        submenu.insert(MenuItem::builder(MenuItemType::Text).id("OpenInNewWindow").label("Open New Window").build(), 0);
+        submenu.insert(MenuItem::builder(MenuItemType::Text).id("OpenInNewWindow").label(t!("OpenInNewWindow")).build(), 0);
         return;
     }
 
@@ -304,24 +305,24 @@ fn get_menu_config(theme: Theme) -> Config {
 fn create_list_menu(window_handle: isize) -> Menu {
     let config = get_menu_config(Theme::System);
     let mut builder = MenuBuilder::new_from_config(window_handle, config);
-    builder.text("Open", "Open", false);
-    let mut sub = builder.submenu("OpenWith", "Open With", false);
-    sub.text("SelectApp", "Select another program...", false);
+    builder.text("Open", t!("Open"), false);
+    let mut sub = builder.submenu("OpenWith", t!("OpenWith"), false);
+    sub.text("SelectApp", t!("SelectApp"), false);
     sub.build().unwrap();
     builder.separator();
-    builder.text_with_accelerator("Copy", "Copy", false, "Ctrl+C");
-    builder.text_with_accelerator("Cut", "Cut", false, "Ctrl+X");
-    builder.text_with_accelerator("Paste", "Paste", false, "Ctrl+V");
-    builder.text_with_accelerator("Trash", "Delete", false, "Delete");
+    builder.text_with_accelerator("Copy", t!("Copy"), false, "Ctrl+C");
+    builder.text_with_accelerator("Cut", t!("Cut"), false, "Ctrl+X");
+    builder.text_with_accelerator("Paste", t!("Paste"), false, "Ctrl+V");
+    builder.text_with_accelerator("Trash", t!("Trash"), false, "Delete");
     builder.separator();
-    builder.text("AddToFavorite", "Add To Favorite", false);
-    builder.text("CopyFullpath", "Copy Fullpath", false);
-    builder.text("Property", "Property", false);
+    builder.text("AddToFavorite", t!("AddToFavorite"), false);
+    builder.text("CopyFullpath", t!("CopyFullpath"), false);
+    builder.text("Property", t!("Property"), false);
 
     builder.separator();
     #[cfg(target_os = "windows")]
-    builder.text_with_icon("AdminTerminal", "Open Terminal(Admin)", false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
-    builder.text_with_icon("Terminal", "Open Terminal", false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
+    builder.text_with_icon("AdminTerminal", t!("AdminTerminal"), false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
+    builder.text_with_icon("Terminal", t!("Terminal"), false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
 
     builder.build().unwrap()
 }
@@ -329,12 +330,12 @@ fn create_list_menu(window_handle: isize) -> Menu {
 fn create_noitem_menu(window_handle: isize) -> Menu {
     let config = get_menu_config(Theme::System);
     let mut builder = MenuBuilder::new_from_config(window_handle, config);
-    builder.text("CopyFullpath", "Copy Fullpath", false);
-    builder.text("Property", "Property", false);
+    builder.text("CopyFullpath", t!("CopyFullpath"), false);
+    builder.text("Property", t!("Property"), false);
     builder.separator();
     #[cfg(target_os = "windows")]
-    builder.text_with_icon("AdminTerminal", "Open Terminal(Admin)", false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
-    builder.text_with_icon("Terminal", "Open Terminal", false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
+    builder.text_with_icon("AdminTerminal", t!("AdminTerminal"), false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
+    builder.text_with_icon("Terminal", t!("Terminal"), false, MenuIcon::from_svg(TERMINAL_SVG.to_string(), 16, 16));
 
     builder.build().unwrap()
 }
@@ -342,10 +343,10 @@ fn create_noitem_menu(window_handle: isize) -> Menu {
 fn create_recycle_bin_menu(window_handle: isize) -> Menu {
     let config = get_menu_config(Theme::System);
     let mut builder = MenuBuilder::new_from_config(window_handle, config);
-    builder.text("Undelete", "Undelete", false);
+    builder.text("Undelete", t!("Undelete"), false);
     builder.separator();
-    builder.text("DeleteFromRecycleBin", "Delete", false);
-    builder.text("EmptyRecycleBin", "Empty Recycle Bin", false);
+    builder.text("DeleteFromRecycleBin", t!("DeleteFromRecycleBin"), false);
+    builder.text("EmptyRecycleBin", t!("EmptyRecycleBin"), false);
 
     builder.build().unwrap()
 }
@@ -353,10 +354,10 @@ fn create_recycle_bin_menu(window_handle: isize) -> Menu {
 fn create_fav_menu(window_handle: isize) -> Menu {
     let config = get_menu_config(Theme::System);
     let mut builder = MenuBuilder::new_from_config(window_handle, config);
-    builder.text("RemoveFromFavorite", "Remove From Favorite", false);
-    builder.text("Property", "Property", false);
+    builder.text("RemoveFromFavorite", t!("RemoveFromFavorite"), false);
+    builder.text("Property", t!("Property"), false);
     builder.separator();
-    builder.text("Refresh", "Refresh", false);
+    builder.text("Refresh", t!("Refresh"), false);
 
     builder.build().unwrap()
 }
@@ -365,10 +366,10 @@ fn create_column_menu(window_handle: isize, columns: Vec<ColumnWithLabel>) -> Me
     let config = get_menu_config(Theme::System);
     let mut builder = MenuBuilder::new_from_config(window_handle, config);
     columns.iter().for_each(|column| {
-        builder.check(&column.sortKey, &column.label, column.visible, false);
+        builder.check(&column.sortKey, t!(&column.sortKey), column.visible, false);
     });
     builder.separator();
-    builder.text("AutoAdjustColumnWidth", "Adjust All Column Widths", false);
+    builder.text("AutoAdjustColumnWidth", t!("AutoAdjustColumnWidth"), false);
 
     builder.build().unwrap()
 }

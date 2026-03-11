@@ -1,5 +1,5 @@
 import util from "./util";
-import { HOME, OS, RECYCLE_BIN_ITEM, DEFAULT_LABLES } from "./constants";
+import { HOME, OS, DEFAULT_LABLES } from "./constants";
 import { DeleteUndeleteRequest, Dirent, IPC, RecycleBinItem } from "./ipc";
 import { path } from "./path";
 import { History } from "./history";
@@ -75,8 +75,6 @@ class Main {
     };
 
     onSelect = async (e: Mp.SelectEvent): Promise<Mp.LoadEvent | null> => {
-        if (e.fullPath == RECYCLE_BIN_ITEM) return null;
-
         if (e.isFile) {
             await this.openFile(e.fullPath);
             return null;
