@@ -25,9 +25,12 @@
   "bundle": {
     "active": true,
     "category": "Utility",
-    "targets": ["deb", "rpm"],
+    "targets": ["deb"],
     "icon": [
       "icons/icon.png"
-    ]
+    ],
+    "deb": {
+      "depends":["libvips"]
+    }
   }
 }
