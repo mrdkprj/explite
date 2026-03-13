@@ -185,40 +185,40 @@ unsafe extern "C" fn read_pngcomment(image: *mut rs_vips::bindings::_VipsImage, 
 }
 
 fn large_from_image(url: &Url, source: PathBuf, mtime: &str, software: Option<&str>) -> Result<Vec<u8>, String> {
-    let image = VipsImage::new_from_file(source).map_err(map_vips_error)?.thumbnail_image(LARGE).map_err(map_vips_error)?;
-    set_image_data(&image, url, mtime, software)?;
+    let mut image = VipsImage::new_from_file(source).map_err(map_vips_error)?.thumbnail_image(LARGE).map_err(map_vips_error)?;
+    set_image_data(&mut image, url, mtime, software)?;
     image.pngsave_buffer().map_err(map_vips_error)
 }
 
 fn normal_from_image(url: &Url, large: &[u8], source: PathBuf, mtime: &str, software: Option<&str>) -> Result<Vec<u8>, String> {
-    let image = if large.is_empty() {
+    let mut image = if large.is_empty() {
         VipsImage::new_from_file(source).map_err(map_vips_error)?.thumbnail_image(NORMAL).map_err(map_vips_error)?
     } else {
         VipsImage::new_from_buffer(large, "").map_err(map_vips_error)?.resize(0.5).map_err(map_vips_error)?
     };
-    set_image_data(&image, url, mtime, software)?;
+    set_image_data(&mut image, url, mtime, software)?;
     image.pngsave_buffer().map_err(map_vips_error)
 }
 
 fn large_from_video(url: &Url, source: PathBuf, mtime: &str, software: Option<&str>) -> Result<Vec<u8>, String> {
     let buffer = create_video_thumbnail(source).map_err(|e| e.to_string())?;
-    let image = VipsImage::new_from_buffer(&buffer, "").map_err(map_vips_error)?.thumbnail_image(LARGE).map_err(map_vips_error)?;
-    set_image_data(&image, url, mtime, software)?;
+    let mut image = VipsImage::new_from_buffer(&buffer, "").map_err(map_vips_error)?.thumbnail_image(LARGE).map_err(map_vips_error)?;
+    set_image_data(&mut image, url, mtime, software)?;
     image.pngsave_buffer().map_err(map_vips_error)
 }
 
 fn normal_from_video(url: &Url, large: &[u8], source: PathBuf, mtime: &str, software: Option<&str>) -> Result<Vec<u8>, String> {
-    let image = if large.is_empty() {
+    let mut image = if large.is_empty() {
         let buffer = create_video_thumbnail(source).map_err(|e| e.to_string())?;
         VipsImage::new_from_buffer(&buffer, "").map_err(map_vips_error)?.thumbnail_image(NORMAL).map_err(map_vips_error)?
     } else {
         VipsImage::new_from_buffer(large, "").map_err(map_vips_error)?.resize(0.5).map_err(map_vips_error)?
     };
-    set_image_data(&image, url, mtime, software)?;
+    set_image_data(&mut image, url, mtime, software)?;
     image.pngsave_buffer().map_err(map_vips_error)
 }
 
-fn set_image_data(image: &VipsImage, url: &Url, mtime: &str, software: Option<&str>) -> Result<(), String> {
+fn set_image_data(image: &mut VipsImage, url: &Url, mtime: &str, software: Option<&str>) -> Result<(), String> {
     image.set_string(THUMB_URI, url.as_ref()).map_err(map_vips_error)?;
     image.set_string(THUMB_MTIME, mtime).map_err(map_vips_error)?;
     if let Some(software) = software {
@@ -296,7 +296,7 @@ fn into_buffer(rgb_frame: &Video, rotation: i32) -> Result<Vec<u8>, String> {
             pixel.push(data[offset + 2]);
         }
     }
-    VipsImage::new_from_memory(&pixel, rgb_frame.width() as _, rgb_frame.height() as _, 3, rs_vips::ops::BandFormat::Uchar)
+    VipsImage::new_from_memory_copy(&pixel, rgb_frame.width() as _, rgb_frame.height() as _, 3, rs_vips::ops::BandFormat::Uchar)
         .map_err(map_vips_error)?
         .rotate(rotation as _)
         .map_err(map_vips_error)?

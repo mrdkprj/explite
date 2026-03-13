@@ -29,8 +29,10 @@
     "icon": [
       "icons/icon.png"
     ],
-    "deb": {
-      "depends":["libvips"]
+    "linux": {
+      "deb": {
+        "depends":["libvips42","ffmpeg"]
+      }
     }
   }
 }

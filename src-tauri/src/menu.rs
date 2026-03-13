@@ -175,10 +175,10 @@ fn update_open_with(menu: &Menu, file_path: &str) {
     for app in apps {
         submenu.insert(MenuItem::builder(MenuItemType::Text).id(&app.path).label(&app.name).build(), 0);
         let mut item = submenu.get_menu_item_by_id(&app.path).unwrap();
+        let width = 16;
+        let height = 16;
         #[cfg(target_os = "windows")]
         {
-            let width = 16;
-            let height = 16;
             let extension = Path::new(&app.icon_path).extension().unwrap_or_default();
             if extension == "exe" || extension == "ico" {
                 let icon = zouni::shell::extract_icon(
