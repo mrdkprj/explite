@@ -531,6 +531,28 @@ async fn get_wsl_names() -> Result<Vec<String>, zouni::process::CommandStatus> {
     helper::get_wsl_names().await
 }
 
+#[cfg(target_os = "linux")]
+#[tauri::command]
+fn undo(window: WebviewWindow) -> Result<(), String> {
+    window
+        .with_webview(|webview_impl| {
+            let webview = webview_impl.inner();
+            zouni::webkit::execute_editing_command(&webview, "Undo");
+        })
+        .map_err(|e| e.to_string())
+}
+
+#[cfg(target_os = "linux")]
+#[tauri::command]
+fn redo(window: WebviewWindow) -> Result<(), String> {
+    window
+        .with_webview(|webview_impl| {
+            let webview = webview_impl.inner();
+            zouni::webkit::execute_editing_command(&webview, "Redo");
+        })
+        .map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -600,7 +622,11 @@ pub fn run() {
             to_image_thumbnail,
             is_file,
             assoc_icons,
-            get_wsl_names
+            get_wsl_names,
+            #[cfg(target_os = "linux")]
+            undo,
+            #[cfg(target_os = "linux")]
+            redo
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

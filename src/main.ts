@@ -352,8 +352,8 @@ class Main {
         await ipc.invoke("write_uris", { fullPaths, operation: e.operation });
     };
 
-    writeFullpathToClipboard = async (fullPaths: string) => {
-        await ipc.invoke("write_text", fullPaths);
+    writeTextToClipboard = async (text: string) => {
+        await ipc.invoke("write_text", text);
     };
 
     openTerminal = async (dir: string, admin: boolean) => {
@@ -701,6 +701,14 @@ class Main {
             isFile,
         };
         this.history.push(fileOperation);
+    };
+
+    undoInput = async () => {
+        await ipc.invoke("undo", undefined);
+    };
+
+    redoInput = async () => {
+        await ipc.invoke("redo", undefined);
     };
 
     /* Do nothing to files which will be changed by watcher */

@@ -203,6 +203,8 @@ type TauriCommandMap = {
     is_file: TauriCommand<string, boolean>;
     assoc_icons: TauriCommand<string[], { [key: string]: IconInfo }>;
     get_wsl_names: TauriCommand<undefined, string[]>;
+    undo: TauriCommand<undefined, undefined>;
+    redo: TauriCommand<undefined, undefined>;
 };
 
 export class IPCBase {

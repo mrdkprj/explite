@@ -713,7 +713,7 @@
                   .map((file) => file.fullPath)
                   .join("\r\n")
             : listState.currentDir.fullPath;
-        await main.writeFullpathToClipboard(fullPaths);
+        await main.writeTextToClipboard(fullPaths);
     };
 
     const markCopyCut = async (copy: boolean) => {
@@ -856,6 +856,7 @@
         Array.from(nodes).forEach((node) => {
             const nameNode = node.querySelectorAll(".name")[0];
             const text = nameNode.textContent;
+            console.log(text);
             if (text) {
                 if (text.match(/[\!#\$\%&'\(\)\=\~\^\-\|`@\{\[\+;\]\}\,\_\s]/g)) {
                     highlightNameOneByOne(text, nameNode, searchTextHighlight);
@@ -1184,7 +1185,20 @@
     };
 
     const onkeyup = async (e: KeyboardEvent) => {
+        if (!handleKeyUp) return;
+        handleKeyUp = false;
+
         if (navigator.userAgent.includes(OS.windows)) return;
+
+        if (renameState.renaming) return;
+        if (headerState.pathEditing) return;
+        if ($appState.prefVisible) return;
+        if ($appState.symlinkVisible) return;
+        if (header.hasSearchInputFocus()) return;
+
+        if (e.key == "Control") {
+            return;
+        }
 
         if (e.key == "Delete") {
             e.preventDefault();
@@ -1195,31 +1209,34 @@
             }
         }
 
-        if (!handleKeyUp) return;
-
-        if (e.key == "Control") {
-            return;
-        }
-
         if (e.key == "c") {
-            handleKeyUp = false;
             e.preventDefault();
             markCopyCut(true);
         }
 
         if (e.key == "x") {
-            handleKeyUp = false;
             e.preventDefault();
             return markCopyCut(false);
         }
 
         if (e.key == "v") {
-            handleKeyUp = false;
             e.preventDefault();
             return pasteItems();
         }
+    };
 
-        handleKeyUp = false;
+    /* Undo/Redo shortcut does not work on Webkit2gtk with Tauri */
+    const resolve_input_edit = async (e: KeyboardEvent) => {
+        if (navigator.userAgent.includes(OS.windows)) return;
+        if (!e.ctrlKey) return;
+
+        if (e.key == "z") {
+            await main.undoInput();
+        }
+
+        if (e.key == "y") {
+            await main.redoInput();
+        }
     };
 
     const onkeydown = async (e: KeyboardEvent) => {
@@ -1241,11 +1258,11 @@
             }
         }
 
-        if (renameState.renaming) return;
-        if (headerState.pathEditing) return;
-        if ($appState.prefVisible) return;
-        if ($appState.symlinkVisible) return;
-        if (header.hasSearchInputFocus()) return;
+        if (renameState.renaming) return resolve_input_edit(e);
+        if (headerState.pathEditing) return resolve_input_edit(e);
+        if ($appState.prefVisible) return resolve_input_edit(e);
+        if ($appState.symlinkVisible) return resolve_input_edit(e);
+        if (header.hasSearchInputFocus()) return resolve_input_edit(e);
 
         if (e.ctrlKey && e.key == "f") {
             e.preventDefault();

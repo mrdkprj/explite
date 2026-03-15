@@ -239,7 +239,7 @@
     };
 
     const buildPaths = (upToCurrent: string[], before?: string) => {
-        const current = upToCurrent.length == 1 && upToCurrent[0].endsWith(":") ? upToCurrent[0] + SEPARATOR : upToCurrent.join(SEPARATOR);
+        const current = path.joinPaths(upToCurrent);
         return before ? path.join(before, current) : current;
     };
 

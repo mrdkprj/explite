@@ -4,7 +4,7 @@ use ffmpeg_next::{
     software::scaling::{context::Context, flag::Flags},
     util::frame::video::Video,
 };
-use gio::{traits::FileExt, Cancellable, File, FileQueryInfoFlags};
+use gtk::gio::{traits::FileExt, Cancellable, File, FileQueryInfoFlags};
 use md5::{Digest, Md5};
 use rs_vips::{
     bindings::{vips_image_map, GValue},

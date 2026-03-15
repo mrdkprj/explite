@@ -13,7 +13,17 @@ export class path {
             .map((a) => this.split(a))
             .flat()
             .filter(Boolean);
-        return components.join(SEPARATOR);
+        return this.joinPaths(components);
+    }
+
+    static joinPaths(paths: string[]) {
+        if (!paths.length) return "";
+
+        if (navigator.userAgent.includes(OS.windows)) {
+            return paths.length > 1 ? paths.join(SEPARATOR) : paths[0] + SEPARATOR;
+        } else {
+            return SEPARATOR + paths.join(SEPARATOR);
+        }
     }
 
     static extname(name: string | undefined) {
@@ -36,7 +46,7 @@ export class path {
 
         const components = this.split(path);
         const rest = components.slice(0, components.length - 1);
-        return rest.join(SEPARATOR);
+        return this.joinPaths(rest);
     }
 
     static root(path: string | undefined) {
