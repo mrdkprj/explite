@@ -1,7 +1,7 @@
 import { appDataDir } from "@tauri-apps/api/path";
 import { DEFAULT_SETTINGS } from "./constants";
 import { IPC } from "./ipc";
-import { path } from "./path";
+import path from "./path";
 
 const ipc = new IPC("View");
 const SETTING_FILE_NAME = "explite.settings.json";

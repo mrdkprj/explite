@@ -1,7 +1,7 @@
 import util from "./util";
 import { HOME, OS, DEFAULT_LABLES } from "./constants";
 import { DeleteUndeleteRequest, Dirent, IPC, RecycleBinItem } from "./ipc";
-import { path } from "./path";
+import path from "./path";
 import { History } from "./history";
 import { t } from "./translation/useTranslation";
 import { dispatch, icons, listState, settings } from "./view/appStateReducer.svelte";

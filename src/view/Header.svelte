@@ -2,7 +2,7 @@
     import { dispatch, listState, headerState } from "./appStateReducer.svelte";
     import { handleKeyEvent, SEPARATOR } from "../constants";
     import util from "../util";
-    import { path } from "../path";
+    import path from "../path";
     import BackSvg from "../svg/BackSvg.svelte";
     import FowardSvg from "../svg/FowardSvg.svelte";
     import UpwardSvg from "../svg/UpwardSvg.svelte";

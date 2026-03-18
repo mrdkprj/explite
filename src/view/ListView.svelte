@@ -4,7 +4,7 @@
     import VirtualList from "./VirtualList.svelte";
     import { appState, listState, headerState, renameState } from "./appStateReducer.svelte";
     import FileIcon from "./FileIcon.svelte";
-    import { path } from "../path";
+    import path from "../path";
 
     let {
         visibleStartIndex = $bindable(0),

@@ -1,6 +1,6 @@
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
 import { Dirent, FileAttribute, IPCBase, RecycleBinItem } from "./ipc";
-import { path } from "./path";
+import path from "./path";
 import {
     ARCHIVE_EXT,
     DATE_OPTION,
@@ -393,11 +393,15 @@ class Util {
     }
 
     toPhysicalPosition = (bounds: Mp.Bounds) => {
-        return new PhysicalPosition(bounds.x, bounds.y);
+        const x = bounds.x < 0 ? 0 : bounds.x;
+        const y = bounds.y < 0 ? 0 : bounds.y;
+        return new PhysicalPosition(x, y);
     };
 
     toPhysicalSize = (bounds: Mp.Bounds) => {
-        return new PhysicalSize(bounds.width, bounds.height);
+        const width = bounds.width < 400 ? 400 : bounds.width;
+        const height = bounds.height < 400 ? 400 : bounds.height;
+        return new PhysicalSize(width, height);
     };
 
     getChunkSize = (width: number) => {

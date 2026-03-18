@@ -18,7 +18,7 @@
     import main from "../main";
     import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
     import util from "../util";
-    import { path } from "../path";
+    import path from "../path";
     import Deferred from "../deferred";
     import Settings from "../settings";
 
@@ -1409,7 +1409,11 @@
     };
 
     const minimize = async () => {
-        await WebviewWindow.getCurrent().minimize();
+        const view = WebviewWindow.getCurrent();
+        const position = await view.innerPosition();
+        const size = await view.innerSize();
+        dispatch({ type: "setBounds", value: util.toBounds(position, size) });
+        await view.minimize();
     };
 
     const toggleMaximize = async () => {
@@ -1434,7 +1438,8 @@
 
     const close = async () => {
         const view = WebviewWindow.getCurrent();
-        if (!settings.data.isMaximized) {
+        const isMinimized = await view.isMinimized();
+        if (!settings.data.isMaximized && !isMinimized) {
             const position = await view.innerPosition();
             const size = await view.innerSize();
             settings.data.bounds = util.toBounds(position, size);

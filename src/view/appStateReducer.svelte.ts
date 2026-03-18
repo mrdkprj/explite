@@ -1,6 +1,6 @@
 import { writable } from "svelte/store";
 import Deferred from "../deferred";
-import { path } from "../path";
+import path from "../path";
 import { HOME, RECYCLE_BIN } from "../constants";
 import { ListUpdater, listState } from "../states/listState.svelte";
 import { RenameUpdater } from "../states/renameState.svelte";

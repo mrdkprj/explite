@@ -1,4 +1,4 @@
-import { path } from "../path";
+import path from "../path";
 import util from "../util";
 import { DEFAULT_LABLES, DEFAULT_SORT_TYPE } from "../constants";
 import { settings, SettingsUpdater } from "./settingsState.svelte";

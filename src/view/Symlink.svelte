@@ -1,7 +1,7 @@
 <script lang="ts">
     import { handleKeyEvent } from "../constants";
     import { dispatch, listState } from "./appStateReducer.svelte";
-    import { path } from "../path";
+    import path from "../path";
     import util from "../util";
     import { scale } from "svelte/transition";
 

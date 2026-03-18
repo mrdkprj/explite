@@ -7,7 +7,7 @@ const SEPARATOR = navigator.userAgent.includes(OS.windows) ? "\\" : "/";
 const SEPARATOR_EXP = new RegExp(/\\|\//);
 const UNC = "\\\\";
 
-export class path {
+export default class path {
     static join(...paths: string[]) {
         const components = paths
             .map((a) => this.split(a))
