@@ -152,7 +152,11 @@ class Util {
             return attr.is_symbolic_link ? t("typeShortcut") : t("typeFolder");
         }
 
-        return attr.is_symbolic_link ? t("typeShortcut") : path.extname(fullPath);
+        if (attr.is_symbolic_link) return t("typeShortcut");
+
+        const extension = path.extname(fullPath);
+
+        return extension.length ? extension : t("extensionFile");
     }
 
     private getName(fullPath: string) {

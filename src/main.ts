@@ -141,7 +141,7 @@ class Main {
                 .map((dirent) => {
                     const file = util.isRecycleBin(directory) ? util.toFileFromRecycleBinItem(dirent as RecycleBinItem) : util.toFile(dirent as Dirent);
                     if (settings.data.useOSIcon) {
-                        if (file.isFile && !(file.actualExtension in icons.cache)) {
+                        if (file.isFile && file.actualExtension && !(file.actualExtension in icons.cache)) {
                             file.fileType == "App" ? (fileMap[file.name] = file.fullPath) : (fileMap[file.actualExtension] = file.fullPath);
                         }
                     }
@@ -203,6 +203,10 @@ class Main {
             navigation: "Reload",
             failed: !result.done,
         };
+    };
+
+    reloadDrive = async () => {
+        return await util.getDriveInfo();
     };
 
     search = async (files: Mp.MediaFile[], e: Mp.SearchRequest): Promise<Mp.MediaFile[]> => {

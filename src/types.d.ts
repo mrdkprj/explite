@@ -382,6 +382,7 @@ declare global {
             deleteConfirm: string;
             yes: string;
             no: string;
+            extensionFile: string;
         };
     }
 }

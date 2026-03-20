@@ -126,6 +126,7 @@ type AppAction =
     | { type: "updateColumnSetting"; value: { sortType: Mp.SortType | null; columns: Mp.Column[] | null } }
     | { type: "columns"; value: Mp.Column[] }
     | { type: "updateIconCache"; value: { key: string; small: string; large: string } }
+    | { type: "updateDrives"; value: Mp.DriveInfo[] }
     | { type: "load"; value: { event: Mp.LoadEvent } };
 
 const updater = (state: AppState, action: AppAction): AppState => {
@@ -162,6 +163,9 @@ const updater = (state: AppState, action: AppAction): AppState => {
 
             return state;
         }
+        case "updateDrives":
+            DriveUpdater.updateDrives(action.value);
+            return state;
         case "replaceFiles":
             ListUpdater.replaceFiles(action.value);
             return state;

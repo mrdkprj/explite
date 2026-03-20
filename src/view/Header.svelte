@@ -262,7 +262,7 @@
         <div class="button {headerState.canGoUpward ? '' : 'disabled'}" onclick={goUpward} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <UpwardSvg />
         </div>
-        <div class="button {listState.isHome ? 'disabled' : ''}" onclick={() => reload(true)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div class="button" onclick={() => reload(true)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <ReloadSvg />
         </div>
         <div

@@ -18,4 +18,5 @@ export const en: Mp.Labels = {
     deleteConfirm: "Are you sure to delete this file?",
     yes: "Yes",
     no: "No",
+    extensionFile: "File",
 };

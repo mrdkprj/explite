@@ -18,4 +18,5 @@ export const ja: Mp.Labels = {
     deleteConfirm: "このファイルを完全に削除しますか？",
     yes: "はい",
     no: "いいえ",
+    extensionFile: "ファイル",
 };

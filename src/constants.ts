@@ -102,11 +102,11 @@ export const WIN_SPECIAL_FOLDERS = {
 
 export const LINUX_SPECIAL_FOLDERS = {
     Desktop: new RegExp(/\/home\/.*\/Desktop$/),
-    Documents: new RegExp(/\/home\/.*\/.*\/Documents$/),
-    Downloads: new RegExp(/\/home\/.*\/.*\/Downloads$/),
-    Music: new RegExp(/\/home\/.*\/.*\/Music$/),
-    Pictures: new RegExp(/\/home\/.*\/.*\/Pictures$/),
-    Videos: new RegExp(/\/home\/.*\/.*\/Videos$/),
+    Documents: new RegExp(/\/home\/.*\/Documents$/),
+    Downloads: new RegExp(/\/home\/.*\/Downloads$/),
+    Music: new RegExp(/\/home\/.*\/Music$/),
+    Pictures: new RegExp(/\/home\/.*\/Pictures$/),
+    Videos: new RegExp(/\/home\/.*\/Videos$/),
 };
 
 export const WSL_ROOT = "\\\\wsl.localhost";

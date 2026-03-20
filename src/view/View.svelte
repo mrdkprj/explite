@@ -757,7 +757,12 @@
 
     const reload = async (includeDrive: boolean) => {
         if (headerState.search.searching) {
-            await endSearch(true);
+            return await endSearch(true);
+        }
+
+        if (listState.isHome) {
+            const drives = await main.reloadDrive();
+            dispatch({ type: "updateDrives", value: drives });
         } else {
             const result = await main.reload(includeDrive);
             if (result) {
