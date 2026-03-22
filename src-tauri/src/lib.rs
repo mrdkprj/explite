@@ -361,8 +361,8 @@ fn open_terminal(payload: TerminalArgs) -> Result<(), String> {
             zouni::shell::execute(arg, "powershell")
         }
     } else {
-        let commandline_arg = format!("--working-directory={}", payload.path);
-        zouni::shell::execute(commandline_arg, "gnome-terminal")
+        let commandline_arg = format!("gnome-terminal --working-directory={}", payload.path);
+        zouni::shell::execute("", commandline_arg)
     }
 }
 

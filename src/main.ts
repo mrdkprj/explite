@@ -561,7 +561,7 @@ class Main {
         return mapped.filter((item) => item != null);
     };
 
-    getUrlsFromClipboard = async (targets: Mp.MediaFile[], operation: Mp.ClipboardOperation): Promise<Mp.PasteData> => {
+    getPathsFromClipboard = async (targets: Mp.MediaFile[], operation: Mp.ClipboardOperation): Promise<Mp.PasteData> => {
         const failedResult = { fullPaths: [], copy: true };
 
         const uriAvailable = await ipc.invoke("is_uris_available", undefined);
@@ -571,8 +571,10 @@ class Main {
         const data = await ipc.invoke("read_uris", undefined);
         if (!data.urls.length) return failedResult;
 
-        let isCopy = this.isClipboardCopy(targets, operation, data.urls, data.operation);
-        return { fullPaths: data.urls, copy: isCopy };
+        const fullPaths = data.urls.map(url => url.startsWith("file://") ? decodeURIComponent(url.replace("file://", "")) : url);
+
+        let isCopy = this.isClipboardCopy(targets, operation, fullPaths, data.operation);
+        return { fullPaths, copy: isCopy };
     };
 
     private isClipboardCopy(targets: Mp.MediaFile[], internalOperation: Mp.ClipboardOperation, externalUrls: string[], externalOperation: Mp.ClipboardOperation): boolean {
