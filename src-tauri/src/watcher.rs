@@ -174,6 +174,7 @@ fn get_event_type(event_kind: EventKind) -> EventType {
         EventKind::Modify(ModifyKind::Name(RenameMode::From)) => EventType::Remove,
         EventKind::Modify(ModifyKind::Name(RenameMode::To)) => EventType::Create,
         EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => EventType::Rename,
+        EventKind::Remove(_) => EventType::Remove,
         _ => EventType::None,
     }
 }
