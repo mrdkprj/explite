@@ -21,6 +21,7 @@
     import path from "../path";
     import Deferred from "../deferred";
     import Settings from "../settings";
+    import WebkitDnd from "../webkitDnd";
 
     let fileListContainer = $state<HTMLDivElement>();
     let clipRegion = $state<DOMRectReadOnly>();
@@ -30,8 +31,10 @@
     let visibleEndIndex = $state(0);
     let header: Header;
     let folderUpdatePromise: Deferred<number> | null;
-    // Linux only
+    // Webkit only starts
     let handleKeyUp = false;
+    const webkitDnd = new WebkitDnd(navigator.userAgent);
+    // Webkit only end
 
     const ipc = new IPC("View");
     const settingsStore = new Settings();
@@ -273,6 +276,8 @@
 
         await ipc.invoke("register_drop_target", undefined);
 
+        dispatch({ type: "startDrag", value: { id: "", type: "View" } });
+
         await main.startDrag(paths);
     };
 
@@ -289,8 +294,10 @@
         const id = e.target.getAttribute("data-file-id") ?? "";
 
         if (id) {
+            webkitDnd.add(e.target as Element);
             dispatch({ type: "dragEnter", value: id });
         } else {
+            webkitDnd.delete(e.target as Element);
             dispatch({ type: "dragLeave" });
         }
     };
@@ -298,6 +305,10 @@
     const onDragLeave = (e: DragEvent) => {
         if ($appState.dragHandler != "View") return;
         if (!e.target || !(e.target instanceof HTMLElement)) return;
+
+        webkitDnd.onDragLeave(e.target as Element, e.currentTarget as Node);
+
+        if (webkitDnd.isDrop()) return;
 
         const id = e.target.getAttribute("data-file-id") ?? "";
         if ($appState.dragTargetId == id) {
@@ -309,7 +320,8 @@
         if ($appState.dragHandler != "View") return;
         const dragTargetId = $appState.dragTargetId;
 
-        dispatch({ type: "dragLeave" });
+        dispatch({ type: "endDrag" });
+        webkitDnd.clear();
 
         if (listState.isHome || !e.paths) return;
 

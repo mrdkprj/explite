@@ -76,6 +76,7 @@
             class:being-selected={$appState.selection.selectedId == item.id}
             class:cut={$appState.copyCutTargets.ids.includes(item.id) && $appState.copyCutTargets.op == "Move"}
             class:drag-highlight={!item.isFile && $appState.dragTargetId == item.id}
+            class:dragging={$appState.dragging}
             onmouseover={clipMouseEnter}
             onmouseout={clipMouseLeave}
             onfocus={() => {}}

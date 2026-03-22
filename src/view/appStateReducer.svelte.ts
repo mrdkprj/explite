@@ -47,6 +47,7 @@ type AppState = {
     };
     dragTargetId: string;
     dragHandler: DragHandlerType;
+    dragging: boolean;
     incrementalKey: string;
     prefVisible: boolean;
     symlinkVisible: boolean;
@@ -65,6 +66,7 @@ export const initialAppState: AppState = {
     },
     dragTargetId: "",
     dragHandler: "View",
+    dragging: false,
     incrementalKey: "",
     prefVisible: false,
     symlinkVisible: false,
@@ -267,9 +269,9 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return { ...state, dragTargetId: "" };
         }
         case "startDrag":
-            return { ...state, dragTargetId: action.value.id, dragHandler: action.value.type };
+            return { ...state, dragTargetId: action.value.id, dragHandler: action.value.type, dragging: true };
         case "endDrag":
-            return { ...state, dragTargetId: "", dragHandler: "View" };
+            return { ...state, dragTargetId: "", dragHandler: "View", dragging: false };
 
         case "startClip": {
             ClipUpdater.startClip(action.value.startId, action.value.position);

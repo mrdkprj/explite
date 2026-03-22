@@ -319,6 +319,10 @@
     background-color: var(--main-hover-color);
 }
 
+.dragging div{
+    pointer-events: none;
+}
+
 .col-list-header:hover .divider{
     background-color: transparent;
 }
