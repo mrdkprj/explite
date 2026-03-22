@@ -85,16 +85,11 @@ class Util {
     }
 
     private getSpecialFolderType(fullPath: string) {
-        if (this.isWin()) {
-            const matched = Object.entries(WIN_SPECIAL_FOLDERS).find(([_, reg]) => !!fullPath.match(reg));
-            if (matched) {
-                return matched[0];
-            }
-        } else {
-            const matched = Object.entries(LINUX_SPECIAL_FOLDERS).find(([_, reg]) => !!fullPath.match(reg));
-            if (matched) {
-                return matched[0];
-            }
+        const folders = this.isWin() ? Object.entries(WIN_SPECIAL_FOLDERS) : Object.entries(LINUX_SPECIAL_FOLDERS);
+
+        const matched = folders.find(([_, reg]) => !!fullPath.match(reg));
+        if (matched) {
+            return matched[0];
         }
     }
 
@@ -171,7 +166,7 @@ class Util {
         const attr = dirent.attributes;
         const extension = this.getExtension(fullPath, attr);
         const entityType = this.getEntityType(attr);
-        const fileType = this.getFileType(fullPath, attr, dirent.mime_type, extension);
+        const fileType = this.getFileType(attr.link_path ?? fullPath, attr, dirent.mime_type, extension);
         const name = this.getName(fullPath);
         const actualExtension = attr.is_directory ? "" : attr.link_path ? path.extname(attr.link_path) : path.extname(fullPath);
         const size = this.getFileSize(attr.size);
@@ -207,7 +202,7 @@ class Util {
         const attr = dirent.attributes;
         const extension = this.getExtension(originalPath, attr);
         const entityType = this.getEntityType(attr);
-        const fileType = this.getFileType(originalPath, attr, dirent.mime_type, extension);
+        const fileType = this.getFileType(attr.link_path ?? originalPath, attr, dirent.mime_type, extension);
         const name = this.getName(originalPath);
         const actualExtension = attr.is_directory ? "" : attr.link_path ? path.extname(attr.link_path) : path.extname(originalPath);
         const size = this.getFileSize(attr.size);
@@ -246,7 +241,7 @@ class Util {
         }
         const extension = this.getExtension(fullPath, attr);
         const entityType = this.getEntityType(attr);
-        const fileType = this.getFileType(fullPath, attr, mimeType, extension);
+        const fileType = this.getFileType(attr.link_path ?? fullPath, attr, mimeType, extension);
         const name = this.getName(fullPath);
         const actualExtension = attr.is_directory ? "" : attr.link_path ? path.extname(attr.link_path) : path.extname(fullPath);
         const size = this.getFileSize(attr.size);

@@ -19,4 +19,7 @@ export const en: Mp.Labels = {
     yes: "Yes",
     no: "No",
     extensionFile: "File",
+    menuNewDirectory: "Directory",
+    menuNewSymlink: "Shortcut",
+    menuNewTextFile: "Text File",
 };

@@ -383,6 +383,9 @@ declare global {
             yes: string;
             no: string;
             extensionFile: string;
+            menuNewTextFile: string;
+            menuNewDirectory: string;
+            menuNewSymlink: string;
         };
     }
 }

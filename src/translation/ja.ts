@@ -19,4 +19,7 @@ export const ja: Mp.Labels = {
     yes: "はい",
     no: "いいえ",
     extensionFile: "ファイル",
+    menuNewDirectory: "フォルダー",
+    menuNewSymlink: "ショートカット",
+    menuNewTextFile: "テキストファイル",
 };

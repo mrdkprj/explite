@@ -1,6 +1,7 @@
 <script lang="ts">
     import { dispatch, listState, headerState } from "./appStateReducer.svelte";
     import { handleKeyEvent, SEPARATOR } from "../constants";
+    import { t } from "../translation/useTranslation";
     import util from "../util";
     import path from "../path";
     import BackSvg from "../svg/BackSvg.svelte";
@@ -284,17 +285,17 @@
                     tabindex="0"
                     role="button"
                 >
-                    <div class="dropdown-data" onclick={createText} onmousedown={dropdownMouseEvent} onmouseup={dropdownMouseEvent} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+                    <div class="dropdown-data-sm" onclick={createText} onmousedown={dropdownMouseEvent} onmouseup={dropdownMouseEvent} onkeydown={handleKeyEvent} role="button" tabindex="-1">
                         <div class="label-icon"><NewFileSvg /></div>
-                        Text File
+                        {t("menuNewTextFile")}
                     </div>
-                    <div class="dropdown-data" onclick={createDir} onmousedown={dropdownMouseEvent} onmouseup={dropdownMouseEvent} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+                    <div class="dropdown-data-sm" onclick={createDir} onmousedown={dropdownMouseEvent} onmouseup={dropdownMouseEvent} onkeydown={handleKeyEvent} role="button" tabindex="-1">
                         <div class="label-icon"><NewFolderSvg /></div>
-                        Directory
+                        {t("menuNewDirectory")}
                     </div>
-                    <div class="dropdown-data" onclick={showSymlinkDialog} onmousedown={dropdownMouseEvent} onmouseup={dropdownMouseEvent} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+                    <div class="dropdown-data-sm" onclick={showSymlinkDialog} onmousedown={dropdownMouseEvent} onmouseup={dropdownMouseEvent} onkeydown={handleKeyEvent} role="button" tabindex="-1">
                         <div class="label-icon"><NewSymLinkSvg /></div>
-                        Shortcut
+                        {t("menuNewSymlink")}
                     </div>
                 </div>
             {/if}
@@ -337,7 +338,7 @@
                                 {#each paths.overflownPaths as hiddenPath, index}
                                     {#if !util.isWsl(hiddenPath)}
                                         <div
-                                            class="dropdown-data"
+                                            class="dropdown-data-med"
                                             data-path={buildPaths(paths.overflownPaths.slice(0, index + 1))}
                                             onclick={onPathClick}
                                             onkeydown={handleKeyEvent}
@@ -475,7 +476,7 @@
         box-shadow: 3px 4px 5px var(--dialog-shadow);
     }
 
-    .dropdown-data {
+    .dropdown-data-med {
         position: relative;
         padding: 5px 10px;
         width: calc(100% - 20px);
@@ -486,7 +487,18 @@
         align-items: center;
     }
 
-    .dropdown-data .label-icon {
+    .dropdown-data-sm {
+        position: relative;
+        padding: 5px 10px;
+        width: calc(100% - 20px);
+        margin: 5px 0 0 0;
+        font-size: 12px;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+    }
+
+    .dropdown-data-sm .label-icon {
         margin-right: 10px;
         display: flex;
     }
@@ -499,7 +511,8 @@
     }
 
     .path-dots:hover,
-    .dropdown-data:hover {
+    .dropdown-data-sm:hover,
+    .dropdown-data-med:hover {
         background-color: var(--path-hover-color);
         border-radius: 4px;
     }
