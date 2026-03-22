@@ -137,6 +137,7 @@ fn handle_event(app_handle: &tauri::AppHandle, event: DebouncedEvent) {
     }
 }
 
+#[allow(dead_code)]
 #[derive(PartialEq, Debug)]
 enum EventType {
     ModifyAny,
@@ -157,11 +158,21 @@ fn get_event_type(event_kind: EventKind) -> EventType {
         return EventType::Remove;
     }
 
+    #[cfg(target_os = "windows")]
     // Notify may not emit RenameMode::Both
     match event_kind {
         EventKind::Modify(ModifyKind::Any) => EventType::ModifyAny,
         EventKind::Modify(ModifyKind::Name(RenameMode::From)) => EventType::RenameFrom,
         EventKind::Modify(ModifyKind::Name(RenameMode::To)) => EventType::RenameTo,
+        EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => EventType::Rename,
+        _ => EventType::None,
+    }
+
+    #[cfg(target_os = "linux")]
+    match event_kind {
+        EventKind::Modify(ModifyKind::Any) => EventType::ModifyAny,
+        EventKind::Modify(ModifyKind::Name(RenameMode::From)) => EventType::Remove,
+        EventKind::Modify(ModifyKind::Name(RenameMode::To)) => EventType::Create,
         EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => EventType::Rename,
         _ => EventType::None,
     }
