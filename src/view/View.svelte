@@ -735,7 +735,7 @@
     };
 
     const pasteItems = async () => {
-        const result = await main.getUrlsFromClipboard($appState.copyCutTargets.files, $appState.copyCutTargets.op);
+        const result = await main.getPathsFromClipboard($appState.copyCutTargets.files, $appState.copyCutTargets.op);
         if (result.fullPaths.length) {
             await moveItems(result.fullPaths, listState.currentDir.fullPath, result.copy);
         }
