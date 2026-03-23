@@ -376,9 +376,6 @@ declare global {
             typeShortcut: string;
             newFile: string;
             newFolder: string;
-            destExistsConfirm: string;
-            destExistsOkLabel: string;
-            destExistsCancelLabel: string;
             deleteConfirm: string;
             yes: string;
             no: string;

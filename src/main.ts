@@ -528,39 +528,6 @@ class Main {
         return true;
     };
 
-    private beforeMoveItems = async (directory: string, fullPaths: string[]) => {
-        let cancelAll = false;
-
-        const mapped = await Promise.all(
-            fullPaths.map(async (fullPath) => {
-                const dist = path.join(directory, path.basename(fullPath));
-
-                if (dist == fullPath) return null;
-
-                if (cancelAll) return null;
-
-                const found = await util.exists(dist);
-                if (found) {
-                    const result = await ipc.invoke("message", {
-                        dialog_type: "confirm",
-                        message: t("destExistsConfirm").replace("{}", path.basename(fullPath)),
-                        kind: "warning",
-                        ok_label: t("destExistsOkLabel"),
-                        cancel_label: t("destExistsCancelLabel"),
-                    });
-
-                    if (result.button != t("destExistsOkLabel") || result.cancelled) {
-                        cancelAll = true;
-                        return null;
-                    }
-                }
-
-                return fullPath;
-            }),
-        );
-        return mapped.filter((item) => item != null);
-    };
-
     getPathsFromClipboard = async (targets: Mp.MediaFile[], operation: Mp.ClipboardOperation): Promise<Mp.PasteData> => {
         const failedResult = { fullPaths: [], copy: true };
 
@@ -571,7 +538,7 @@ class Main {
         const data = await ipc.invoke("read_uris", undefined);
         if (!data.urls.length) return failedResult;
 
-        const fullPaths = data.urls.map(url => url.startsWith("file://") ? decodeURIComponent(url.replace("file://", "")) : url);
+        const fullPaths = data.urls.map((url) => (url.startsWith("file://") ? decodeURIComponent(url.replace("file://", "")) : url));
 
         let isCopy = this.isClipboardCopy(targets, operation, fullPaths, data.operation);
         return { fullPaths, copy: isCopy };
@@ -596,13 +563,11 @@ class Main {
     }
 
     moveItems = async (e: Mp.MoveItemsRequest): Promise<Mp.MoveItemResult> => {
-        const targetFiles = navigator.userAgent.includes(OS.linux) ? await this.beforeMoveItems(e.dir, e.fullPaths) : e.fullPaths;
-
-        if (!targetFiles.length) {
+        if (!e.fullPaths.length) {
             return { fullPaths: [], done: false };
         }
 
-        const movedPaths = targetFiles.map((fullPath) => path.join(e.dir, path.basename(fullPath)));
+        const movedPaths = e.fullPaths.map((fullPath) => path.join(e.dir, path.basename(fullPath)));
 
         try {
             const from = e.fullPaths;
