@@ -873,7 +873,6 @@
         Array.from(nodes).forEach((node) => {
             const nameNode = node.querySelectorAll(".name")[0];
             const text = nameNode.textContent;
-            console.log(text);
             if (text) {
                 if (text.match(/[\!#\$\%&'\(\)\=\~\^\-\|`@\{\[\+;\]\}\,\_\s]/g)) {
                     highlightNameOneByOne(text, nameNode, searchTextHighlight);
