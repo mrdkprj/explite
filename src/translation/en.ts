@@ -19,4 +19,7 @@ export const en: Mp.Labels = {
     menuNewDirectory: "Directory",
     menuNewSymlink: "Shortcut",
     menuNewTextFile: "Text File",
+    recycleBin: "Recycle Bin",
+    deleteFromRecycleBinMsg: "Are you sure to delete files completely?",
+    emptyRecycleBinMsg: "Are you sure to delete all files completely?",
 };

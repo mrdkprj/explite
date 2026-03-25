@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::Path};
 use tauri::async_runtime::Mutex;
 use tauri::{Emitter, EventTarget, Manager};
-use wcpopup::config::IconSettings;
+use wcpopup::config::{IconSettings, MenuFont};
 use wcpopup::{
     config::{ColorScheme, Config, MenuSize, Theme, ThemeColor, DEFAULT_DARK_COLOR_SCHEME},
     Menu, MenuBuilder, MenuIcon, MenuItem, MenuItemType,
@@ -282,6 +282,10 @@ fn app_menu_item_id(app_path: &str) -> String {
 fn get_menu_config(theme: Theme) -> Config {
     Config {
         theme,
+        font: MenuFont {
+            font_family: "Segoe UI, Yu Gothic UI, Droid Sans, Ubuntu Mono, Roboto, sans-serif".to_string(),
+            ..Default::default()
+        },
         color: ThemeColor {
             dark: ColorScheme {
                 color: 0xefefef,

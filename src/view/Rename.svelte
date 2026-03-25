@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { FONT_FOR_CALCULATION } from "../constants";
     import { appState, renameState } from "./appStateReducer.svelte";
 
     let { endEditFileName }: { endEditFileName: () => Promise<void> } = $props();
@@ -27,7 +28,7 @@
         const _canvas = canvas || (canvas = document.createElement("canvas"));
         const context = _canvas.getContext("2d");
         if (!context) return;
-        context.font = 'normal 12px "Segoe UI"';
+        context.font = `normal 12px ${FONT_FOR_CALCULATION}`;
         const metrics = context.measureText(renameState.newName);
         inputWidth = metrics.width + 5;
     };

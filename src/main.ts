@@ -257,7 +257,8 @@ class Main {
     };
 
     openFileWith = async (fullPath: string, appPath: string) => {
-        await ipc.invoke("open_path_with", { full_path: `"${fullPath}"`, app_path: appPath });
+        const safeFullPath = util.isWin() ? `"${fullPath}"` : fullPath;
+        await ipc.invoke("open_path_with", { full_path: safeFullPath, app_path: appPath });
     };
 
     openInNewWindow = async (fullPath: string) => {
@@ -455,7 +456,7 @@ class Main {
 
     private toFilePath(fullPath: string) {
         /* Inside recycle bin, shortcut does not end with .lnk */
-        return path.extname(fullPath) == ".lnk" ? fullPath.replace(new RegExp(".lnk$"), "") : fullPath;
+        return path.extname(fullPath) == ".lnk" ? fullPath.replace(/.lnk$/, "") : fullPath;
     }
 
     undeleteItems = async (e: Mp.UndeleteItemRequest) => {
@@ -491,13 +492,15 @@ class Main {
 
         if (navigator.userAgent.includes(OS.linux)) {
             const result = await ipc.invoke("message", {
-                title: "Recycle Bin",
+                title: t("recycleBin"),
                 dialog_type: "confirm",
-                message: "Are you sure to delete files?",
+                message: t("deleteFromRecycleBinMsg"),
                 kind: "warning",
+                ok_label: t("yes"),
+                cancel_label: t("no"),
             });
 
-            if (result.button != "Yes" || result.cancelled) {
+            if (result.button != t("yes") || result.cancelled) {
                 return;
             }
         }
@@ -514,13 +517,15 @@ class Main {
     emptyRecycleBin = async (): Promise<boolean> => {
         if (navigator.userAgent.includes(OS.linux)) {
             const result = await ipc.invoke("message", {
-                title: "Recycle Bin",
+                title: t("recycleBin"),
                 dialog_type: "confirm",
-                message: "Are you sure to delete all files?",
+                message: t("emptyRecycleBinMsg"),
                 kind: "warning",
+                ok_label: t("yes"),
+                cancel_label: t("no"),
             });
 
-            if (result.button != "Yes" || result.cancelled) {
+            if (result.button != t("yes") || result.cancelled) {
                 return false;
             }
         }

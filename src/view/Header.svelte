@@ -1,6 +1,6 @@
 <script lang="ts">
     import { dispatch, listState, headerState } from "./appStateReducer.svelte";
-    import { handleKeyEvent, SEPARATOR } from "../constants";
+    import { FONT_FOR_CALCULATION, handleKeyEvent, SEPARATOR } from "../constants";
     import { t } from "../translation/useTranslation";
     import util from "../util";
     import path from "../path";
@@ -70,7 +70,7 @@
                 overflown: "",
             };
         }
-        context.font = 'normal 14px "Segoe UI"';
+        context.font = `normal 14px ${FONT_FOR_CALCULATION}`;
         let width = 200;
         const visiblePaths: string[] = [];
         const overflownPaths: string[] = [];
@@ -257,7 +257,7 @@
         <div class="button {headerState.canGoBack ? '' : 'disabled'}" onclick={goBack} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <BackSvg />
         </div>
-        <div class="button {headerState.canGoForward ? '' : 'disabled'}" onclick={goForward} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div class="button {headerState.canGoForward && !headerState.search.searching ? '' : 'disabled'}" onclick={goForward} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <FowardSvg />
         </div>
         <div class="button {headerState.canGoUpward ? '' : 'disabled'}" onclick={goUpward} onkeydown={handleKeyEvent} role="button" tabindex="-1">

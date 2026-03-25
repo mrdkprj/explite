@@ -166,7 +166,7 @@ class Util {
         const attr = dirent.attributes;
         const extension = this.getExtension(fullPath, attr);
         const entityType = this.getEntityType(attr);
-        const fileType = this.getFileType(attr.link_path ?? fullPath, attr, dirent.mime_type, extension);
+        const fileType = this.getFileType(attr.link_path ? attr.link_path : fullPath, attr, dirent.mime_type, extension);
         const name = this.getName(fullPath);
         const actualExtension = attr.is_directory ? "" : attr.link_path ? path.extname(attr.link_path) : path.extname(fullPath);
         const size = this.getFileSize(attr.size);
@@ -202,7 +202,7 @@ class Util {
         const attr = dirent.attributes;
         const extension = this.getExtension(originalPath, attr);
         const entityType = this.getEntityType(attr);
-        const fileType = this.getFileType(attr.link_path ?? originalPath, attr, dirent.mime_type, extension);
+        const fileType = this.getFileType(attr.link_path ? attr.link_path : originalPath, attr, dirent.mime_type, extension);
         const name = this.getName(originalPath);
         const actualExtension = attr.is_directory ? "" : attr.link_path ? path.extname(attr.link_path) : path.extname(originalPath);
         const size = this.getFileSize(attr.size);
@@ -241,7 +241,7 @@ class Util {
         }
         const extension = this.getExtension(fullPath, attr);
         const entityType = this.getEntityType(attr);
-        const fileType = this.getFileType(attr.link_path ?? fullPath, attr, mimeType, extension);
+        const fileType = this.getFileType(attr.link_path ? attr.link_path : fullPath, attr, mimeType, extension);
         const name = this.getName(fullPath);
         const actualExtension = attr.is_directory ? "" : attr.link_path ? path.extname(attr.link_path) : path.extname(fullPath);
         const size = this.getFileSize(attr.size);

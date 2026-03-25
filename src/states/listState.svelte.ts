@@ -1,6 +1,6 @@
 import path from "../path";
 import util from "../util";
-import { DEFAULT_LABLES, DEFAULT_SORT_TYPE } from "../constants";
+import { DEFAULT_LABLES, DEFAULT_SORT_TYPE, FONT_FOR_CALCULATION } from "../constants";
 import { settings, SettingsUpdater } from "./settingsState.svelte";
 import { slideState } from "./slideState.svelte";
 
@@ -94,7 +94,7 @@ export class ListUpdater {
         const context = _canvas.getContext("2d");
         if (!context) return widths;
 
-        context.font = 'normal 12px "Segoe UI"';
+        context.font = `normal 12px ${FONT_FOR_CALCULATION}`;
         items.forEach((item) => {
             const { dir, name, mdateString, cdateString, sizeString, extension, originalPath, ddateString } = item;
             widths.directory = Math.max(widths.directory, context.measureText(dir).width);

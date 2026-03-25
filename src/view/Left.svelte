@@ -11,6 +11,7 @@
     import DirImageSvg from "../svg/DirImageSvg.svelte";
     import DirVideoSvg from "../svg/DirVideoSvg.svelte";
     import LinuxSvg from "../svg/LinuxSvg.svelte";
+    import { t } from "../translation/useTranslation";
 
     let { requestLoad, onFavoriteContextMenu }: { requestLoad: (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => void; onFavoriteContextMenu: (e: MouseEvent) => Promise<void> } =
         $props();
@@ -129,7 +130,7 @@
             <div class="icon">
                 <RecycleSvg />
             </div>
-            <div class="name">{RECYCLE_BIN}</div>
+            <div class="name">{t("recycleBin")}</div>
         </div>
     </div>
 </div>

@@ -19,4 +19,7 @@ export const ja: Mp.Labels = {
     menuNewDirectory: "フォルダー",
     menuNewSymlink: "ショートカット",
     menuNewTextFile: "テキストファイル",
+    recycleBin: "ゴミ箱",
+    deleteFromRecycleBinMsg: "ファイルを完全に削除しますか？",
+    emptyRecycleBinMsg: "これらのファイルを完全に削除しますか？",
 };

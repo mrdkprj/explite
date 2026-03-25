@@ -12,6 +12,8 @@ export const RECYCLE_BIN = "Recycle Bin";
 
 export const SEPARATOR = navigator.userAgent.includes(OS.windows) ? "\\" : "/";
 
+export const FONT_FOR_CALCULATION = "sans-serif";
+
 export const DEFAULT_SORTKEY_ORDER: Mp.SortKey[] = ["name", "directory", "orig_path", "ddate", "extension", "mdate", "cdate", "size"];
 export const DEFAULT_SORT_TYPE: Mp.SortType = {
     asc: true,

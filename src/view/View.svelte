@@ -23,13 +23,14 @@
     import Settings from "../settings";
     import WebkitDnd from "../webkitDnd";
 
+    let ready = $state(false);
     let fileListContainer = $state<HTMLDivElement>();
     let clipRegion = $state<DOMRectReadOnly>();
     let virtualList = $state<VirtualList<Mp.MediaFile> | VirtualList<Mp.MediaFile[]>>();
     let searchInterval = 0;
     let visibleStartIndex = $state(0);
     let visibleEndIndex = $state(0);
-    let header: Header;
+    let header: Header | null = $state(null);
     let folderUpdatePromise: Deferred<number> | null;
     // Webkit only starts
     let handleKeyUp = false;
@@ -862,7 +863,7 @@
         }
     };
 
-    const searchHighlight = (nodes: HTMLElement[]) => {
+    const searchHighlight = (rows: HTMLElement[]) => {
         if (!headerState.search.key || !listState.files.length) {
             clearSearchHighlight();
             return;
@@ -870,19 +871,27 @@
 
         const searchTextHighlight = new Highlight();
 
-        Array.from(nodes).forEach((node) => {
-            const nameNode = node.querySelectorAll(".name")[0];
-            const text = nameNode.textContent;
-            if (text) {
-                if (text.match(/[\!#\$\%&'\(\)\=\~\^\-\|`@\{\[\+;\]\}\,\_\s]/g)) {
-                    highlightNameOneByOne(text, nameNode, searchTextHighlight);
-                } else {
-                    highlightName(text, nameNode, searchTextHighlight);
-                }
+        Array.from(rows).forEach((node) => {
+            if ($appState.isInGridView) {
+                Array.from(node.children).forEach((node) => setHighlight(searchTextHighlight, node));
+            } else {
+                setHighlight(searchTextHighlight, node);
             }
         });
 
         CSS.highlights.set("searched", searchTextHighlight);
+    };
+
+    const setHighlight = (searchTextHighlight: Highlight, node: Element) => {
+        const nameNode = node.querySelectorAll(".name")[0];
+        const text = nameNode.textContent;
+        if (text) {
+            if (text.match(/[\!#\$\%&'\(\)\=\~\^\-\|`@\{\[\+;\]\}\,\_\s]/g)) {
+                highlightNameOneByOne(text, nameNode, searchTextHighlight);
+            } else {
+                highlightName(text, nameNode, searchTextHighlight);
+            }
+        }
     };
 
     const highlightName = (text: string, nameNode: Element, searchTextHighlight: Highlight) => {
@@ -949,6 +958,10 @@
     };
 
     const goBack = () => {
+        if (headerState.search.searching) {
+            endSearch(false);
+            return;
+        }
         if (!headerState.canGoBack) return;
 
         const navigationHistory = BACKWARD[BACKWARD.length - 1];
@@ -956,6 +969,7 @@
     };
 
     const goForward = () => {
+        if (headerState.search.searching) return;
         if (!headerState.canGoForward) return;
 
         const navigationHistory = FORWARD[FORWARD.length - 1];
@@ -1210,7 +1224,7 @@
         if (headerState.pathEditing) return;
         if ($appState.prefVisible) return;
         if ($appState.symlinkVisible) return;
-        if (header.hasSearchInputFocus()) return;
+        if (header?.hasSearchInputFocus()) return;
 
         if (e.key == "Control") {
             return;
@@ -1278,11 +1292,11 @@
         if (headerState.pathEditing) return resolve_input_edit(e);
         if ($appState.prefVisible) return resolve_input_edit(e);
         if ($appState.symlinkVisible) return resolve_input_edit(e);
-        if (header.hasSearchInputFocus()) return resolve_input_edit(e);
+        if (header?.hasSearchInputFocus()) return resolve_input_edit(e);
 
         if (e.ctrlKey && e.key == "f") {
             e.preventDefault();
-            header.focusSearchInput();
+            header?.focusSearchInput();
             return;
         }
 
@@ -1533,6 +1547,8 @@
 
         const e = await main.onMainReady("viewContent");
 
+        ready = true;
+
         await main.changeTheme(data.theme);
         await main.changeAppMenuItems();
 
@@ -1572,73 +1588,75 @@
 <svelte:window oncontextmenu={(e) => e.preventDefault()} />
 <svelte:document {onkeydown} {onkeyup} onmousemove={onMouseMove} onmousedown={onMouseDown} onmouseup={onMouseUp} ondragover={onDragOver} ondragenter={onDragEnter} ondragleave={onDragLeave} />
 
-<div class="viewport" class:sliding={slideState.sliding}>
-    <TopBar {minimize} {toggleMaximize} {launchNew} {close} />
-    <div class="view">
-        {#if $appState.prefVisible}
-            <Preference changeAppMenuItems={main.changeAppMenuItems} {openSettingsAsJson} />
-        {/if}
-        {#if $appState.symlinkVisible}
-            <Symlink {getSymlinkTargetItem} {createSymlink} />
-        {/if}
-        {#if renameState.renaming}
-            <Rename {endEditFileName} />
-        {/if}
-        <Header {requestLoad} {startSearch} {endSearch} {goBack} {goForward} {goUpward} {createItem} {reload} bind:this={header} />
-        <div id="viewContent" class="body" ondragover={onDragOver} onkeydown={handleKeyEvent} role="button" tabindex="-1">
-            <Left {requestLoad} {onFavoriteContextMenu} />
-            <div class="area-divider" onmousedown={onAreaSliderMousedown} onkeydown={handleKeyEvent} role="button" tabindex="-1">
-                <div class="line"></div>
-            </div>
-            <div
-                class="main"
-                class:clipping={clipState.clipping}
-                oncontextmenu={onListContextMenu}
-                onkeydown={handleKeyEvent}
-                onscroll={endEditFileName}
-                ondragstart={startDrag}
-                role="button"
-                tabindex="-1"
-            >
-                {#if clipState.moved}
-                    <div bind:contentRect={clipRegion} class="clip-area" style={clipState.clipAreaStyle}></div>
-                {/if}
+{#if ready}
+    <div class="viewport" class:sliding={slideState.sliding}>
+        <TopBar {minimize} {toggleMaximize} {launchNew} {close} />
+        <div class="view">
+            {#if $appState.prefVisible}
+                <Preference changeAppMenuItems={main.changeAppMenuItems} {openSettingsAsJson} />
+            {/if}
+            {#if $appState.symlinkVisible}
+                <Symlink {getSymlinkTargetItem} {createSymlink} />
+            {/if}
+            {#if renameState.renaming}
+                <Rename {endEditFileName} />
+            {/if}
+            <Header {requestLoad} {startSearch} {endSearch} {goBack} {goForward} {goUpward} {createItem} {reload} bind:this={header} />
+            <div id="viewContent" class="body" ondragover={onDragOver} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+                <Left {requestLoad} {onFavoriteContextMenu} />
+                <div class="area-divider" onmousedown={onAreaSliderMousedown} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+                    <div class="line"></div>
+                </div>
+                <div
+                    class="main"
+                    class:clipping={clipState.clipping}
+                    oncontextmenu={onListContextMenu}
+                    onkeydown={handleKeyEvent}
+                    onscroll={endEditFileName}
+                    ondragstart={startDrag}
+                    role="button"
+                    tabindex="-1"
+                >
+                    {#if clipState.moved}
+                        <div bind:contentRect={clipRegion} class="clip-area" style={clipState.clipAreaStyle}></div>
+                    {/if}
 
-                {#if listState.isHome}
-                    <Home {requestLoad} />
-                {:else if $appState.isInGridView}
-                    <GridView
-                        {visibleStartIndex}
-                        {visibleEndIndex}
-                        bind:fileListContainer
-                        bind:virtualList
-                        {searchHighlight}
-                        {clipMouseEnter}
-                        {clipMouseLeave}
-                        {onRowClick}
-                        {onSelect}
-                        {colDetailMouseDown}
-                        {onScroll}
-                    />
-                {:else}
-                    <ListView
-                        {visibleStartIndex}
-                        {visibleEndIndex}
-                        bind:fileListContainer
-                        bind:virtualList
-                        {searchHighlight}
-                        {clipMouseEnter}
-                        {clipMouseLeave}
-                        {onRowClick}
-                        {onSelect}
-                        {onColumnHeaderClick}
-                        {colDetailMouseDown}
-                        {onScroll}
-                        {onColumnContextMenu}
-                    />
-                {/if}
+                    {#if listState.isHome}
+                        <Home {requestLoad} />
+                    {:else if $appState.isInGridView}
+                        <GridView
+                            {visibleStartIndex}
+                            {visibleEndIndex}
+                            bind:fileListContainer
+                            bind:virtualList
+                            {searchHighlight}
+                            {clipMouseEnter}
+                            {clipMouseLeave}
+                            {onRowClick}
+                            {onSelect}
+                            {colDetailMouseDown}
+                            {onScroll}
+                        />
+                    {:else}
+                        <ListView
+                            {visibleStartIndex}
+                            {visibleEndIndex}
+                            bind:fileListContainer
+                            bind:virtualList
+                            {searchHighlight}
+                            {clipMouseEnter}
+                            {clipMouseLeave}
+                            {onRowClick}
+                            {onSelect}
+                            {onColumnHeaderClick}
+                            {colDetailMouseDown}
+                            {onScroll}
+                            {onColumnContextMenu}
+                        />
+                    {/if}
+                </div>
             </div>
         </div>
+        <BottomBar />
     </div>
-    <BottomBar />
-</div>
+{/if}

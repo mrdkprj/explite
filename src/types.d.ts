@@ -383,6 +383,9 @@ declare global {
             menuNewTextFile: string;
             menuNewDirectory: string;
             menuNewSymlink: string;
+            recycleBin: string;
+            deleteFromRecycleBinMsg: string;
+            emptyRecycleBinMsg: string;
         };
     }
 }
