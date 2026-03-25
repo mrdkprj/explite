@@ -1,5 +1,5 @@
 :root{
-    --font: "Segoe UI", "Yu Gothic UI", "Droid Sans", Ubuntu Mono, Roboto, sans-serif;
+    --font: "Segoe UI", "Yu Gothic UI", Ubuntu, Roboto, "Droid Sans", sans-serif;
     --font-size: 12px;
     --arrow-color:#7277dd;
 }

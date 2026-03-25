@@ -283,7 +283,7 @@ fn get_menu_config(theme: Theme) -> Config {
     Config {
         theme,
         font: MenuFont {
-            font_family: "Segoe UI, Yu Gothic UI, Droid Sans, Ubuntu Mono, Roboto, sans-serif".to_string(),
+            font_family: "Segoe UI, Yu Gothic UI, Ubuntu, Roboto, Droid Sans, sans-serif".to_string(),
             ..Default::default()
         },
         color: ThemeColor {
