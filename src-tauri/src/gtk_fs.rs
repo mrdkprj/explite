@@ -127,13 +127,37 @@ fn operate(operation: FileOperation, froms: Vec<String>, to: Option<String>) {
 }
 
 fn update_progress(widget: &FileOperationDialog, operation: &FileOperation, usages: &mut DiskUsages) {
-    let (messag, progress) = match operation {
-        FileOperation::Copy => ("Copying", usages.processed_size as f64 / usages.total_size as f64),
-        FileOperation::Move => ("Moving", usages.processed_size as f64 / usages.total_size as f64),
-        FileOperation::Delete => ("Deleting", usages.processed_count as f64 / usages.total_count as f64),
-        FileOperation::Trash => ("Trashing", usages.processed_count as f64 / usages.total_count as f64),
+    let (messag, current, total) = match operation {
+        FileOperation::Copy => (
+            "Copying",
+            if usages.total_size == 0 {
+                usages.processed_count
+            } else {
+                usages.processed_size
+            },
+            if usages.total_size == 0 {
+                usages.total_size
+            } else {
+                usages.total_count
+            },
+        ),
+        FileOperation::Move => (
+            "Moving",
+            if usages.total_size == 0 {
+                usages.processed_count
+            } else {
+                usages.processed_size
+            },
+            if usages.total_size == 0 {
+                usages.total_size
+            } else {
+                usages.total_count
+            },
+        ),
+        FileOperation::Delete => ("Deleting", usages.processed_count, usages.total_count),
+        FileOperation::Trash => ("Trashing", usages.processed_count, usages.total_count),
     };
-    usages.progress = progress;
+    usages.progress = current as f64 / total as f64;
     let percent = usages.progress * 100.0;
     widget.set_title(&format!("{}% complete", percent.ceil()));
     widget.progress(usages.progress);
