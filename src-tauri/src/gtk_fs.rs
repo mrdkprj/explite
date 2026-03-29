@@ -58,7 +58,7 @@ fn operate(operation: FileOperation, froms: Vec<String>, to: Option<String>) {
             }
             OperationStatus::Progress(proccessed, total) => {
                 // Show widget after 3 seconds
-                if !shown && now.elapsed().as_secs() > 1 {
+                if !shown && now.elapsed().as_secs() > 3 {
                     widget.show();
                     shown = true;
                 }
@@ -75,7 +75,7 @@ fn operate(operation: FileOperation, froms: Vec<String>, to: Option<String>) {
                 if skip_or_replace != ReplaceOrSkip::ReplaceAll && skip_or_replace != ReplaceOrSkip::SkipAll {
                     skip_or_replace = dialog.confirm(&target);
                 }
-                println!("{:?}", skip_or_replace);
+
                 match skip_or_replace {
                     ReplaceOrSkip::Skip | ReplaceOrSkip::SkipAll => Response::Skip,
                     ReplaceOrSkip::Replace | ReplaceOrSkip::ReplaceAll => Response::Replace,
@@ -136,9 +136,9 @@ fn update_progress(widget: &FileOperationDialog, operation: &FileOperation, usag
                 usages.processed_size
             },
             if usages.total_size == 0 {
-                usages.total_size
-            } else {
                 usages.total_count
+            } else {
+                usages.total_size
             },
         ),
         FileOperation::Move => (
@@ -149,9 +149,9 @@ fn update_progress(widget: &FileOperationDialog, operation: &FileOperation, usag
                 usages.processed_size
             },
             if usages.total_size == 0 {
-                usages.total_size
-            } else {
                 usages.total_count
+            } else {
+                usages.total_size
             },
         ),
         FileOperation::Delete => ("Deleting", usages.processed_count, usages.total_count),

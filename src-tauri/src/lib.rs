@@ -107,7 +107,9 @@ fn trash(payload: Vec<String>) -> Result<(), String> {
         zouni::fs::trash_all(&payload)
     }
     #[cfg(target_os = "linux")]
-    gtk_fs::trash(payload)
+    {
+        gtk_fs::trash(payload)
+    }
 }
 
 #[tauri::command]
@@ -117,7 +119,9 @@ fn delete(payload: Vec<String>) -> Result<(), String> {
         zouni::fs::delete_all(&payload)
     }
     #[cfg(target_os = "linux")]
-    gtk_fs::delete(payload)
+    {
+        gtk_fs::delete(payload)
+    }
 }
 
 #[tauri::command]
@@ -148,7 +152,9 @@ fn copy(payload: CopyInfo) -> Result<(), String> {
         zouni::fs::copy_all(&payload.from, payload.to)
     }
     #[cfg(target_os = "linux")]
-    gtk_fs::copy(payload)
+    {
+        gtk_fs::copy(payload)
+    }
 }
 
 #[tauri::command]
@@ -158,7 +164,9 @@ fn mv(payload: CopyInfo) -> Result<(), String> {
         zouni::fs::mv_all(&payload.from, payload.to)
     }
     #[cfg(target_os = "linux")]
-    gtk_fs::mv(payload)
+    {
+        gtk_fs::mv(payload)
+    }
 }
 
 #[tauri::command]
