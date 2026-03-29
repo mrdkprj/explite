@@ -13,6 +13,8 @@ mod session;
 mod translate;
 mod watcher;
 use watcher::WatchTx;
+#[cfg(target_os = "linux")]
+mod gtk_fs;
 
 #[cfg(target_os = "linux")]
 fn get_window_handel(window: &WebviewWindow) -> isize {
@@ -100,12 +102,22 @@ fn get_mime_type(payload: String) -> String {
 
 #[tauri::command]
 fn trash(payload: Vec<String>) -> Result<(), String> {
-    zouni::fs::trash_all(&payload)
+    #[cfg(target_os = "windows")]
+    {
+        zouni::fs::trash_all(&payload)
+    }
+    #[cfg(target_os = "linux")]
+    gtk_fs::trash(payload)
 }
 
 #[tauri::command]
 fn delete(payload: Vec<String>) -> Result<(), String> {
-    zouni::fs::delete_all(&payload)
+    #[cfg(target_os = "windows")]
+    {
+        zouni::fs::delete_all(&payload)
+    }
+    #[cfg(target_os = "linux")]
+    gtk_fs::delete(payload)
 }
 
 #[tauri::command]
@@ -131,12 +143,22 @@ struct CopyInfo {
 
 #[tauri::command]
 fn copy(payload: CopyInfo) -> Result<(), String> {
-    zouni::fs::copy_all(&payload.from, payload.to)
+    #[cfg(target_os = "windows")]
+    {
+        zouni::fs::copy_all(&payload.from, payload.to)
+    }
+    #[cfg(target_os = "linux")]
+    gtk_fs::copy(payload)
 }
 
 #[tauri::command]
 fn mv(payload: CopyInfo) -> Result<(), String> {
-    zouni::fs::mv_all(&payload.from, payload.to)
+    #[cfg(target_os = "windows")]
+    {
+        zouni::fs::mv_all(&payload.from, payload.to)
+    }
+    #[cfg(target_os = "linux")]
+    gtk_fs::mv(payload)
 }
 
 #[tauri::command]

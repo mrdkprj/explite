@@ -13,7 +13,7 @@ tauri = { version = "2.9.0", features = [ "devtools", "protocol-asset"] }
 serde = { version = "1", features = ["derive"] }
 crossbeam-channel = "0.5.15"
 notify-debouncer-full = "0.6.0"
-zouni = { version = "0.1.30", features = ["webview2", "webkit2gtk"] }
+zouni = { path = "../../zouni-test/zouni", features = ["webview2", "webkit2gtk"] }
 wcpopup = { version = "0.9.3", features = ["webview"] }
 rs-vips = "0.4.0"
 
@@ -30,6 +30,7 @@ zbus = { version = "5.12.0" }
 url = "2"
 ffmpeg-next = "7.0.0"
 md-5 = "0.10.6"
+smol = "2.0.2"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

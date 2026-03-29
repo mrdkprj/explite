@@ -1231,6 +1231,7 @@ dependencies = [
  "notify-debouncer-full",
  "rs-vips",
  "serde",
+ "smol",
  "tauri",
  "tauri-build",
  "url",
@@ -6563,8 +6564,6 @@ dependencies = [
 [[package]]
 name = "zouni"
 version = "0.1.30"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cec6efcde65988114df539f22039c0ddf2d745e2e34f573c81e130a4c0d20279"
 dependencies = [
  "bstr",
  "gio",
