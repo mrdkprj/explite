@@ -3,6 +3,7 @@ use gtk::{
     gdk_pixbuf::{traits::PixbufLoaderExt, InterpType, PixbufLoader},
     gio,
     glib::{self, clone, ObjectExt},
+    prelude::DialogExtManual,
     traits::{BoxExt, ButtonExt, CssProviderExt, DialogExt, GtkWindowExt, HeaderBarExt, LabelExt, OrientableExt, ProgressBarExt, StyleContextExt, ToggleButtonExt, WidgetExt},
     Align, CssProvider, Dialog, Label, Orientation, ProgressBar, ResponseType, STYLE_PROVIDER_PRIORITY_APPLICATION,
 };
@@ -31,17 +32,23 @@ pub fn delete(payload: Vec<String>) -> Result<(), String> {
 
 fn operate(operation: FileOperation, froms: Vec<String>, to: Option<String>) {
     let (pause_tx, pause_rx) = smol::channel::bounded::<bool>(1);
-    let dialog = create_replace_confirm_dialog();
+    let confirm_dialog = create_replace_confirm_dialog();
     let widget = create_progress_dialog(&operation, "Preparing...", to.as_ref().unwrap_or(&String::new()), pause_tx);
     let now = std::time::Instant::now();
     let mut skip_or_replace = ReplaceOrSkip::Replace;
     let mut usages = DiskUsages::default();
     let mut shown = false;
 
-    let signal = zouni::fs::operate(operation, &froms, to, move |msg| {
+    zouni::fs::operate(operation, &froms, to, async move |msg| {
         if widget.cancelled() {
             widget.close();
             return Response::Cancel;
+        }
+
+        if let Ok(pause) = pause_rx.try_recv() {
+            if pause {
+                let _ = pause_rx.recv().await;
+            }
         }
 
         match msg {
@@ -73,13 +80,16 @@ fn operate(operation: FileOperation, froms: Vec<String>, to: Option<String>) {
             }
             OperationStatus::Confirm(target) => {
                 if skip_or_replace != ReplaceOrSkip::ReplaceAll && skip_or_replace != ReplaceOrSkip::SkipAll {
-                    skip_or_replace = dialog.confirm(&target);
+                    skip_or_replace = confirm_dialog.confirm(&target).await;
                 }
 
                 match skip_or_replace {
                     ReplaceOrSkip::Skip | ReplaceOrSkip::SkipAll => Response::Skip,
                     ReplaceOrSkip::Replace | ReplaceOrSkip::ReplaceAll => Response::Replace,
-                    ReplaceOrSkip::Cancel => Response::Cancel,
+                    ReplaceOrSkip::Cancel => {
+                        widget.close();
+                        Response::Cancel
+                    }
                 }
             }
             OperationStatus::End => {
@@ -107,23 +117,6 @@ fn operate(operation: FileOperation, froms: Vec<String>, to: Option<String>) {
             }
         }
     });
-
-    smol::spawn(async move {
-        loop {
-            if signal.is_closed() {
-                break;
-            }
-
-            if let Ok(pause) = pause_rx.try_recv() {
-                if pause {
-                    signal.pause();
-                    let _ = pause_rx.recv().await;
-                    signal.resume();
-                }
-            }
-        }
-    })
-    .detach();
 }
 
 fn update_progress(widget: &FileOperationDialog, operation: &FileOperation, usages: &mut DiskUsages) {
@@ -483,10 +476,10 @@ fn response_to_enum(response: &ResponseType) -> ReplaceOrSkip {
 }
 
 impl FileReplaceDialog {
-    pub(crate) fn confirm(&self, file: &str) -> ReplaceOrSkip {
+    pub(crate) async fn confirm(&self, file: &str) -> ReplaceOrSkip {
         self.file_name.set_text(file);
         self.message.show_all();
-        let response = self.message.run();
+        let response = self.message.run_future().await;
         self.message.hide();
         response_to_enum(&response)
     }
