@@ -52,7 +52,7 @@
     let pathWidth = $state(0);
     let dropdownPosition = $state({ left: 0, top: 0 });
     let showHiddenPaths = $state(false);
-    let showCreateDir = $state(false);
+    let isCreateDialogOpen = $state(false);
 
     type Paths = {
         overflownPaths: string[];
@@ -203,10 +203,10 @@
         node.focus();
     };
 
-    const showCreateDirDialog = (e: MouseEvent) => {
+    const showCreateDialog = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
         dropdownPosition = { left: e.target.offsetLeft, top: e.target.offsetHeight + 5 };
-        showCreateDir = true;
+        isCreateDialogOpen = true;
     };
 
     const setCreateDirDialogFocus = (node: HTMLDivElement) => {
@@ -214,7 +214,7 @@
     };
 
     const hideCreateDirDialog = () => {
-        showCreateDir = false;
+        isCreateDialogOpen = false;
     };
 
     const showSymlinkDialog = (e: MouseEvent) => {
@@ -247,7 +247,7 @@
     const onkeydown = (e: KeyboardEvent) => {
         if (e.key == "Escape") {
             showHiddenPaths = false;
-            showCreateDir = false;
+            isCreateDialogOpen = false;
         }
     };
 </script>
@@ -268,14 +268,14 @@
         </div>
         <div
             class="button {listState.isHome || headerState.search.searching ? 'disabled' : ''}"
-            class:btn-active={showCreateDir}
-            onclick={showCreateDirDialog}
+            class:btn-active={isCreateDialogOpen}
+            onclick={showCreateDialog}
             onkeydown={handleKeyEvent}
             role="button"
             tabindex="-1"
         >
             <PlusSvg />
-            {#if showCreateDir}
+            {#if isCreateDialogOpen}
                 <div
                     class="header-dropdown"
                     style="top:{dropdownPosition.top}px;left:{dropdownPosition.left}px;"

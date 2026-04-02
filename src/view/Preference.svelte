@@ -11,6 +11,7 @@
     let allowMoveColumn = $state($state.snapshot(settings.data.allowMoveColumn));
     let useOSIcon = $state($state.snapshot(settings.data.useOSIcon));
     let rememberColumns = $state($state.snapshot(settings.data.rememberColumns));
+    let treeView = $state($state.snapshot(settings.data.treeView));
 
     const addMenuItem = () => {
         appMenuItems.push({
@@ -46,7 +47,7 @@
         if (save) {
             const newAppMenuItems = appMenuItems.filter((item) => item.path != "");
             const appMenuItemChanged = isAppMenuItemChanged(newAppMenuItems);
-            dispatch({ type: "setPreference", value: { theme, appMenuItems: appMenuItems.filter((item) => item.path != ""), allowMoveColumn, useOSIcon, rememberColumns } });
+            dispatch({ type: "setPreference", value: { theme, appMenuItems: appMenuItems.filter((item) => item.path != ""), allowMoveColumn, useOSIcon, rememberColumns, treeView } });
             if (appMenuItemChanged) {
                 changeAppMenuItems();
             }
@@ -83,6 +84,9 @@
 
             <div class="dialog-title-block">View</div>
             <div class="dialog-item-block"></div>
+            <div class="dialog-item">
+                <input id="treeView" type="checkbox" bind:checked={treeView} /><label for="treeView">TreeView</label>
+            </div>
             <div class="dialog-item">
                 <input id="rememberColumns" type="checkbox" bind:checked={rememberColumns} /><label for="rememberColumns">Remember column settings</label>
             </div>

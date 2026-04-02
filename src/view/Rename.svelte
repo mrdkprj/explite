@@ -34,7 +34,7 @@
     };
 </script>
 
-{#if $appState.isInGridView}
+{#if $appState.isGridView}
     <div class="rename-textarea" style="width:{renameState.rect.width}px;top:{renameState.rect.top}px; left:{renameState.rect.left}px;">
         <textarea
             class="text rename"

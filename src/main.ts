@@ -121,7 +121,7 @@ class Main {
         };
     };
 
-    readFiles = async (directory: string): Promise<Mp.ReadResult> => {
+    readFiles = async (directory: string, watch = true): Promise<Mp.ReadResult> => {
         this.searchBackup = [];
 
         if (util.isHome(directory)) {
@@ -154,7 +154,9 @@ class Main {
                 });
             }
 
-            this.startWatch(directory);
+            if (watch) {
+                this.startWatch(directory);
+            }
 
             return {
                 done: true,
@@ -406,7 +408,7 @@ class Main {
     };
 
     renameItem = async (fullPath: string, rawNewName: string): Promise<Mp.RenameResult> => {
-        const newName = rawNewName.trimEnd();
+        const newName = fullPath.endsWith(".lnk") ? `${rawNewName.trimEnd()}.lnk` : rawNewName.trimEnd();
         const newPath = path.join(path.dirname(fullPath), newName);
 
         try {

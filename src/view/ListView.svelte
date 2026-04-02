@@ -20,6 +20,7 @@
         colDetailMouseDown,
         onScroll,
         onColumnContextMenu,
+        toggleExpand,
     }: {
         visibleStartIndex: number;
         visibleEndIndex: number;
@@ -34,6 +35,7 @@
         colDetailMouseDown: (e: MouseEvent) => void;
         onScroll: () => Promise<void>;
         onColumnContextMenu: (e: MouseEvent) => Promise<void>;
+        toggleExpand: (e: Mp.MediaFile, expand: boolean) => void;
     } = $props();
 
     const shouldDisplayColumn = (key: Mp.SortKey) => {
@@ -90,7 +92,7 @@
         >
             {#each listState.columns as column}
                 {#if column.sortKey == "name"}
-                    <div class="col-detail" data-file-id={item.id} style="width: {column.width}px;">
+                    <div class="col-detail" data-file-id={item.id} style="width: {column.width - 20 * (item.treeState?.level ?? 0)}px; margin-left: {20 * (item.treeState?.level ?? 0)}px;">
                         <div
                             class="entry-name draggable"
                             title={headerState.search.searching ? item.fullPath : item.name}
@@ -99,6 +101,23 @@
                             role="button"
                             tabindex="-1"
                         >
+                            {#if $appState.isTreeview}
+                                {#if item.fileType == "Folder"}
+                                    <div class="exp" onclick={() => toggleExpand(item, !item.treeState?.opened)} onkeydown={handleKeyEvent} data-file-id={item.id} role="button" tabindex="-1">
+                                        {#if item.treeState?.opened}
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-caret-down-fill" viewBox="0 0 16 16">
+                                                <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z" />
+                                            </svg>
+                                        {:else}
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-caret-right-fill" viewBox="0 0 16 16">
+                                                <path d="m12.14 8.753-5.482 4.796c-.646.566-1.658.106-1.658-.753V3.204a1 1 0 0 1 1.659-.753l5.48 4.796a1 1 0 0 1 0 1.506z" />
+                                            </svg>
+                                        {/if}
+                                    </div>
+                                {:else}
+                                    <div class="padder"></div>
+                                {/if}
+                            {/if}
                             <div
                                 class="icon"
                                 class:folder={item.entityType == "Folder" || item.entityType == "SymlinkFolder"}
@@ -163,3 +182,20 @@
     {/snippet}
     {#snippet empty()}{/snippet}
 </VirtualList>
+
+<style>
+    .exp {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .padder {
+        min-width: 15px;
+        height: 10px;
+    }
+    .exp svg {
+        width: 10px;
+        height: 10px;
+    }
+</style>

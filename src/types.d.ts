@@ -108,6 +108,7 @@ declare global {
             appMenuItems: AppMenuItem[];
             useOSIcon: boolean;
             rememberColumns: boolean;
+            treeView: boolean;
         };
 
         type Preference = {
@@ -162,6 +163,13 @@ declare global {
             ddateString: string;
             originalPath: string;
             mimeType: string;
+            treeState?: TreeState;
+        };
+
+        type TreeState = {
+            level: number;
+            opened: boolean;
+            root: string;
         };
 
         type ReadyEvent = {

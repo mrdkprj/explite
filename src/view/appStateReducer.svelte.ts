@@ -8,7 +8,7 @@ import { ClipUpdater } from "../states/clipState.svelte";
 import { driveState, DriveUpdater } from "../states/driveState.svelte";
 import { headerState, HeaderUpdater } from "../states/headerState.svelte";
 import { SlidUpdater, slideState } from "../states/slideState.svelte";
-import { settings, SettingsUpdater } from "../states/settingsState.svelte";
+import { PreferenceAction, settings, SettingsUpdater } from "../states/settingsState.svelte";
 export { listState } from "../states/listState.svelte";
 export { renameState } from "../states/renameState.svelte";
 export { clipState } from "../states/clipState.svelte";
@@ -51,8 +51,9 @@ type AppState = {
     incrementalKey: string;
     prefVisible: boolean;
     symlinkVisible: boolean;
-    isInGridView: boolean;
+    isGridView: boolean;
     scrolling: boolean;
+    isTreeview: boolean;
 };
 
 export const initialAppState: AppState = {
@@ -70,8 +71,9 @@ export const initialAppState: AppState = {
     incrementalKey: "",
     prefVisible: false,
     symlinkVisible: false,
-    isInGridView: false,
+    isGridView: false,
     scrolling: false,
+    isTreeview: false,
 };
 
 type AppAction =
@@ -117,7 +119,7 @@ type AppAction =
     | { type: "endDrag" }
     | { type: "startRename"; value: { rect: Mp.PartialRect; oldName: string; fullPath: string; uuid: string } }
     | { type: "endRename" }
-    | { type: "setPreference"; value: { theme: Mp.Theme; appMenuItems: Mp.AppMenuItem[]; allowMoveColumn: boolean; useOSIcon: boolean; rememberColumns: boolean } }
+    | { type: "setPreference"; value: PreferenceAction }
     | { type: "togglePreference" }
     | { type: "toggleCreateSymlink" }
     | { type: "toggleGridView"; value: boolean }
@@ -129,6 +131,8 @@ type AppAction =
     | { type: "columns"; value: Mp.Column[] }
     | { type: "updateIconCache"; value: { key: string; small: string; large: string } }
     | { type: "updateDrives"; value: Mp.DriveInfo[] }
+    | { type: "expand"; value: { directory: Mp.MediaFile; children: Mp.MediaFile[] } }
+    | { type: "collapse"; value: Mp.MediaFile }
     | { type: "load"; value: { event: Mp.LoadEvent } };
 
 const updater = (state: AppState, action: AppAction): AppState => {
@@ -140,6 +144,7 @@ const updater = (state: AppState, action: AppAction): AppState => {
 
         case "setPreference":
             SettingsUpdater.updatePreference(action.value);
+            state.isTreeview = action.value.treeView;
             return state;
 
         case "pathEditing": {
@@ -301,7 +306,7 @@ const updater = (state: AppState, action: AppAction): AppState => {
         case "toggleCreateSymlink":
             return { ...state, symlinkVisible: !state.symlinkVisible };
         case "toggleGridView":
-            return { ...state, isInGridView: action.value };
+            return { ...state, isGridView: action.value };
 
         case "scrolling":
             return { ...state, scrolling: action.value };
@@ -324,6 +329,12 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return state;
         case "updateSortType":
             ListUpdater.updateSortType(action.value);
+            return state;
+        case "expand":
+            ListUpdater.appendChildren(action.value.directory, action.value.children);
+            return state;
+        case "collapse":
+            ListUpdater.removeChildren(action.value);
             return state;
 
         case "settings":

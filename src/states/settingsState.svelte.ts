@@ -9,7 +9,7 @@ const state: SettingsState = $state({ data: DEFAULT_SETTINGS });
 
 export { state as settings };
 
-type PreferenceAction = { theme: Mp.Theme; appMenuItems: Mp.AppMenuItem[]; allowMoveColumn: boolean; useOSIcon: boolean; rememberColumns: boolean };
+export type PreferenceAction = { theme: Mp.Theme; appMenuItems: Mp.AppMenuItem[]; allowMoveColumn: boolean; useOSIcon: boolean; rememberColumns: boolean; treeView: boolean };
 
 export class SettingsUpdater {
     static updatePreference = (action: PreferenceAction) => {
@@ -18,6 +18,7 @@ export class SettingsUpdater {
         state.data.appMenuItems = action.appMenuItems;
         state.data.useOSIcon = action.useOSIcon;
         state.data.rememberColumns = action.rememberColumns;
+        state.data.treeView = action.treeView;
     };
 
     static updateColumnSetting = (sortType: Mp.SortType | null, columns: Mp.Column[] | null) => {

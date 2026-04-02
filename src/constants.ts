@@ -31,6 +31,7 @@ export const DEFAULT_SETTINGS: Mp.Settings = {
     appMenuItems: [],
     useOSIcon: false,
     rememberColumns: true,
+    treeView: false,
 };
 
 export const BROWSER_SHORTCUT_KEYS = ["f", "p", "r", "+", "-", "u", "g", "j"];

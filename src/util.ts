@@ -342,6 +342,39 @@ class Util {
         return asc ? files.sort((a, b) => this.localCompareName(a, b, sortKey)) : files.sort((a, b) => this.localCompareName(b, a, sortKey));
     }
 
+    sortByGroup(files: Mp.MediaFile[], asc: boolean, sortKey: Mp.SortKey) {
+        if (!files.length) return;
+
+        const itemsToSort: Mp.MediaFile[] = [];
+        const childMap: { [key: string]: Mp.MediaFile[] } = {};
+        files.forEach((item) => {
+            if (item.treeState == undefined || item.treeState?.level == 0) {
+                itemsToSort.push(item);
+            } else {
+                if (item.treeState.root in childMap) {
+                    childMap[item.treeState.root].push(item);
+                } else {
+                    childMap[item.treeState.root] = [item];
+                }
+            }
+        });
+
+        this.sort(itemsToSort, asc, sortKey);
+
+        let index = 0;
+        itemsToSort.forEach((item) => {
+            files[index] = item;
+            index++;
+            if (item.fullPath in childMap) {
+                const children = childMap[item.fullPath];
+                children.forEach((child) => {
+                    files[index] = child;
+                    index++;
+                });
+            }
+        });
+    }
+
     toSorted(files: Mp.MediaFile[], asc: boolean, sortKey: Mp.SortKey) {
         if (!files.length) return files;
 

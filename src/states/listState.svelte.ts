@@ -43,6 +43,33 @@ export class ListUpdater {
         state.files = [];
     };
 
+    static appendChildren = (parent: Mp.MediaFile, files: Mp.MediaFile[]) => {
+        const index = state.files.findIndex((file) => file.id == parent.id);
+
+        if (index >= 0) {
+            const target = state.files[index];
+            const info = target.treeState ?? { level: 0, opened: true, root: target.fullPath };
+            info.opened = true;
+            target.treeState = info;
+
+            files.forEach((file) => (file.treeState = { level: info.level + 1, opened: false, root: info.root }));
+            this.sort(files);
+            state.files.splice(index + 1, 0, ...files);
+        }
+    };
+
+    static removeChildren = (parent: Mp.MediaFile) => {
+        const index = state.files.findIndex((file) => file.id == parent.id);
+        if (index >= 0) {
+            const childresn = state.files.filter((file) => file.fullPath.startsWith(parent.fullPath));
+            const target = state.files[index];
+            state.files.splice(index + 1, childresn.length - 1);
+            if (target.treeState?.level == 0) {
+                target.treeState = undefined;
+            }
+        }
+    };
+
     private static changeDirectory = (directory: string) => {
         if (state.currentDir.fullPath != directory) {
             state.currentDir = {
@@ -51,25 +78,25 @@ export class ListUpdater {
             };
             state.isHome = util.isHome(directory);
             state.isRecycleBin = util.isRecycleBin(directory);
-            ListUpdater.swichColumns();
+            this.swichColumns();
             SettingsUpdater.validateColumnHistory(directory);
         }
     };
 
     static sort = (files: Mp.MediaFile[]) => {
         if (files.length) {
-            util.sort(files, state.sortType.asc, state.sortType.key);
+            settings.data.treeView ? util.sortByGroup(files, state.sortType.asc, state.sortType.key) : util.sort(files, state.sortType.asc, state.sortType.key);
         }
     };
 
     static replaceFiles = (files: Mp.MediaFile[]) => {
-        ListUpdater.sort(files);
+        this.sort(files);
         state.files = files;
     };
 
     static load = (e: Mp.LoadEvent) => {
-        ListUpdater.changeDirectory(e.directory);
-        ListUpdater.sort(e.files);
+        this.changeDirectory(e.directory);
+        this.sort(e.files);
         state.files = e.files;
     };
 

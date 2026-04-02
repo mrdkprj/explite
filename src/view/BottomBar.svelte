@@ -8,7 +8,7 @@
     const GB = 1.049e6;
 
     const toggleViewMode = () => {
-        dispatch({ type: "toggleGridView", value: !$appState.isInGridView });
+        dispatch({ type: "toggleGridView", value: !$appState.isGridView });
     };
 
     let fileCount = $derived.by(() => {
@@ -48,7 +48,7 @@
         <div class="file-size">{fileSize}</div>
     </div>
     <div class="mode-area">
-        {#if $appState.isInGridView}
+        {#if $appState.isGridView}
             <div class="button" class:disabled={listState.isHome || listState.isRecycleBin} onclick={toggleViewMode} onkeydown={handleKeyEvent} role="button" tabindex="-1">
                 <ListSvg />
             </div>

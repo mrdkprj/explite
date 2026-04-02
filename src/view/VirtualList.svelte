@@ -63,7 +63,7 @@
         if (mounted) untrack(() => refresh(currentItemsLength));
     });
 
-    async function refresh(itemLength: number) {
+    const refresh = async (itemLength: number) => {
         const isStartOverflow = itemLength < start;
 
         if (isStartOverflow) {
@@ -102,9 +102,9 @@
         if (rows.length && onRefresh) {
             onRefresh(rows);
         }
-    }
+    };
 
-    async function handle_scroll() {
+    const handle_scroll = async () => {
         if (onScroll) {
             await onScroll();
         }
@@ -165,9 +165,9 @@
                 // more. maybe we can just call handle_scroll again?
             });
         }
-    }
+    };
 
-    export async function scrollToIndex(index: number, opts: ScrollToOptions, alignBottom?: boolean) {
+    export const scrollToIndex = async (index: number, opts: ScrollToOptions, alignBottom?: boolean) => {
         const scrollTop = viewport.scrollTop + vmargin;
         const itemsDelta = alignBottom ? Math.max(1, index - start) : index - start;
         const _itemHeight = itemHeight || average_height;
@@ -186,16 +186,16 @@
         // Should await scrollend
         scrollPromise = new Deferred();
         return await scrollPromise.promise;
-    }
+    };
 
-    export async function scrollBy(x: number, y: number) {
+    export const scrollBy = async (x: number, y: number) => {
         // Should calculate and update padding-top before scroll
         await handle_scroll();
         viewport.scrollBy(x, y);
         // Should await scrollend
         scrollPromise = new Deferred();
         return await scrollPromise.promise;
-    }
+    };
 
     // trigger initial refresh
     onMount(() => {

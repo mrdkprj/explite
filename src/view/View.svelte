@@ -118,10 +118,11 @@
         // If not rendered
         if (!element) {
             const index = listState.files.findIndex((file) => file.id == id);
-            if (index <= visibleStartIndex) {
-                await virtualList.scrollToIndex(index, { behavior: "instant" }, false);
-            } else {
+
+            if (index < visibleStartIndex) {
                 await virtualList.scrollToIndex(index, { behavior: "instant" }, true);
+            } else {
+                await virtualList.scrollToIndex(index, { behavior: "instant" }, false);
             }
             return;
         }
@@ -129,7 +130,7 @@
         const rect = element.getBoundingClientRect();
         const containerRect = fileListContainer.getBoundingClientRect();
 
-        const containerTop = $appState.isInGridView ? containerRect.top + GRID_VERTICAL_MARGIN : containerRect.top + COLUMN_HEADER_HEIGHT;
+        const containerTop = $appState.isGridView ? containerRect.top + GRID_VERTICAL_MARGIN : containerRect.top + COLUMN_HEADER_HEIGHT;
         const scrollHeight = fileListContainer.offsetHeight - fileListContainer.clientHeight;
         const containerBottom = containerRect.bottom - scrollHeight;
 
@@ -248,6 +249,8 @@
     };
 
     const sortItems = async (key: Mp.SortKey) => {
+        // if ($appState.isTreeview) return;
+
         dispatch({ type: "updateSortType", value: key });
         dispatch({ type: "updateColumnSetting", value: { sortType: listState.sortType, columns: null } });
         dispatch({ type: "sortInPlace", value: listState.files });
@@ -565,7 +568,7 @@
     };
 
     const getNextItemId = (key: string, currentIndex: number) => {
-        if (!$appState.isInGridView) {
+        if (!$appState.isGridView) {
             return key === "ArrowDown" ? listState.files[currentIndex + 1]?.id : listState.files[currentIndex - 1]?.id;
         }
 
@@ -612,8 +615,8 @@
         const rect = selectedElement.getBoundingClientRect();
 
         const gridColumnPaddings = 5;
-        const horizontalPadding = $appState.isInGridView ? gridColumnPaddings : INPUT_TEXT_BORDER_WIDTH;
-        const verticalPadding = $appState.isInGridView ? 0 : INPUT_TEXT_BORDER_WIDTH;
+        const horizontalPadding = $appState.isGridView ? gridColumnPaddings : INPUT_TEXT_BORDER_WIDTH;
+        const verticalPadding = $appState.isGridView ? 0 : INPUT_TEXT_BORDER_WIDTH;
 
         const partialRect = {
             top: rect.top - verticalPadding,
@@ -626,7 +629,7 @@
             type: "startRename",
             value: {
                 rect: partialRect,
-                oldName: path.basename(file.fullPath),
+                oldName: file.name,
                 fullPath: file.fullPath,
                 uuid: file.uuid,
             },
@@ -872,7 +875,7 @@
         const searchTextHighlight = new Highlight();
 
         Array.from(rows).forEach((node) => {
-            if ($appState.isInGridView) {
+            if ($appState.isGridView) {
                 Array.from(node.children).forEach((node) => setHighlight(searchTextHighlight, node));
             } else {
                 setHighlight(searchTextHighlight, node);
@@ -935,6 +938,17 @@
 
     const redo = async () => {
         await main.redo();
+    };
+
+    const toggleExpand = async (directory: Mp.MediaFile, expand: boolean) => {
+        if (expand) {
+            const result = await main.readFiles(directory.fullPath, false);
+            if (result.done) {
+                dispatch({ type: "expand", value: { directory, children: result.files } });
+            }
+        } else {
+            dispatch({ type: "collapse", value: directory });
+        }
     };
 
     const onSelect = (e: MouseEvent) => {
@@ -1074,7 +1088,9 @@
         }
 
         if ($appState.selection.selectedIds.length) {
-            await select($appState.selection.selectedIds[0]);
+            if (listState.files.some((file) => file.id == $appState.selection.selectedIds[0])) {
+                await select($appState.selection.selectedIds[0]);
+            }
         }
     };
 
@@ -1345,7 +1361,7 @@
         if (e.ctrlKey && e.key === "t") {
             if (!listState.isHome && !listState.isRecycleBin) {
                 e.preventDefault();
-                return dispatch({ type: "toggleGridView", value: !$appState.isInGridView });
+                return dispatch({ type: "toggleGridView", value: !$appState.isGridView });
             }
         }
 
@@ -1623,7 +1639,7 @@
 
                     {#if listState.isHome}
                         <Home {requestLoad} />
-                    {:else if $appState.isInGridView}
+                    {:else if $appState.isGridView}
                         <GridView
                             {visibleStartIndex}
                             {visibleEndIndex}
@@ -1652,6 +1668,7 @@
                             {colDetailMouseDown}
                             {onScroll}
                             {onColumnContextMenu}
+                            {toggleExpand}
                         />
                     {/if}
                 </div>
