@@ -18,6 +18,7 @@ type ListState = {
     adjustedWidths: MaxColumnWidths;
     sortType: Mp.SortType;
     clientWidth: number;
+    expandedDir: { [key: string]: number };
 };
 
 const state: ListState = $state({
@@ -32,6 +33,7 @@ const state: ListState = $state({
     adjustedWidths: { ddate: 0, directory: 0, name: 0, mdate: 0, cdate: 0, size: 0, extension: 0, orig_path: 0 },
     sortType: DEFAULT_SORT_TYPE,
     clientWidth: 0,
+    expandedDir: {},
 });
 
 export { state as listState };
@@ -48,12 +50,13 @@ export class ListUpdater {
 
         if (index >= 0) {
             const target = state.files[index];
-            const info = target.treeState ?? { level: 0, opened: true, root: target.fullPath };
+            const info = target.treeState ?? { level: 0, opened: true };
             info.opened = true;
             target.treeState = info;
+            state.expandedDir[util.getRealPath(target)] = info.level + 1;
 
-            files.forEach((file) => (file.treeState = { level: info.level + 1, opened: false, root: info.root }));
-            this.sort(files);
+            files.forEach((file) => (file.treeState = { level: info.level + 1, opened: false }));
+            util.sort(files, state.sortType.asc, state.sortType.key);
             state.files.splice(index + 1, 0, ...files);
         }
     };
@@ -61,13 +64,28 @@ export class ListUpdater {
     static removeChildren = (parent: Mp.MediaFile) => {
         const index = state.files.findIndex((file) => file.id == parent.id);
         if (index >= 0) {
-            const childresn = state.files.filter((file) => file.fullPath.startsWith(parent.fullPath));
+            const childresn = state.files.filter((file) => util.getRealPath(file).startsWith(util.getRealPath(parent)));
             const target = state.files[index];
             state.files.splice(index + 1, childresn.length - 1);
+            delete state.expandedDir[util.getRealPath(target)];
             if (target.treeState?.level == 0) {
                 target.treeState = undefined;
             }
         }
+    };
+
+    static clearTreeState = () => {
+        const files = state.files
+            .map((file) => {
+                // Clear treeState of root item
+                if (file.treeState && file.treeState.level == 0) {
+                    file.treeState = undefined;
+                }
+                return file;
+            })
+            .filter((file) => !file.treeState);
+        state.expandedDir = {};
+        state.files = files;
     };
 
     private static changeDirectory = (directory: string) => {

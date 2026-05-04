@@ -339,7 +339,7 @@ const updater = (state: AppState, action: AppAction): AppState => {
 
         case "settings":
             settings.data = action.value;
-            return state;
+            return { ...state, isTreeview: action.value.treeView };
         case "isMaximized":
             settings.data.isMaximized = action.value;
             return state;

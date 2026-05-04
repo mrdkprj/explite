@@ -18,7 +18,12 @@ export class SettingsUpdater {
         state.data.appMenuItems = action.appMenuItems;
         state.data.useOSIcon = action.useOSIcon;
         state.data.rememberColumns = action.rememberColumns;
-        state.data.treeView = action.treeView;
+        if (state.data.treeView != action.treeView) {
+            if (!action.treeView) {
+                ListUpdater.clearTreeState();
+            }
+            state.data.treeView = action.treeView;
+        }
     };
 
     static updateColumnSetting = (sortType: Mp.SortType | null, columns: Mp.Column[] | null) => {

@@ -169,7 +169,6 @@ declare global {
         type TreeState = {
             level: number;
             opened: boolean;
-            root: string;
         };
 
         type ReadyEvent = {

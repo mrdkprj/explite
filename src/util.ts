@@ -17,6 +17,7 @@ import {
     WSL_ROOT,
 } from "./constants";
 import { t } from "./translation/useTranslation";
+import { listState } from "./states/listState.svelte";
 
 type FileSize = {
     size: number;
@@ -245,11 +246,13 @@ class Util {
         const name = this.getName(fullPath);
         const actualExtension = attr.is_directory ? "" : attr.link_path ? path.extname(attr.link_path) : path.extname(fullPath);
         const size = this.getFileSize(attr.size);
+        const dir = path.dirname(fullPath);
+        const treeState = dir in listState.expandedDir ? { level: listState.expandedDir[dir], opened: false } : undefined;
 
         return {
             id: encodeURIComponent(fullPath),
             fullPath,
-            dir: path.dirname(fullPath),
+            dir,
             uuid: crypto.randomUUID(),
             name,
             mdate: attr.mtime_ms,
@@ -268,6 +271,7 @@ class Util {
             originalPath: "",
             mimeType,
             actualExtension,
+            treeState,
         };
     }
 
@@ -276,6 +280,10 @@ class Util {
             size: Math.ceil(size / 1024),
             sizeString: `${new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3, roundingPriority: "morePrecision" }).format(Math.ceil(size / 1024))} KB`,
         };
+    }
+
+    getRealPath(file: Mp.MediaFile) {
+        return file.linkPath ? file.linkPath : file.fullPath;
     }
 
     toFolder(fullPath: string): Mp.MediaFile {
@@ -347,33 +355,43 @@ class Util {
 
         const itemsToSort: Mp.MediaFile[] = [];
         const childMap: { [key: string]: Mp.MediaFile[] } = {};
+
         files.forEach((item) => {
-            if (item.treeState == undefined || item.treeState?.level == 0) {
-                itemsToSort.push(item);
-            } else {
-                if (item.treeState.root in childMap) {
-                    childMap[item.treeState.root].push(item);
+            if (item.dir in listState.expandedDir) {
+                if (item.dir in childMap) {
+                    childMap[item.dir].push(item);
                 } else {
-                    childMap[item.treeState.root] = [item];
+                    childMap[item.dir] = [item];
                 }
+            } else {
+                itemsToSort.push(item);
             }
         });
 
         this.sort(itemsToSort, asc, sortKey);
 
-        let index = 0;
+        const indexing = { index: 0 };
         itemsToSort.forEach((item) => {
-            files[index] = item;
-            index++;
-            if (item.fullPath in childMap) {
-                const children = childMap[item.fullPath];
-                children.forEach((child) => {
-                    files[index] = child;
-                    index++;
-                });
-            }
+            files[indexing.index] = item;
+            indexing.index++;
+            this.walkChildren(files, item, indexing, childMap);
         });
     }
+
+    private walkChildren = (files: Mp.MediaFile[], item: Mp.MediaFile, indexing: { index: number }, childMap: { [key: string]: Mp.MediaFile[] }) => {
+        // If item is a parent, walk through its children
+        if (this.getRealPath(item) in childMap) {
+            const children = childMap[this.getRealPath(item)];
+            children.forEach((child) => {
+                files[indexing.index] = child;
+                indexing.index++;
+                //  If child is a parent, walk through its children again
+                if (this.getRealPath(child) in childMap) {
+                    return this.walkChildren(files, child, indexing, childMap);
+                }
+            });
+        }
+    };
 
     toSorted(files: Mp.MediaFile[], asc: boolean, sortKey: Mp.SortKey) {
         if (!files.length) return files;

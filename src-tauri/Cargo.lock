@@ -4126,9 +4126,9 @@ dependencies = [
 
 [[package]]
 name = "rs-vips"
-version = "0.4.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0c8356b8f35812dcebd5b5f2544099caaf0a0142006e3a96c28deb717c8e700"
+checksum = "52bff86a769bb29a4a68a54ca68dfb8e713aa5e6c6a380d26d6878393007528c"
 dependencies = [
  "num-derive",
  "num-traits",
@@ -6563,9 +6563,9 @@ dependencies = [
 
 [[package]]
 name = "zouni"
-version = "0.1.34"
+version = "0.1.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e24ab8051b0ca413e9196c2da9fb3797c59c3452d1ab15082ce3c19c43b42b14"
+checksum = "2cc894b3a39dc138b12c61f9364a21b77d231d2041ba2e813c1437651d5e5b86"
 dependencies = [
  "bstr",
  "gio",

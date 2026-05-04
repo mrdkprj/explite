@@ -101,8 +101,8 @@
                             role="button"
                             tabindex="-1"
                         >
-                            {#if $appState.isTreeview}
-                                {#if item.fileType == "Folder"}
+                            {#if $appState.isTreeview && !listState.isRecycleBin}
+                                {#if item.entityType == "Folder" || item.entityType == "SymlinkFolder"}
                                     <div class="exp" onclick={() => toggleExpand(item, !item.treeState?.opened)} onkeydown={handleKeyEvent} data-file-id={item.id} role="button" tabindex="-1">
                                         {#if item.treeState?.opened}
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-caret-down-fill" viewBox="0 0 16 16">

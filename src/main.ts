@@ -13,7 +13,7 @@ class Main {
     private searchCache: { [key: string]: string[] } = { "": [] };
     private searchKeyword = "";
     private searchBackup: Mp.MediaFile[] = [];
-    private watchTarget = HOME;
+    private watchTargets = [HOME];
     private history = new History();
     private pendingRenameFrom = "";
 
@@ -121,12 +121,90 @@ class Main {
         };
     };
 
-    readFiles = async (directory: string, watch = true): Promise<Mp.ReadResult> => {
+    private isWatchable = (target: string) => {
+        if (util.isHome(target)) return false;
+        if (util.isRecycleBin(target)) return false;
+
+        return true;
+    };
+
+    private isNetwork = (target: string) => {
+        return util.isWsl(target);
+    };
+
+    private startWatch = async (target: string) => {
+        await this.abortWatch();
+
+        if (this.isWatchable(target)) {
+            this.watchTargets.push(target);
+            ipc.invoke("watch", { path: target, network: this.isNetwork(target) });
+        }
+    };
+
+    private abortWatch = async () => {
+        if (!this.watchTargets.length) return;
+        await Promise.all(this.watchTargets.map(async (target) => await ipc.invoke("unwatch", { path: target, network: this.isNetwork(target) })));
+        this.watchTargets = [];
+    };
+
+    private addWatch = async (target: string) => {
+        if (!this.isWatchable(target)) return;
+        if (this.watchTargets.includes(target)) return;
+
+        this.watchTargets.push(target);
+        ipc.invoke("watch", { path: target, network: this.isNetwork(target) });
+    };
+
+    unwatch = async (target: string) => {
+        if (!this.isWatchable(target)) return;
+        if (!this.watchTargets.includes(target)) return;
+
+        await ipc.invoke("unwatch", { path: target, network: this.isNetwork(target) });
+        this.watchTargets.splice(this.watchTargets.indexOf(target), 1);
+    };
+
+    readDirectory = async (directory: string): Promise<Mp.ReadResult> => {
+        try {
+            const fileMap: { [key: string]: string } = {};
+            const allDirents = await ipc.invoke("readdir", { directory, recursive: false });
+            const files = allDirents
+                .filter((dirent) => !dirent.attributes.is_system)
+                .map((dirent) => {
+                    const file = util.toFile(dirent as Dirent);
+                    if (settings.data.useOSIcon) {
+                        if (file.isFile && file.actualExtension && !(file.actualExtension in icons.cache)) {
+                            file.fileType == "App" ? (fileMap[file.name] = file.fullPath) : (fileMap[file.actualExtension] = file.fullPath);
+                        }
+                    }
+                    return file;
+                });
+
+            if (Object.keys(fileMap).length) {
+                setTimeout(() => {
+                    this.getFileIcon(fileMap);
+                });
+            }
+
+            this.addWatch(directory);
+
+            return {
+                done: true,
+                files,
+            };
+        } catch (ex: any) {
+            util.showErrorMessage(ex);
+            return {
+                done: false,
+                files: [],
+            };
+        }
+    };
+
+    private readFiles = async (directory: string): Promise<Mp.ReadResult> => {
         this.searchBackup = [];
 
         if (util.isHome(directory)) {
             this.abortWatch();
-            this.watchTarget = directory;
             return {
                 done: true,
                 files: [],
@@ -154,9 +232,7 @@ class Main {
                 });
             }
 
-            if (watch) {
-                this.startWatch(directory);
-            }
+            this.startWatch(directory);
 
             return {
                 done: true,
@@ -277,35 +353,8 @@ class Main {
         await ipc.invoke("open_property_dielog", file.fullPath);
     };
 
-    isWatchable = () => {
-        if (!this.watchTarget) return false;
-        if (util.isHome(this.watchTarget)) return false;
-        if (util.isRecycleBin(this.watchTarget)) return false;
-
-        return true;
-    };
-
-    isNetwork = () => {
-        return util.isWsl(this.watchTarget);
-    };
-
-    startWatch = (target: string) => {
-        this.abortWatch();
-        this.watchTarget = target;
-
-        if (this.isWatchable()) {
-            ipc.invoke("watch", { path: this.watchTarget, network: this.isNetwork() });
-        }
-    };
-
-    abortWatch = () => {
-        if (!this.isWatchable()) return;
-        ipc.invoke("unwatch", { path: this.watchTarget, network: this.isNetwork() });
-        this.watchTarget = "";
-    };
-
     beforeCloseWindow = async () => {
-        this.abortWatch();
+        await this.abortWatch();
         await ipc.invoke("unlisten_devices", undefined);
         await ipc.invoke("unlisten_file_drop", undefined);
     };
@@ -371,24 +420,24 @@ class Main {
         await ipc.invoke("launch_new", undefined);
     };
 
-    private getNewName = async (isFile: boolean) => {
+    private getNewName = async (directory: string, isFile: boolean) => {
         const name = isFile ? t("newFile") : t("newFolder");
-        const found = await util.exists(path.join(listState.currentDir.fullPath, isFile ? `${name}.txt` : name));
+        const found = await util.exists(path.join(directory, isFile ? `${name}.txt` : name));
         if (!found) return name;
 
         let number = 1;
         for (const _ of [...Array(100)]) {
             const uniqueName = `${name}(${number})`;
-            const found = await util.exists(path.join(listState.currentDir.fullPath, isFile ? `${uniqueName}.txt` : uniqueName));
+            const found = await util.exists(path.join(directory, isFile ? `${uniqueName}.txt` : uniqueName));
             if (!found) return uniqueName;
             number++;
         }
         return `${name}(${number})`;
     };
 
-    createItem = async (isFile: boolean): Promise<Mp.CreateItemResult> => {
-        const itemName = await this.getNewName(isFile);
-        const fullPath = path.join(listState.currentDir.fullPath, isFile ? `${itemName}.txt` : itemName);
+    createItem = async (directory: string, isFile: boolean): Promise<Mp.CreateItemResult> => {
+        const itemName = await this.getNewName(directory, isFile);
+        const fullPath = path.join(directory, isFile ? `${itemName}.txt` : itemName);
 
         try {
             if (isFile) {
@@ -636,6 +685,13 @@ class Main {
                 if (hasSearchCache) {
                     this.searchCache[listState.currentDir.fullPath] = this.searchCache[listState.currentDir.fullPath].filter((fullPath) => !e.to_paths.includes(fullPath));
                 }
+
+                e.to_paths.forEach((removed) => {
+                    if (removed in listState.expandedDir) {
+                        delete listState.expandedDir[removed];
+                    }
+                });
+
                 break;
             }
             case "Rename": {
@@ -657,6 +713,12 @@ class Main {
                 if (hasSearchCache) {
                     const index = this.searchCache[listState.currentDir.fullPath].findIndex((fullPath) => fullPath == oldFullPath);
                     this.searchCache[listState.currentDir.fullPath][index] = newFullPath;
+                }
+
+                if (oldFullPath in listState.expandedDir) {
+                    const level = listState.expandedDir[oldFullPath];
+                    listState.expandedDir[newFullPath] = level;
+                    delete listState.expandedDir[oldFullPath];
                 }
 
                 this.pendingRenameFrom = "";

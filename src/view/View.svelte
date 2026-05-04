@@ -32,6 +32,7 @@
     let visibleEndIndex = $state(0);
     let header: Header | null = $state(null);
     let folderUpdatePromise: Deferred<number> | null;
+    let operationPromise: Deferred<boolean> | null;
     // Webkit only starts
     let handleKeyUp = false;
     const webkitDnd = new WebkitDnd(navigator.userAgent);
@@ -41,6 +42,7 @@
     const settingsStore = new Settings();
     const BACKWARD: Mp.NavigationHistory[] = [];
     const FORWARD: Mp.NavigationHistory[] = [];
+    const operationStack: Mp.WatchEvent[] = [];
 
     const onListContextMenu = async (e: MouseEvent) => {
         e.preventDefault();
@@ -52,7 +54,7 @@
             const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
             let itemPath = "";
             if (file) {
-                itemPath = file.linkPath ? file.linkPath : file.fullPath;
+                itemPath = util.getRealPath(file);
             }
             if (navigator.userAgent.includes(OS.windows)) {
                 await main.openListContextMenu({ x: e.screenX, y: e.screenY }, itemPath, e.shiftKey, listState.isRecycleBin);
@@ -322,12 +324,13 @@
 
     const onFileDrop = async (e: Mp.FileDropEvent) => {
         if ($appState.dragHandler != "View") return;
+
         const dragTargetId = $appState.dragTargetId;
 
         dispatch({ type: "endDrag" });
         webkitDnd.clear();
 
-        if (listState.isHome || !e.paths) return;
+        if (listState.isHome || listState.isRecycleBin || !e.paths) return;
 
         const destPath = getDropTarget(dragTargetId);
 
@@ -349,9 +352,15 @@
 
         if (!destinationFile) return defaultTarget;
 
-        if (destinationFile.isFile) return defaultTarget;
+        if (destinationFile.isFile) {
+            if (destinationFile.dir in listState.expandedDir) {
+                return destinationFile.dir;
+            } else {
+                return defaultTarget;
+            }
+        }
 
-        return destinationFile.fullPath;
+        return util.getRealPath(destinationFile);
     };
 
     const startClip = (e: MouseEvent) => {
@@ -672,7 +681,14 @@
 
     const createItem = async (isFile: boolean) => {
         folderUpdatePromise = new Deferred();
-        const result = await main.createItem(isFile);
+        let targetDirectory = listState.currentDir.fullPath;
+        if ($appState.isTreeview && Object.keys(listState.expandedDir).length) {
+            const selectedFiles = listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+            if (selectedFiles.length && selectedFiles[0].dir in listState.expandedDir) {
+                targetDirectory = selectedFiles[0].dir;
+            }
+        }
+        const result = await main.createItem(targetDirectory, isFile);
 
         if (result.success) {
             await safePromise();
@@ -752,7 +768,12 @@
 
     const pasteItems = async () => {
         const result = await main.getPathsFromClipboard($appState.copyCutTargets.files, $appState.copyCutTargets.op);
-        if (result.fullPaths.length) {
+        if (!result.fullPaths.length) return;
+
+        if ($appState.isTreeview) {
+            const target = listState.files.find((file) => $appState.selection.selectedIds.includes(file.id));
+            await moveItems(result.fullPaths, target ? target.dir : listState.currentDir.fullPath, result.copy);
+        } else {
             await moveItems(result.fullPaths, listState.currentDir.fullPath, result.copy);
         }
     };
@@ -942,11 +963,12 @@
 
     const toggleExpand = async (directory: Mp.MediaFile, expand: boolean) => {
         if (expand) {
-            const result = await main.readFiles(directory.fullPath, false);
+            const result = await main.readDirectory(util.getRealPath(directory));
             if (result.done) {
                 dispatch({ type: "expand", value: { directory, children: result.files } });
             }
         } else {
+            await main.unwatch(util.getRealPath(directory));
             dispatch({ type: "collapse", value: directory });
         }
     };
@@ -967,7 +989,7 @@
         }
 
         if (!util.isRecycleBin(file.dir)) {
-            requestLoad(file.linkPath ? file.linkPath : file.fullPath, file.isFile, "Direct");
+            requestLoad(util.getRealPath(file), file.isFile, "Direct");
         }
     };
 
@@ -1103,7 +1125,7 @@
             case "Open": {
                 const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (!file) return;
-                const result = await main.onSelect({ fullPath: file.fullPath, isFile: file.isFile, navigation: "Direct" });
+                const result = await main.onSelect({ fullPath: util.getRealPath(file), isFile: file.isFile, navigation: "Direct" });
                 if (result) {
                     load(result);
                 }
@@ -1113,14 +1135,14 @@
             case "OpenInNewWindow": {
                 const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (!file) return;
-                await main.openInNewWindow(file.fullPath);
+                await main.openInNewWindow(util.getRealPath(file));
                 break;
             }
 
             case "SelectApp": {
                 const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (!file) return;
-                await main.showAppSelector(file.fullPath);
+                await main.showAppSelector(util.getRealPath(file));
                 break;
             }
 
@@ -1225,7 +1247,7 @@
             default: {
                 const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (!file) return;
-                await main.openFileWith(file.fullPath, e as string);
+                await main.openFileWith(util.getRealPath(file), e as string);
             }
         }
     };
@@ -1326,7 +1348,7 @@
                 const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (file) {
                     e.preventDefault();
-                    requestLoad(file.linkPath ? file.linkPath : file.fullPath, file.isFile, "Direct");
+                    requestLoad(util.getRealPath(file), file.isFile, "Direct");
                 }
                 return;
             }
@@ -1530,30 +1552,52 @@
     const onWatchEvent = async (e: Mp.WatchEvent) => {
         dispatch({ type: "clearSelection" });
 
-        const result = await main.onWatchEvent(e, $state.snapshot(listState.files));
-        if (result.pending) return;
+        // Delay operation until all events are consumed
+        if (folderUpdatePromise?.value && folderUpdatePromise.value > 0) {
+            operationStack.push(e);
+            folderUpdatePromise.value--;
+            return;
+        } else {
+            operationStack.push(e);
+        }
 
-        dispatch({ type: "replaceFiles", value: result.files });
+        // Wait until one operation ends to prevent race condition
+        if (operationPromise) {
+            await operationPromise.promise;
+        }
+
+        operationPromise = new Deferred(true);
+
+        let files = $state.snapshot(listState.files);
+        await Promise.all(
+            operationStack.map(async (e) => {
+                const result = await main.onWatchEvent(e, files);
+                if (result.pending) return null;
+                files = result.files;
+            }),
+        );
+
+        if (!files) return;
+
+        dispatch({ type: "replaceFiles", value: files });
+        await tick();
         await resolvePromise();
     };
 
     const resolvePromise = async () => {
-        if (!folderUpdatePromise) return;
-
-        if (!folderUpdatePromise.value) {
+        if (folderUpdatePromise) {
             await tick();
             folderUpdatePromise.resolve(0);
             folderUpdatePromise = null;
-            return;
         }
 
-        if (folderUpdatePromise.value == 0) {
-            await tick();
-            folderUpdatePromise.resolve(0);
-            folderUpdatePromise = null;
-        } else {
-            folderUpdatePromise.value = folderUpdatePromise.value--;
+        if (operationPromise) {
+            // Release operation
+            operationPromise.resolve(true);
+            operationPromise = null;
         }
+
+        operationStack.length = 0;
     };
 
     const prepare = async () => {
