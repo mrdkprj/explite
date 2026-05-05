@@ -247,7 +247,7 @@ class Util {
         const actualExtension = attr.is_directory ? "" : attr.link_path ? path.extname(attr.link_path) : path.extname(fullPath);
         const size = this.getFileSize(attr.size);
         const dir = path.dirname(fullPath);
-        const treeState = dir in listState.expandedDir ? { level: listState.expandedDir[dir], opened: false } : undefined;
+        const treeState: Mp.TreeState | undefined = dir in listState.expandedDir ? { level: listState.expandedDir[dir].level, opened: false, root: listState.expandedDir[dir].root } : undefined;
 
         return {
             id: encodeURIComponent(fullPath),

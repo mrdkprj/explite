@@ -644,7 +644,7 @@ class Main {
         }
     };
 
-    onWatchEvent = async (e: Mp.WatchEvent, files: Mp.MediaFile[]): Promise<Mp.WatchEventResult> => {
+    onWatchEvent = async (e: Mp.WatchEvent, files: Mp.MediaFile[]) => {
         const hasSearchCache = listState.currentDir.fullPath in this.searchCache;
 
         switch (e.operation) {
@@ -676,7 +676,8 @@ class Main {
                 break;
             }
             case "Remove": {
-                files = files.filter((file) => !e.to_paths.includes(file.fullPath));
+                const removing = e.to_paths.map((removingFullPath) => files.findIndex((file) => file.fullPath == removingFullPath));
+                removing.forEach((i) => files.splice(i, 1));
 
                 if (this.searchBackup.length) {
                     this.searchBackup = this.searchBackup.filter((file) => !e.to_paths.includes(file.fullPath));
@@ -725,11 +726,6 @@ class Main {
                 break;
             }
         }
-
-        return {
-            files,
-            pending: !!this.pendingRenameFrom,
-        };
     };
 
     private trackOperation = (operation: Mp.Operation, from: string[], to: string, target: string[], isFile = true) => {

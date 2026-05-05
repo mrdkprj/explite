@@ -5,6 +5,10 @@ import { settings, SettingsUpdater } from "./settingsState.svelte";
 import { slideState } from "./slideState.svelte";
 
 type MaxColumnWidths = { [key in Mp.SortKey]: number };
+type Expanded = {
+    level: number;
+    root: string;
+};
 
 type ListState = {
     currentDir: {
@@ -18,7 +22,7 @@ type ListState = {
     adjustedWidths: MaxColumnWidths;
     sortType: Mp.SortType;
     clientWidth: number;
-    expandedDir: { [key: string]: number };
+    expandedDir: { [key: string]: Expanded };
 };
 
 const state: ListState = $state({
@@ -49,27 +53,32 @@ export class ListUpdater {
         const index = state.files.findIndex((file) => file.id == parent.id);
 
         if (index >= 0) {
-            const target = state.files[index];
-            const info = target.treeState ?? { level: 0, opened: true };
+            const info = parent.treeState ?? { level: 0, opened: true, root: util.getRealPath(parent) };
             info.opened = true;
-            target.treeState = info;
-            state.expandedDir[util.getRealPath(target)] = info.level + 1;
+            parent.treeState = info;
+            state.expandedDir[util.getRealPath(parent)] = { level: info.level + 1, root: info.root };
 
-            files.forEach((file) => (file.treeState = { level: info.level + 1, opened: false }));
+            files.forEach((file) => (file.treeState = { level: info.level + 1, opened: false, root: info.root }));
             util.sort(files, state.sortType.asc, state.sortType.key);
             state.files.splice(index + 1, 0, ...files);
         }
     };
 
     static removeChildren = (parent: Mp.MediaFile) => {
+        if (!(util.getRealPath(parent) in state.expandedDir)) return;
+
         const index = state.files.findIndex((file) => file.id == parent.id);
         if (index >= 0) {
-            const childresn = state.files.filter((file) => util.getRealPath(file).startsWith(util.getRealPath(parent)));
-            const target = state.files[index];
-            state.files.splice(index + 1, childresn.length - 1);
-            delete state.expandedDir[util.getRealPath(target)];
-            if (target.treeState?.level == 0) {
-                target.treeState = undefined;
+            const parentDir = util.getRealPath(parent);
+            // Use root because file.startsWidth can match similar directory name
+            const childresn = state.files.filter((file) => file.treeState?.root == parentDir);
+            if (childresn.length) {
+                state.files.splice(index + 1, childresn.length - 1);
+            }
+            // Remove from expandedDir
+            delete state.expandedDir[parentDir];
+            if (parent.treeState?.level == 0) {
+                parent.treeState = undefined;
             }
         }
     };
@@ -90,6 +99,7 @@ export class ListUpdater {
 
     private static changeDirectory = (directory: string) => {
         if (state.currentDir.fullPath != directory) {
+            state.expandedDir = {};
             state.currentDir = {
                 fullPath: directory,
                 paths: util.isHome(directory) ? [] : path.split(directory),

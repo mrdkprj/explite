@@ -169,6 +169,7 @@ declare global {
         type TreeState = {
             level: number;
             opened: boolean;
+            root: string;
         };
 
         type ReadyEvent = {
@@ -342,11 +343,6 @@ declare global {
             operation: "Create" | "Remove" | "Rename";
             to_paths: string[];
             from_paths: string[];
-        };
-
-        type WatchEventResult = {
-            files: Mp.MediaFile[];
-            pending: boolean;
         };
 
         type Operation = "Copy" | "Move" | "Trash" | "Create" | "Undelete" | "Delete" | "Rename";

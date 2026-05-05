@@ -32,7 +32,6 @@
     let visibleEndIndex = $state(0);
     let header: Header | null = $state(null);
     let folderUpdatePromise: Deferred<number> | null;
-    let operationPromise: Deferred<boolean> | null;
     // Webkit only starts
     let handleKeyUp = false;
     const webkitDnd = new WebkitDnd(navigator.userAgent);
@@ -755,7 +754,9 @@
     };
 
     const moveItems = async (fullPaths: string[], dir: string, copy: boolean) => {
-        folderUpdatePromise = new Deferred(fullPaths.length - 1);
+        const count = $appState.isTreeview && dir in listState.expandedDir && !copy ? (fullPaths.length - 1) * 2 : fullPaths.length - 1;
+        console.log(count);
+        folderUpdatePromise = new Deferred(count);
         const result = await main.moveItems({ fullPaths, dir, copy });
         if (!result.done) {
             folderUpdatePromise = null;
@@ -771,8 +772,16 @@
         if (!result.fullPaths.length) return;
 
         if ($appState.isTreeview) {
+            let destination = listState.currentDir.fullPath;
             const target = listState.files.find((file) => $appState.selection.selectedIds.includes(file.id));
-            await moveItems(result.fullPaths, target ? target.dir : listState.currentDir.fullPath, result.copy);
+            if (target) {
+                if (target.isFile) {
+                    destination = target.dir;
+                } else {
+                    destination = target.fullPath;
+                }
+            }
+            await moveItems(result.fullPaths, destination, result.copy);
         } else {
             await moveItems(result.fullPaths, listState.currentDir.fullPath, result.copy);
         }
@@ -1307,6 +1316,16 @@
         }
     };
 
+    const onEscape = () => {
+        if ($appState.isTreeview) {
+            if ($appState.copyCutTargets.ids.length && $appState.selection.selectedIds.length) {
+                dispatch({ type: "clearSelection" });
+                return;
+            }
+        }
+        dispatch({ type: "clearCopyCut" });
+    };
+
     const onkeydown = async (e: KeyboardEvent) => {
         if (e.ctrlKey) {
             handleKeyUp = true;
@@ -1445,7 +1464,7 @@
 
         if (e.key == "Escape") {
             e.preventDefault();
-            dispatch({ type: "clearCopyCut" });
+            onEscape();
             return;
         }
 
@@ -1551,50 +1570,31 @@
 
     const onWatchEvent = async (e: Mp.WatchEvent) => {
         dispatch({ type: "clearSelection" });
-
+        console.log(e.operation);
         // Delay operation until all events are consumed
         if (folderUpdatePromise?.value && folderUpdatePromise.value > 0) {
             operationStack.push(e);
             folderUpdatePromise.value--;
+            console.log(folderUpdatePromise.value);
             return;
         } else {
             operationStack.push(e);
         }
 
-        // Wait until one operation ends to prevent race condition
-        if (operationPromise) {
-            await operationPromise.promise;
-        }
-
-        operationPromise = new Deferred(true);
-
         let files = $state.snapshot(listState.files);
         await Promise.all(
             operationStack.map(async (e) => {
-                const result = await main.onWatchEvent(e, files);
-                if (result.pending) return null;
-                files = result.files;
+                await main.onWatchEvent(e, files);
             }),
         );
 
-        if (!files) return;
-
         dispatch({ type: "replaceFiles", value: files });
-        await tick();
-        await resolvePromise();
-    };
 
-    const resolvePromise = async () => {
+        await tick();
+
         if (folderUpdatePromise) {
-            await tick();
             folderUpdatePromise.resolve(0);
             folderUpdatePromise = null;
-        }
-
-        if (operationPromise) {
-            // Release operation
-            operationPromise.resolve(true);
-            operationPromise = null;
         }
 
         operationStack.length = 0;
