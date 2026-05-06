@@ -755,7 +755,6 @@
 
     const moveItems = async (fullPaths: string[], dir: string, copy: boolean) => {
         const count = $appState.isTreeview && dir in listState.expandedDir && !copy ? (fullPaths.length - 1) * 2 : fullPaths.length - 1;
-        console.log(count);
         folderUpdatePromise = new Deferred(count);
         const result = await main.moveItems({ fullPaths, dir, copy });
         if (!result.done) {
@@ -1570,12 +1569,11 @@
 
     const onWatchEvent = async (e: Mp.WatchEvent) => {
         dispatch({ type: "clearSelection" });
-        console.log(e.operation);
+
         // Delay operation until all events are consumed
         if (folderUpdatePromise?.value && folderUpdatePromise.value > 0) {
             operationStack.push(e);
             folderUpdatePromise.value--;
-            console.log(folderUpdatePromise.value);
             return;
         } else {
             operationStack.push(e);
