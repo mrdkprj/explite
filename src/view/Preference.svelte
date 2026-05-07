@@ -4,7 +4,7 @@
     import JsonSvg from "../svg/JsonSvg.svelte";
     import { scale } from "svelte/transition";
 
-    let { changeAppMenuItems, openSettingsAsJson }: { changeAppMenuItems: () => Promise<void>; openSettingsAsJson: () => Promise<void> } = $props();
+    let { changeAppMenuItems, openSettingsAsJson, onClose }: { changeAppMenuItems: () => Promise<void>; openSettingsAsJson: () => Promise<void>; onClose: () => Promise<void> } = $props();
 
     let theme = $state($state.snapshot(settings.data.theme));
     let appMenuItems = $state($state.snapshot(settings.data.appMenuItems));
@@ -54,6 +54,7 @@
         }
 
         dispatch({ type: "togglePreference" });
+        onClose();
     };
 
     const setKeyboardFocus = (node: HTMLDivElement) => {

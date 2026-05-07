@@ -754,8 +754,7 @@
     };
 
     const moveItems = async (fullPaths: string[], dir: string, copy: boolean) => {
-        const count = $appState.isTreeview && dir in listState.expandedDir && !copy ? (fullPaths.length - 1) * 2 : fullPaths.length - 1;
-        folderUpdatePromise = new Deferred(count);
+        folderUpdatePromise = new Deferred(0);
         const result = await main.moveItems({ fullPaths, dir, copy });
         if (!result.done) {
             folderUpdatePromise = null;
@@ -978,6 +977,13 @@
         } else {
             await main.unwatch(util.getRealPath(directory));
             dispatch({ type: "collapse", value: directory });
+        }
+    };
+
+    const onPreferenceClose = async () => {
+        if (!$appState.isTreeview) {
+            // Abort all watch and start watch current dir only
+            await main.startWatch(listState.currentDir.fullPath);
         }
     };
 
@@ -1570,32 +1576,29 @@
     const onWatchEvent = async (e: Mp.WatchEvent) => {
         dispatch({ type: "clearSelection" });
 
-        // Delay operation until all events are consumed
-        if (folderUpdatePromise?.value && folderUpdatePromise.value > 0) {
-            operationStack.push(e);
-            folderUpdatePromise.value--;
-            return;
-        } else {
-            operationStack.push(e);
-        }
+        operationStack.push(e);
 
-        let files = $state.snapshot(listState.files);
-        await Promise.all(
-            operationStack.map(async (e) => {
-                await main.onWatchEvent(e, files);
-            }),
-        );
+        // Delay operation until batch events are consumed
+        setTimeout(async () => {
+            // Copy all data and clear
+            const operationStackLocal = [...operationStack];
+            operationStack.length = 0;
 
-        dispatch({ type: "replaceFiles", value: files });
+            let files = $state.snapshot(listState.files);
+            await Promise.all(
+                operationStackLocal.map(async (e) => {
+                    await main.onWatchEvent(e, files);
+                }),
+            );
 
-        await tick();
+            dispatch({ type: "replaceFiles", value: files });
 
-        if (folderUpdatePromise) {
+            if (!folderUpdatePromise) return;
+
+            await tick();
             folderUpdatePromise.resolve(0);
             folderUpdatePromise = null;
-        }
-
-        operationStack.length = 0;
+        }, 200);
     };
 
     const prepare = async () => {
@@ -1651,7 +1654,7 @@
         <TopBar {minimize} {toggleMaximize} {launchNew} {close} />
         <div class="view">
             {#if $appState.prefVisible}
-                <Preference changeAppMenuItems={main.changeAppMenuItems} {openSettingsAsJson} />
+                <Preference changeAppMenuItems={main.changeAppMenuItems} {openSettingsAsJson} onClose={onPreferenceClose} />
             {/if}
             {#if $appState.symlinkVisible}
                 <Symlink {getSymlinkTargetItem} {createSymlink} />

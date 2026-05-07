@@ -132,7 +132,7 @@ class Main {
         return util.isWsl(target);
     };
 
-    private startWatch = async (target: string) => {
+    startWatch = async (target: string) => {
         await this.abortWatch();
 
         if (this.isWatchable(target)) {
