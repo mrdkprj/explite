@@ -1,4 +1,3 @@
-use crossbeam_channel::{bounded, Receiver, Sender};
 use notify_debouncer_full::{
     new_debouncer, new_debouncer_opt,
     notify::{
@@ -8,6 +7,7 @@ use notify_debouncer_full::{
     DebouncedEvent,
 };
 use serde::{Deserialize, Serialize};
+use smol::channel::{bounded, Receiver, Sender};
 use std::time::Duration;
 use tauri::Emitter;
 
@@ -30,15 +30,20 @@ pub enum WatcherCommand {
     Unwatch(String, bool),
 }
 
+enum Watcher<L, R> {
+    Normal(L),
+    PollWatcher(R),
+}
+
 pub fn spwan_watcher(app_handle: &tauri::AppHandle, cmd_rx: Receiver<WatcherCommand>) -> Result<(), String> {
     let (tx, rx) = bounded(1);
     let (tx_poll, rx_poll) = bounded(1);
 
-    let mut watcher = new_debouncer(Duration::from_millis(100), None, move |res| tx.send(res).unwrap_or_default()).map_err(|e| e.to_string())?;
+    let mut watcher = new_debouncer(Duration::from_millis(100), None, move |res| tx.try_send(res).unwrap_or_default()).map_err(|e| e.to_string())?;
     let mut poll_watcher: notify_debouncer_full::Debouncer<notify_debouncer_full::notify::PollWatcher, _> = new_debouncer_opt(
         Duration::from_millis(100),
         None,
-        move |res| tx_poll.send(res).unwrap_or_default(),
+        move |res| tx_poll.try_send(res).unwrap_or_default(),
         notify_debouncer_full::RecommendedCache::new(),
         Config::default().with_poll_interval(Duration::from_secs(2)).with_follow_symlinks(false),
     )
@@ -46,51 +51,60 @@ pub fn spwan_watcher(app_handle: &tauri::AppHandle, cmd_rx: Receiver<WatcherComm
     let app_handle = app_handle.clone();
 
     tauri::async_runtime::spawn(async move {
+        while let Ok(cmd) = cmd_rx.recv().await {
+            match cmd {
+                WatcherCommand::Watch(path, network) => {
+                    if network {
+                        let _ = poll_watcher.watch(path, RecursiveMode::NonRecursive);
+                    } else {
+                        let _ = watcher.watch(path, RecursiveMode::NonRecursive);
+                    }
+                }
+                WatcherCommand::Unwatch(path, network) => {
+                    if network {
+                        let _ = poll_watcher.unwatch(path);
+                    } else {
+                        let _ = watcher.unwatch(path);
+                    }
+                }
+            }
+        }
+    });
+
+    tauri::async_runtime::spawn(async move {
         loop {
-            if let Ok(cmd) = cmd_rx.try_recv() {
-                match cmd {
-                    WatcherCommand::Watch(path, network) => {
-                        if network {
-                            let _ = poll_watcher.watch(path, RecursiveMode::NonRecursive);
-                        } else {
-                            let _ = watcher.watch(path, RecursiveMode::NonRecursive);
-                        }
-                    }
-                    WatcherCommand::Unwatch(path, network) => {
-                        if network {
-                            let _ = poll_watcher.unwatch(path);
-                        } else {
-                            let _ = watcher.unwatch(path);
-                        }
-                    }
-                }
-            }
-
-            if let Ok(event_result) = rx.try_recv() {
-                match event_result {
-                    Ok(events) => {
-                        for event in events {
-                            handle_event(&app_handle, event);
-                        }
-                    }
-                    Err(errors) => {
-                        for error in errors {
-                            eprintln!("Watcher error: {:?}", error);
+            let event = smol::future::race(async { Watcher::Normal(rx.recv().await) }, async { Watcher::PollWatcher(rx_poll.recv().await) }).await;
+            match event {
+                Watcher::Normal(result) => {
+                    if let Ok(event_result) = result {
+                        match event_result {
+                            Ok(events) => {
+                                for event in events {
+                                    handle_event(&app_handle, event);
+                                }
+                            }
+                            Err(errors) => {
+                                for error in errors {
+                                    eprintln!("Watcher error: {:?}", error);
+                                }
+                            }
                         }
                     }
                 }
-            }
 
-            if let Ok(event_result) = rx_poll.try_recv() {
-                match event_result {
-                    Ok(events) => {
-                        for event in events {
-                            handle_event(&app_handle, event);
-                        }
-                    }
-                    Err(errors) => {
-                        for error in errors {
-                            eprintln!("Watcher error: {:?}", error);
+                Watcher::PollWatcher(result) => {
+                    if let Ok(event_result) = result {
+                        match event_result {
+                            Ok(events) => {
+                                for event in events {
+                                    handle_event(&app_handle, event);
+                                }
+                            }
+                            Err(errors) => {
+                                for error in errors {
+                                    eprintln!("Watcher error: {:?}", error);
+                                }
+                            }
                         }
                     }
                 }

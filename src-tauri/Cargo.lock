@@ -1224,7 +1224,6 @@ dependencies = [
 name = "explite"
 version = "0.1.0"
 dependencies = [
- "crossbeam-channel",
  "ffmpeg-next",
  "gtk",
  "md-5",

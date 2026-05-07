@@ -296,7 +296,7 @@ fn into_buffer(rgb_frame: &Video, rotation: i32) -> Result<Vec<u8>, String> {
             pixel.push(data[offset + 2]);
         }
     }
-    VipsImage::new_from_memory_copy(&pixel, rgb_frame.width() as _, rgb_frame.height() as _, 3, rs_vips::ops::BandFormat::Uchar)
+    VipsImage::new_from_memory_copy(&pixel, rgb_frame.width() as _, rgb_frame.height() as _, 3, rs_vips::enums::BandFormat::Uchar)
         .map_err(map_vips_error)?
         .rotate(rotation as _)
         .map_err(map_vips_error)?

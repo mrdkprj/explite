@@ -19,7 +19,7 @@ pub fn setup(app: &tauri::App) {
         app.manage(session);
     }
 
-    let (tx_cmd, rx_cmd) = crossbeam_channel::bounded(5);
+    let (tx_cmd, rx_cmd) = smol::channel::bounded(5);
     app.manage(WatchTx(tx_cmd));
     watcher::spwan_watcher(app.app_handle(), rx_cmd).unwrap();
 }

@@ -354,18 +354,18 @@ struct NotifyRequest {
     network: bool,
 }
 #[tauri::command]
-fn watch(app: AppHandle, payload: NotifyRequest) -> Result<(), String> {
+async fn watch(app: AppHandle, payload: NotifyRequest) -> Result<(), String> {
     if let Some(tx) = app.try_state::<WatchTx>() {
-        tx.inner().0.send(WatcherCommand::Watch(payload.path, payload.network)).map_err(|e| e.to_string())
+        tx.inner().0.send(WatcherCommand::Watch(payload.path, payload.network)).await.map_err(|e| e.to_string())
     } else {
         Ok(())
     }
 }
 
 #[tauri::command]
-fn unwatch(app: AppHandle, payload: NotifyRequest) -> Result<(), String> {
+async fn unwatch(app: AppHandle, payload: NotifyRequest) -> Result<(), String> {
     if let Some(tx) = app.try_state::<WatchTx>() {
-        tx.inner().0.send(WatcherCommand::Unwatch(payload.path, payload.network)).map_err(|e| e.to_string())
+        tx.inner().0.send(WatcherCommand::Unwatch(payload.path, payload.network)).await.map_err(|e| e.to_string())
     } else {
         Ok(())
     }
