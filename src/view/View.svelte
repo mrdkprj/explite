@@ -970,12 +970,12 @@
 
     const toggleExpand = async (directory: Mp.MediaFile, expand: boolean) => {
         if (expand) {
-            const result = await main.readDirectory(util.getRealPath(directory));
+            const result = await main.readFiles(util.getRealPath(directory), "Add");
             if (result.done) {
                 dispatch({ type: "expand", value: { directory, children: result.files } });
             }
         } else {
-            await main.unwatch(util.getRealPath(directory));
+            await main.removeFromWatch(util.getRealPath(directory));
             dispatch({ type: "collapse", value: directory });
         }
     };
@@ -1574,13 +1574,11 @@
     };
 
     const onWatchEvent = async (e: Mp.WatchEvent) => {
-        dispatch({ type: "clearSelection" });
-
         operationStack.push(e);
 
         // Delay operation until batch events are consumed
         setTimeout(async () => {
-            // Copy all data and clear
+            // Copy all operations and clear
             const operationStackLocal = [...operationStack];
             operationStack.length = 0;
 
@@ -1598,6 +1596,10 @@
             await tick();
             folderUpdatePromise.resolve(0);
             folderUpdatePromise = null;
+            const containsSelected = files.some((file) => $appState.selection.selectedIds.includes(file.id));
+            if (!containsSelected) {
+                dispatch({ type: "clearSelection" });
+            }
         }, 200);
     };
 

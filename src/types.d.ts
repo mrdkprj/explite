@@ -354,6 +354,8 @@ declare global {
             isFile: boolean;
         };
 
+        type WatchType = "Replace" | "Add" | "None";
+
         type MessageResult = {
             button: string;
             cancelled: boolean;

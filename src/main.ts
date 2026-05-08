@@ -16,6 +16,7 @@ class Main {
     private watchTargets = [HOME];
     private history = new History();
     private pendingRenameFrom = "";
+    private fileExtensionMap: { [key: string]: string } = {};
 
     onMainReady = async (dropTagetId: string): Promise<Mp.ReadyEvent> => {
         const drives = await util.getDriveInfo();
@@ -39,11 +40,11 @@ class Main {
             if (item.isFile) {
                 selectId = item.id;
                 directory = item.dir;
-                const result = await this.readFiles(item.dir);
+                const result = await this.readFiles(item.dir, "Replace");
                 files = result.files;
             } else {
                 directory = item.fullPath;
-                const result = await this.readFiles(item.fullPath);
+                const result = await this.readFiles(item.fullPath, "Replace");
                 files = result.files;
             }
         }
@@ -111,7 +112,7 @@ class Main {
             delete this.searchCache[cacheKey];
         }
 
-        const result = await this.readFiles(directory);
+        const result = await this.readFiles(directory, "Replace");
 
         return {
             files: result.files,
@@ -155,7 +156,7 @@ class Main {
         ipc.invoke("watch", { path: target, network: this.isNetwork(target) });
     };
 
-    unwatch = async (target: string) => {
+    removeFromWatch = async (target: string) => {
         if (!this.isWatchable(target)) return;
         if (!this.watchTargets.includes(target)) return;
 
@@ -163,44 +164,7 @@ class Main {
         this.watchTargets.splice(this.watchTargets.indexOf(target), 1);
     };
 
-    readDirectory = async (directory: string): Promise<Mp.ReadResult> => {
-        try {
-            const fileMap: { [key: string]: string } = {};
-            const allDirents = await ipc.invoke("readdir", { directory, recursive: false });
-            const files = allDirents
-                .filter((dirent) => !dirent.attributes.is_system)
-                .map((dirent) => {
-                    const file = util.toFile(dirent as Dirent);
-                    if (settings.data.useOSIcon) {
-                        if (file.isFile && file.actualExtension && !(file.actualExtension in icons.cache)) {
-                            file.fileType == "App" ? (fileMap[file.name] = file.fullPath) : (fileMap[file.actualExtension] = file.fullPath);
-                        }
-                    }
-                    return file;
-                });
-
-            if (Object.keys(fileMap).length) {
-                setTimeout(() => {
-                    this.getFileIcon(fileMap);
-                });
-            }
-
-            this.addWatch(directory);
-
-            return {
-                done: true,
-                files,
-            };
-        } catch (ex: any) {
-            util.showErrorMessage(ex);
-            return {
-                done: false,
-                files: [],
-            };
-        }
-    };
-
-    private readFiles = async (directory: string): Promise<Mp.ReadResult> => {
+    readFiles = async (directory: string, watchType: Mp.WatchType): Promise<Mp.ReadResult> => {
         this.searchBackup = [];
 
         if (util.isHome(directory)) {
@@ -212,27 +176,22 @@ class Main {
         }
 
         try {
-            const fileMap: { [key: string]: string } = {};
             const allDirents = util.isRecycleBin(directory) ? await ipc.invoke("read_recycle_bin", undefined) : await ipc.invoke("readdir", { directory, recursive: false });
             const files = allDirents
                 .filter((dirent) => !dirent.attributes.is_system)
                 .map((dirent) => {
                     const file = util.isRecycleBin(directory) ? util.toFileFromRecycleBinItem(dirent as RecycleBinItem) : util.toFile(dirent as Dirent);
-                    if (settings.data.useOSIcon) {
-                        if (file.isFile && file.actualExtension && !(file.actualExtension in icons.cache)) {
-                            file.fileType == "App" ? (fileMap[file.name] = file.fullPath) : (fileMap[file.actualExtension] = file.fullPath);
-                        }
-                    }
+                    this.mutateFileExtensionMap(file);
                     return file;
                 });
 
-            if (Object.keys(fileMap).length) {
-                setTimeout(() => {
-                    this.getFileIcon(fileMap);
-                });
-            }
+            this.getFileIcon();
 
-            this.startWatch(directory);
+            if (watchType == "Replace") {
+                this.startWatch(directory);
+            } else if (watchType == "Add") {
+                this.addWatch(directory);
+            }
 
             return {
                 done: true,
@@ -247,32 +206,45 @@ class Main {
         }
     };
 
-    private getFileIcon = async (fileMap: { [key: string]: string }) => {
-        const iconInfoMap = await ipc.invoke("assoc_icons", Object.values(fileMap));
+    private mutateFileExtensionMap = (file: Mp.MediaFile) => {
+        if (!settings.data.useOSIcon) return;
 
-        Object.keys(iconInfoMap).forEach((key) => {
-            const smallArray = Uint8Array.from(iconInfoMap[key].small);
-            const smallBase64 = smallArray.toBase64();
+        if (file.isFile && file.actualExtension && !(file.actualExtension in icons.cache)) {
+            file.fileType == "App" ? (this.fileExtensionMap[file.name] = file.fullPath) : (this.fileExtensionMap[file.actualExtension] = file.fullPath);
+        }
+    };
 
-            if (iconInfoMap[key].full_path?.toLowerCase().endsWith("svg")) {
-                const small = `data:image/svg+xml;base64,${smallBase64}`;
-                const large = `data:image/svg+xml;base64,${smallBase64}`;
-                dispatch({ type: "updateIconCache", value: { key, small, large } });
-            } else {
-                const small = `data:image/png;base64,${smallBase64}`;
-                const largeArray = Uint8Array.from(iconInfoMap[key].large);
-                const largeBase64 = largeArray.toBase64();
-                const large = navigator.userAgent.includes(OS.windows) ? `data:image/png;base64,${largeBase64}` : `data:image/png;base64,${smallBase64}`;
-                dispatch({ type: "updateIconCache", value: { key, small, large } });
-            }
-        });
+    private getFileIcon = () => {
+        if (!Object.keys(this.fileExtensionMap).length) return;
+
+        setTimeout(async () => {
+            const iconInfoMap = await ipc.invoke("assoc_icons", Object.values(this.fileExtensionMap));
+
+            Object.keys(iconInfoMap).forEach((key) => {
+                const smallArray = Uint8Array.from(iconInfoMap[key].small);
+                const smallBase64 = smallArray.toBase64();
+
+                if (iconInfoMap[key].full_path?.toLowerCase().endsWith("svg")) {
+                    const small = `data:image/svg+xml;base64,${smallBase64}`;
+                    const large = `data:image/svg+xml;base64,${smallBase64}`;
+                    dispatch({ type: "updateIconCache", value: { key, small, large } });
+                } else {
+                    const small = `data:image/png;base64,${smallBase64}`;
+                    const largeArray = Uint8Array.from(iconInfoMap[key].large);
+                    const largeBase64 = largeArray.toBase64();
+                    const large = navigator.userAgent.includes(OS.windows) ? `data:image/png;base64,${largeBase64}` : `data:image/png;base64,${smallBase64}`;
+                    dispatch({ type: "updateIconCache", value: { key, small, large } });
+                }
+            });
+            this.fileExtensionMap = {};
+        }, 50);
     };
 
     reload = async (includeDrive: boolean): Promise<Mp.LoadEvent | null> => {
         if (util.isHome(listState.currentDir.fullPath)) {
             return null;
         }
-        const result = await this.readFiles(listState.currentDir.fullPath);
+        const result = await this.readFiles(listState.currentDir.fullPath, "None");
         const drives = includeDrive ? await util.getDriveInfo() : undefined;
         return {
             files: result.files,
@@ -670,6 +642,8 @@ class Main {
                     }
                 } else {
                     const newItems = await Promise.all(e.to_paths.map(async (fullPath) => await util.toFileFromPath(fullPath)));
+                    newItems.forEach((file) => this.mutateFileExtensionMap(file));
+                    this.getFileIcon();
                     files.push(...newItems);
                 }
 
