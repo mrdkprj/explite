@@ -1134,6 +1134,17 @@
         await main.openConfigFileJson(settingsStore.getFilePath());
     };
 
+    const getCurrentDirectoryPath = () => {
+        const defaultPath = listState.currentDir.fullPath;
+
+        if (!$appState.isTreeview) return defaultPath;
+
+        const file = listState.files.find((file) => $appState.selection.selectedIds.includes(file.id));
+        if (!file) return defaultPath;
+
+        return file.dir;
+    };
+
     const handleContextMenuEvent = async (e: keyof Mp.MainContextMenuSubTypeMap | keyof Mp.FavContextMenuSubTypeMap | Mp.SortKey) => {
         switch (e) {
             case "Open": {
@@ -1238,11 +1249,11 @@
                 break;
 
             case "Terminal":
-                await main.openTerminal(listState.currentDir.fullPath, false);
+                await main.openTerminal(getCurrentDirectoryPath(), false);
                 break;
 
             case "AdminTerminal":
-                await main.openTerminal(listState.currentDir.fullPath, true);
+                await main.openTerminal(getCurrentDirectoryPath(), true);
                 break;
 
             case "cdate":
