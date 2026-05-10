@@ -1554,7 +1554,7 @@
     };
 
     const delayGetDrives = async (): Promise<Mp.DriveInfo[]> => {
-        if (!util.isWin()) {
+        if (util.isWin()) {
             return await util.getDriveInfo();
         }
 
