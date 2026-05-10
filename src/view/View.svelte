@@ -1553,10 +1553,24 @@
         await view.close();
     };
 
+    const delayGetDrives = async (): Promise<Mp.DriveInfo[]> => {
+        if (!util.isWin()) {
+            return await util.getDriveInfo();
+        }
+
+        // On Linux, need to wait for the plugged device to mount
+        return new Promise((resolve, _) => {
+            setTimeout(async () => {
+                const drives = await util.getDriveInfo();
+                resolve(drives);
+            }, 200);
+        });
+    };
+
     const onDeviceEvent = async (e: Mp.DeviceEvent) => {
         if (!e.name.includes("Disk") && !e.name.includes("Storage")) return;
 
-        const drives = await util.getDriveInfo();
+        const drives = e.event == "Added" ? await delayGetDrives() : driveState.drives;
 
         if (e.event == "Removed") {
             const newMountPoints = drives.map((info) => info.path);
