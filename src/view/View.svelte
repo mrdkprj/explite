@@ -1621,8 +1621,6 @@
 
         const e = await main.onMainReady("viewContent");
 
-        ready = true;
-
         await main.changeTheme(data.theme);
         await main.changeAppMenuItems();
 
@@ -1643,6 +1641,8 @@
             await webview.setPosition(util.toPhysicalPosition(data.bounds));
         }
         await webview.show();
+
+        ready = true;
     };
 
     onMount(() => {
