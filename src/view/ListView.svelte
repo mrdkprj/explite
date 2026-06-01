@@ -92,7 +92,12 @@
         >
             {#each listState.columns as column}
                 {#if column.sortKey == "name"}
-                    <div class="col-detail" data-file-id={item.id} style="width: {column.width - 20 * (item.treeState?.level ?? 0)}px; margin-left: {20 * (item.treeState?.level ?? 0)}px;">
+                    <div
+                        class="col-detail"
+                        title={headerState.search.searching ? item.fullPath : item.name}
+                        data-file-id={item.id}
+                        style="width: {column.width - 20 * (item.treeState?.level ?? 0)}px; margin-left: {20 * (item.treeState?.level ?? 0)}px;"
+                    >
                         <div
                             class="entry-name draggable"
                             title={headerState.search.searching ? item.fullPath : item.name}
