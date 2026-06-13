@@ -64,7 +64,7 @@
     };
 </script>
 
-<div class="left" style="flex-basis: {settings.data.leftAreaWidth}px">
+<div class="left-area" style="flex-basis: {settings.data.leftAreaWidth}px">
     <div class="left-content" ondragover={(e) => e.preventDefault()} role="button" tabindex="-1">
         {#each settings.data.favorites as favorite}
             <div

@@ -553,7 +553,7 @@ struct IconInfo {
 }
 #[tauri::command]
 async fn assoc_icons(payload: Vec<String>) -> Result<HashMap<String, IconInfo>, String> {
-    helper::assoc_icons(payload)
+    helper::assoc_icons(payload).await
 }
 
 #[tauri::command]

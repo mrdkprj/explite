@@ -43,50 +43,73 @@ fn get_extension(full_path: &str) -> String {
     }
 }
 
-pub fn assoc_icons(full_paths: Vec<String>) -> Result<HashMap<String, IconInfo>, String> {
-    let mut icons = HashMap::new();
-
-    for full_path in full_paths {
-        if let Ok(icon) = zouni::shell::extract_icon(
-            &full_path,
-            Size {
-                width: 100,
-                height: 100,
-            },
-        ) {
-            #[cfg(target_os = "windows")]
-            {
-                let small = zouni::shell::extract_icon(
-                    &full_path,
-                    Size {
-                        width: 16,
-                        height: 16,
-                    },
-                )?;
-                let _ = icons.insert(
-                    get_extension(&full_path),
-                    IconInfo {
-                        full_path: None,
-                        small: small.png,
-                        large: icon.png,
-                    },
-                );
-            }
-            #[cfg(target_os = "linux")]
-            {
-                let data = std::fs::read(&icon.file).map_err(|e| e.to_string())?;
-                let _ = icons.insert(
-                    get_extension(&full_path),
-                    IconInfo {
-                        full_path: Some(icon.file),
-                        small: data.clone(),
-                        large: data.clone(),
-                    },
-                );
+pub async fn assoc_icons(full_paths: Vec<String>) -> Result<HashMap<String, IconInfo>, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let mut icons = HashMap::new();
+        for full_path in full_paths {
+            if let Ok(icon) = zouni::shell::extract_icon(
+                &full_path,
+                Size {
+                    width: 100,
+                    height: 100,
+                },
+            ) {
+                #[cfg(target_os = "windows")]
+                {
+                    let small = zouni::shell::extract_icon(
+                        &full_path,
+                        Size {
+                            width: 16,
+                            height: 16,
+                        },
+                    )?;
+                    let _ = icons.insert(
+                        get_extension(&full_path),
+                        IconInfo {
+                            full_path: None,
+                            small: small.png,
+                            large: icon.png,
+                        },
+                    );
+                }
             }
         }
+
+        Ok(icons)
     }
-    Ok(icons)
+
+    #[cfg(target_os = "linux")]
+    {
+        let (tx, rx) = smol::channel::bounded(1);
+        gtk::glib::MainContext::default().invoke(move || {
+            gtk::glib::spawn_future_local(async move {
+                let mut icons = HashMap::new();
+                for full_path in full_paths {
+                    if let Ok(icon) = zouni::shell::extract_icon(
+                        &full_path,
+                        Size {
+                            width: 100,
+                            height: 100,
+                        },
+                    ) {
+                        if let Ok(data) = std::fs::read(&icon.file) {
+                            let _ = icons.insert(
+                                get_extension(&full_path),
+                                IconInfo {
+                                    full_path: Some(icon.file),
+                                    small: data.clone(),
+                                    large: data.clone(),
+                                },
+                            );
+                        }
+                    }
+                }
+                tx.send(icons).await.unwrap();
+            });
+        });
+        Ok(rx.recv().await.unwrap())
+    }
 }
 
 pub async fn get_wsl_names() -> Result<Vec<String>, zouni::process::CommandStatus> {
