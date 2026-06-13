@@ -22,6 +22,7 @@
     import Deferred from "../deferred";
     import Settings from "../settings";
     import WebkitDnd from "../webkitDnd";
+    import GtkResize from "./GtkResize.svelte";
 
     let ready = $state(false);
     let fileListContainer = $state<HTMLDivElement>();
@@ -1678,6 +1679,9 @@
 
 {#if ready}
     <div class="viewport" class:sliding={slideState.sliding}>
+        {#if util.isLinux()}
+            <GtkResize />
+        {/if}
         <TopBar {minimize} {toggleMaximize} {launchNew} {close} />
         <div class="view">
             {#if $appState.prefVisible}

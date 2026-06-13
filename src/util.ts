@@ -32,6 +32,10 @@ class Util {
         return navigator.userAgent.includes(OS.windows);
     }
 
+    isLinux() {
+        return navigator.userAgent.includes(OS.linux);
+    }
+
     isWsl(fullPath: string | undefined) {
         if (!fullPath) return false;
         return fullPath.startsWith(WSL_ROOT);
