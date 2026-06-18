@@ -1685,7 +1685,7 @@
         <TopBar {minimize} {toggleMaximize} {launchNew} {close} />
         <div class="view">
             {#if $appState.prefVisible}
-                <Preference changeAppMenuItems={main.changeAppMenuItems} {openSettingsAsJson} onClose={onPreferenceClose} />
+                <Preference changeAppMenuItems={main.changeAppMenuItems} {openSettingsAsJson} themeChanged={() => main.changeTheme(settings.data.theme)} onClose={onPreferenceClose} />
             {/if}
             {#if $appState.symlinkVisible}
                 <Symlink {getSymlinkTargetItem} {createSymlink} />
