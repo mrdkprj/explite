@@ -49,6 +49,7 @@
     };
 
     const onExpandClick = (item: Mp.MediaFile) => {
+        console.log(`expand:${item}`);
         toggleExpand(item, !item.treeState?.opened);
     };
 </script>

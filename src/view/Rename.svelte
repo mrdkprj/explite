@@ -9,7 +9,8 @@
 
     const setFocusAndSelect = (node: HTMLInputElement | HTMLTextAreaElement) => {
         node.focus();
-        node.setSelectionRange(0, node.value.lastIndexOf("."));
+        const index = node.value.lastIndexOf(".") == 0 ? node.value.length : node.value.lastIndexOf(".");
+        node.setSelectionRange(0, index);
         onRenameInput();
     };
 

@@ -13,7 +13,7 @@ tauri = { version = "~2.11.0", features = [ "devtools", "protocol-asset"] }
 serde = { version = "1", features = ["derive"] }
 notify-debouncer-full = "0.6.0"
 zouni = { version = "0.2.2", features = ["webview2", "webkit2gtk"] }
-wcpopup = { version = "0.9.5", features = ["webview"] }
+wcpopup = { version = "0.9.6", features = ["webview"] }
 rs-vips = "0.7.0"
 smol = "2.0.2"
 
