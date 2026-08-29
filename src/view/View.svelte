@@ -1,6 +1,20 @@
 <script lang="ts">
     import { onMount, tick } from "svelte";
-    import { appState, dispatch, renameState, listState, slideState, clipState, driveState, headerState, awaitContextMenu, resolveContextMenu, settings } from "./appStateReducer.svelte";
+    import {
+        appState,
+        dispatch,
+        renameState,
+        listState,
+        slideState,
+        clipState,
+        driveState,
+        headerState,
+        awaitContextMenu,
+        resolveContextMenu,
+        settings,
+        Navigation,
+        navigationState,
+    } from "./appStateReducer.svelte";
     import TopBar from "./TopBar.svelte";
     import BottomBar from "./BottomBar.svelte";
     import Header from "./Header.svelte";
@@ -40,8 +54,6 @@
 
     const ipc = new IPC("View");
     const settingsStore = new Settings();
-    const BACKWARD: Mp.NavigationHistory[] = [];
-    const FORWARD: Mp.NavigationHistory[] = [];
     const operationStack: Mp.WatchEvent[] = [];
 
     const onListContextMenu = async (e: MouseEvent) => {
@@ -1013,22 +1025,24 @@
             endSearch(false);
             return;
         }
-        if (!headerState.canGoBack) return;
 
-        const navigationHistory = BACKWARD[BACKWARD.length - 1];
-        requestLoad(navigationHistory.fullPath, false, "Back");
+        const navigationHistory = Navigation.tryGoBack();
+        if (navigationHistory) {
+            requestLoad(navigationHistory.fullPath, false, "Back");
+        }
     };
 
     const goForward = () => {
         if (headerState.search.searching) return;
-        if (!headerState.canGoForward) return;
 
-        const navigationHistory = FORWARD[FORWARD.length - 1];
-        requestLoad(navigationHistory.fullPath, false, "Forward");
+        const navigationHistory = Navigation.tryGoForward();
+        if (navigationHistory) {
+            requestLoad(navigationHistory.fullPath, false, "Forward");
+        }
     };
 
     const goUpward = () => {
-        if (!headerState.canGoUpward) return;
+        if (!navigationState.canGoUpward) return;
 
         const parent = path.dirname(listState.currentDir.fullPath);
         requestLoad(parent, false, "PathSelect");
@@ -1075,24 +1089,20 @@
         }
 
         if (e.navigation == "Back") {
-            FORWARD.push({ fullPath: listState.currentDir.fullPath, selection: $appState.selection });
-            const navigationHistory = BACKWARD.pop();
+            const navigationHistory = Navigation.afterGoBack($appState.selection);
             restoreSelection(navigationHistory);
         }
 
         if (e.navigation == "Forward") {
-            BACKWARD.push({ fullPath: listState.currentDir.fullPath, selection: $appState.selection });
-            const navigationHistory = FORWARD.pop();
+            const navigationHistory = Navigation.afterGoForward($appState.selection);
             restoreSelection(navigationHistory);
         }
 
         if (e.navigation == "Direct" || e.navigation == "PathSelect") {
             dispatch({ type: "endSearch" });
-            FORWARD.pop();
-            BACKWARD.push({ fullPath: listState.currentDir.fullPath, selection: $appState.selection });
+            const navigationHistory = Navigation.afterNavigate(e.navigation, $appState.selection);
 
-            if (e.navigation == "PathSelect") {
-                const navigationHistory = BACKWARD.find((navhistory) => navhistory.fullPath == e.directory);
+            if (navigationHistory) {
                 restoreSelection(navigationHistory);
             }
         }
@@ -1109,7 +1119,6 @@
         visibleEndIndex = 0;
         dispatch({ type: "toggleGridView", value: false });
         dispatch({ type: "load", value: { event: e } });
-        dispatch({ type: "navigated", value: { canGoBack: BACKWARD.length > 0, canGoForward: FORWARD.length > 0 } });
 
         if (e.drives) {
             dispatch({ type: "drives", value: e.drives });
@@ -1582,18 +1591,7 @@
                 await requestLoad(HOME, false, "Direct");
             }
 
-            // If any paths of removed drive exist in history, clear history
-            const invalidBackHistory = BACKWARD.filter((history) => removedMountPoints.includes(util.getRootDirectory(history.fullPath)));
-            if (invalidBackHistory.length) {
-                BACKWARD.length = 0;
-            }
-
-            const invalidForwardHistory = FORWARD.filter((history) => removedMountPoints.includes(util.getRootDirectory(history.fullPath)));
-            if (invalidForwardHistory.length) {
-                FORWARD.length = 0;
-            }
-
-            dispatch({ type: "navigated", value: { canGoBack: BACKWARD.length > 0, canGoForward: FORWARD.length > 0 } });
+            Navigation.invalidate(removedMountPoints);
         }
 
         dispatch({ type: "drives", value: drives });

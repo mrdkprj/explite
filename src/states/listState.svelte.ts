@@ -97,7 +97,7 @@ export class ListUpdater {
         state.files = files;
     };
 
-    private static changeDirectory = (directory: string) => {
+    static changeDirectory = (directory: string) => {
         if (state.currentDir.fullPath != directory) {
             state.expandedDir = {};
             state.currentDir = {

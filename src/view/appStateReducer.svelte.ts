@@ -1,7 +1,5 @@
 import { writable } from "svelte/store";
 import Deferred from "../deferred";
-import path from "../path";
-import { HOME, RECYCLE_BIN } from "../constants";
 import { ListUpdater, listState } from "../states/listState.svelte";
 import { RenameUpdater } from "../states/renameState.svelte";
 import { ClipUpdater } from "../states/clipState.svelte";
@@ -9,6 +7,7 @@ import { driveState, DriveUpdater } from "../states/driveState.svelte";
 import { headerState, HeaderUpdater } from "../states/headerState.svelte";
 import { SlidUpdater, slideState } from "../states/slideState.svelte";
 import { PreferenceAction, settings, SettingsUpdater } from "../states/settingsState.svelte";
+export { navigationState, Navigation } from "../states/navigationState.svelte";
 export { listState } from "../states/listState.svelte";
 export { renameState } from "../states/renameState.svelte";
 export { clipState } from "../states/clipState.svelte";
@@ -86,7 +85,6 @@ type AppAction =
     | { type: "calculateColumnWidths"; value: Mp.MediaFile[] }
     | { type: "adjustColumnWidth"; value: Mp.SortKey }
     | { type: "toggleVisibleColumn"; value: Mp.SortKey }
-    | { type: "navigated"; value: { canGoBack: boolean; canGoForward: boolean } }
     | { type: "updateSortType"; value: Mp.SortKey }
     | { type: "replaceFiles"; value: Mp.MediaFile[] }
     | { type: "sortInPlace"; value: Mp.MediaFile[] }
@@ -197,12 +195,6 @@ const updater = (state: AppState, action: AppAction): AppState => {
 
         case "clearIncremental":
             return { ...state, incrementalKey: "" };
-
-        case "navigated":
-            headerState.canGoBack = action.value.canGoBack;
-            headerState.canGoForward = action.value.canGoForward;
-            headerState.canGoUpward = !!path.dirname(listState.currentDir.fullPath) && listState.currentDir.fullPath != HOME && listState.currentDir.fullPath != RECYCLE_BIN;
-            return state;
 
         case "selectedId":
             return { ...state, selection: { ...state.selection, selectedId: action.value } };

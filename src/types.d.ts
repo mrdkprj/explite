@@ -215,7 +215,7 @@ declare global {
             disks: Mp.DriveInfo[];
         };
 
-        type Navigation = "Direct" | "Back" | "Forward" | "Reload" | "PathSelect";
+        type Navigation = "Direct" | "Back" | "Forward" | "Reload" | "PathSelect" | "None";
         type SelectEvent = {
             fullPath: string;
             isFile: boolean;

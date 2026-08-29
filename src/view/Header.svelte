@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { dispatch, listState, headerState } from "./appStateReducer.svelte";
+    import { dispatch, listState, headerState, navigationState, Navigation } from "./appStateReducer.svelte";
     import { FONT_FOR_CALCULATION, handleKeyEvent, SEPARATOR } from "../constants";
     import { t } from "../translation/useTranslation";
     import util from "../util";
@@ -53,6 +53,7 @@
     let dropdownPosition = $state({ left: 0, top: 0 });
     let showHiddenPaths = $state(false);
     let isCreateDialogOpen = $state(false);
+    let navigationDialogType = $state<Mp.Navigation>("None");
 
     type Paths = {
         overflownPaths: string[];
@@ -147,6 +148,24 @@
         requestLoad(path, false, "PathSelect");
     };
 
+    const onHistoryClick = (e: MouseEvent) => {
+        // Prevent click on back/foward button
+        e.preventDefault();
+        e.stopPropagation();
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+
+        const path = pendingPath ?? e.target.getAttribute("data-path");
+        if (!path) return;
+
+        Navigation.navigateUntil(navigationDialogType, path);
+        navigationDialogType == "Back" ? goBack() : goForward();
+
+        if (pendingPath) {
+            navigationDialogType = "None";
+            pendingPath = null;
+        }
+    };
+
     const onPathInputLeave = () => {
         dispatch({ type: "pathEditing", value: false });
     };
@@ -189,7 +208,7 @@
         showHiddenPaths = true;
     };
 
-    const toggleHiddenPathDialog = (e: FocusEvent) => {
+    const togglePathDialog = (e: FocusEvent) => {
         const target = e.relatedTarget as HTMLElement;
         if (target) {
             // Don't hide until path click event is handled
@@ -197,6 +216,7 @@
             if (pendingPath) return;
         }
         showHiddenPaths = false;
+        navigationDialogType = "None";
     };
 
     const setPathDialogFocus = (node: HTMLDivElement) => {
@@ -215,6 +235,16 @@
 
     const hideCreateDirDialog = () => {
         isCreateDialogOpen = false;
+    };
+
+    const setHistoryDialogFocus = (node: HTMLDivElement) => {
+        node.focus();
+    };
+
+    const showHistoryDialog = (e: MouseEvent, navigation: Mp.Navigation) => {
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+        dropdownPosition = { left: e.target.offsetLeft, top: e.target.offsetHeight + 15 };
+        navigationDialogType = navigation;
     };
 
     const showSymlinkDialog = (e: MouseEvent) => {
@@ -248,19 +278,65 @@
         if (e.key == "Escape") {
             showHiddenPaths = false;
             isCreateDialogOpen = false;
+            navigationDialogType = "None";
         }
     };
 </script>
 
 <div class="header">
     <div class="btns">
-        <div class="button {headerState.canGoBack ? '' : 'disabled'}" onclick={goBack} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div class="button {navigationState.canGoBack ? '' : 'disabled'}" onclick={goBack} oncontextmenu={(e) => showHistoryDialog(e, "Back")} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <BackSvg />
+            {#if navigationDialogType == "Back"}
+                <div
+                    class="header-dropdown"
+                    style="top:{dropdownPosition.top}px;left:{dropdownPosition.left}px;"
+                    use:setHistoryDialogFocus
+                    onblur={togglePathDialog}
+                    {onkeydown}
+                    tabindex="0"
+                    role="button"
+                >
+                    {#each navigationState.back.toReversed() as history}
+                        {#if !util.isWsl(history.fullPath)}
+                            <div class="dropdown-data-med" data-path={history.fullPath} onclick={onHistoryClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+                                {path.basename(history.fullPath)}
+                            </div>
+                        {/if}
+                    {/each}
+                </div>
+            {/if}
         </div>
-        <div class="button {headerState.canGoForward && !headerState.search.searching ? '' : 'disabled'}" onclick={goForward} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div
+            class="button {navigationState.canGoForward && !headerState.search.searching ? '' : 'disabled'}"
+            onclick={goForward}
+            oncontextmenu={(e) => showHistoryDialog(e, "Forward")}
+            onkeydown={handleKeyEvent}
+            role="button"
+            tabindex="-1"
+        >
             <FowardSvg />
+            {#if navigationDialogType == "Forward"}
+                <div
+                    class="header-dropdown"
+                    style="top:{dropdownPosition.top}px;left:{dropdownPosition.left}px;"
+                    use:setHistoryDialogFocus
+                    onblur={togglePathDialog}
+                    {onkeydown}
+                    tabindex="0"
+                    role="button"
+                >
+                    {#each navigationState.forward.toReversed() as history}
+                        {#if !util.isWsl(history.fullPath)}
+                            <div class="dropdown-data-med" data-path={history.fullPath} onclick={onHistoryClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+                                {path.basename(history.fullPath)}
+                            </div>
+                        {/if}
+                    {/each}
+                </div>
+            {/if}
         </div>
-        <div class="button {headerState.canGoUpward ? '' : 'disabled'}" onclick={goUpward} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+        <div class="button {navigationState.canGoUpward ? '' : 'disabled'}" onclick={goUpward} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             <UpwardSvg />
         </div>
         <div class="button" onclick={() => reload(true)} onkeydown={handleKeyEvent} role="button" tabindex="-1">
@@ -330,7 +406,7 @@
                                 class="header-dropdown"
                                 style="top:{dropdownPosition.top}px;left:{dropdownPosition.left}px;"
                                 use:setPathDialogFocus
-                                onblur={toggleHiddenPathDialog}
+                                onblur={togglePathDialog}
                                 {onkeydown}
                                 tabindex="0"
                                 role="button"
