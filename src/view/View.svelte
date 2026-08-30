@@ -292,7 +292,7 @@
         const paths = listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id)).map((file) => file.fullPath);
         if (!paths.length) return;
 
-        await ipc.invoke("register_drop_target", undefined);
+        await ipc.invoke("register_drop_target", null);
 
         dispatch({ type: "startDrag", value: { id: "", type: "View" } });
 
@@ -823,7 +823,7 @@
         } else {
             const result = await main.reload(includeDrive);
             if (result) {
-                load(result);
+                load(result, false);
             }
         }
     };
@@ -1062,9 +1062,13 @@
 
         if (fullPath != listState.currentDir.fullPath) {
             const result = await main.onSelect({ fullPath, isFile, navigation });
-            if (result) {
+            if (result && !result.failed) {
+                // Without navigation, load files without time string
+                await preLoad(result);
+                // Update files time string
+                main.updateFiles(result.files);
                 dispatch({ type: "calculateColumnWidths", value: result.files });
-                load(result);
+                load(result, true);
             }
         }
     };
@@ -1110,10 +1114,9 @@
         return true;
     };
 
-    const load = async (e: Mp.LoadEvent) => {
-        if (e.failed) return;
-
-        if (!navigate(e)) return;
+    const preLoad = async (e: Mp.LoadEvent) => {
+        // Can navigate because reload never calls this
+        navigate(e);
 
         visibleStartIndex = 0;
         visibleEndIndex = 0;
@@ -1140,6 +1143,40 @@
         }
     };
 
+    const load = async (e: Mp.LoadEvent, preloaded: boolean) => {
+        if (e.failed) return;
+
+        if (preloaded) {
+            dispatch({ type: "load", value: { event: e } });
+        } else {
+            if (!navigate(e)) return;
+
+            visibleStartIndex = 0;
+            visibleEndIndex = 0;
+            dispatch({ type: "toggleGridView", value: false });
+            dispatch({ type: "load", value: { event: e } });
+
+            if (e.drives) {
+                dispatch({ type: "drives", value: e.drives });
+            }
+
+            await setTitle();
+
+            await tick();
+
+            if (fileListContainer) {
+                fileListContainer.scrollTop = 0;
+                fileListContainer.scrollLeft = 0;
+            }
+
+            if ($appState.selection.selectedIds.length) {
+                if (listState.files.some((file) => file.id == $appState.selection.selectedIds[0])) {
+                    await select($appState.selection.selectedIds[0]);
+                }
+            }
+        }
+    };
+
     const openSettingsAsJson = async () => {
         await main.openConfigFileJson(settingsStore.getFilePath());
     };
@@ -1160,10 +1197,7 @@
             case "Open": {
                 const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (!file) return;
-                const result = await main.onSelect({ fullPath: util.getRealPath(file), isFile: file.isFile, navigation: "Direct" });
-                if (result) {
-                    load(result);
-                }
+                requestLoad(file.fullPath, file.isFile, "Direct");
                 break;
             }
 

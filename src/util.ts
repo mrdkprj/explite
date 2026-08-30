@@ -166,7 +166,6 @@ class Util {
     }
 
     toFile(dirent: Dirent): Mp.MediaFile {
-        const locale = window.lang;
         const fullPath = dirent.full_path;
         const attr = dirent.attributes;
         const extension = this.getExtension(fullPath, attr);
@@ -183,9 +182,9 @@ class Util {
             uuid: crypto.randomUUID(),
             name,
             mdate: attr.mtime_ms,
-            mdateString: new Date(attr.mtime_ms).toLocaleString(locale, DATE_OPTION),
+            mdateString: "",
             cdate: attr.birthtime_ms,
-            cdateString: new Date(attr.birthtime_ms).toLocaleString(locale, DATE_OPTION),
+            cdateString: "",
             size: size.size,
             sizeString: size.sizeString,
             isFile: attr.is_file,
@@ -201,8 +200,17 @@ class Util {
         };
     }
 
-    toFileFromRecycleBinItem(dirent: RecycleBinItem): Mp.MediaFile {
+    updateFile(file: Mp.MediaFile): Mp.MediaFile {
         const locale = window.lang;
+        file.mdateString = new Date(file.mdate).toLocaleString(locale, DATE_OPTION);
+        file.cdateString = new Date(file.cdate).toLocaleString(locale, DATE_OPTION);
+        if (file.ddate > 0) {
+            file.ddateString = new Date(file.ddate).toLocaleString(locale, DATE_OPTION);
+        }
+        return file;
+    }
+
+    toFileFromRecycleBinItem(dirent: RecycleBinItem): Mp.MediaFile {
         const originalPath = dirent.original_path;
         const attr = dirent.attributes;
         const extension = this.getExtension(originalPath, attr);
@@ -219,9 +227,9 @@ class Util {
             uuid: crypto.randomUUID(),
             name,
             mdate: attr.mtime_ms,
-            mdateString: new Date(attr.mtime_ms).toLocaleString(locale, DATE_OPTION),
+            mdateString: "",
             cdate: attr.birthtime_ms,
-            cdateString: new Date(attr.birthtime_ms).toLocaleString(locale, DATE_OPTION),
+            cdateString: "",
             size: size.size,
             sizeString: size.sizeString,
             isFile: attr.is_file,
@@ -230,7 +238,7 @@ class Util {
             linkPath: attr.link_path,
             entityType,
             ddate: dirent.deleted_date_ms,
-            ddateString: new Date(dirent.deleted_date_ms).toLocaleString(locale, DATE_OPTION),
+            ddateString: "",
             originalPath,
             mimeType: dirent.mime_type,
             actualExtension,
@@ -404,7 +412,7 @@ class Util {
     }
 
     async getDriveInfo(): Promise<Mp.DriveInfo[]> {
-        const volumes = await ipc.invoke("list_volumes", undefined);
+        const volumes = await ipc.invoke("list_volumes", null);
 
         const drives: Mp.DriveInfo[] = volumes
             .map((volume) => {
@@ -421,7 +429,7 @@ class Util {
         drives.sort((a, b) => a.label.localeCompare(b.label));
 
         try {
-            const wsls = util.isWin() ? await ipc.invoke("get_wsl_names", undefined) : [];
+            const wsls = util.isWin() ? await ipc.invoke("get_wsl_names", null) : [];
             wsls.forEach((wsl) => {
                 drives.push({
                     label: "",

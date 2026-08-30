@@ -21,14 +21,14 @@ class Main {
     onMainReady = async (dropTagetId: string): Promise<Mp.ReadyEvent> => {
         const drives = await util.getDriveInfo();
 
-        const args = await ipc.invoke("get_args", undefined);
+        const args = await ipc.invoke("get_args", null);
 
         const locale = args.locales.some((locale) => locale.toLowerCase().includes("ja")) ? "ja" : "en";
         window.lang = locale;
 
         if (!this.initialized) {
             await ipc.invoke("prepare_menu", this.createColumnMenuItesm());
-            await ipc.invoke("listen_devices", undefined);
+            await ipc.invoke("listen_devices", null);
             await ipc.invoke("listen_file_drop", dropTagetId);
         }
 
@@ -176,23 +176,20 @@ class Main {
         }
 
         try {
-            const allDirents = util.isRecycleBin(directory) ? await ipc.invoke("read_recycle_bin", undefined) : await ipc.invoke("readdir", { directory, recursive: false });
+            const t = new Date().getTime();
+            const allDirents = util.isRecycleBin(directory) ? await ipc.invoke("read_recycle_bin", null) : await ipc.invoke("readdir", { directory, recursive: false });
             const files = allDirents
                 .filter((dirent) => !dirent.attributes.is_system)
                 .map((dirent) => {
                     const file = util.isRecycleBin(directory) ? util.toFileFromRecycleBinItem(dirent as RecycleBinItem) : util.toFile(dirent as Dirent);
-                    this.mutateFileExtensionMap(file);
                     return file;
                 });
-
-            this.getFileIcon();
-
+            console.log(new Date().getTime() - t);
             if (watchType == "Replace") {
                 this.startWatch(directory);
             } else if (watchType == "Add") {
                 this.addWatch(directory);
             }
-
             return {
                 done: true,
                 files,
@@ -204,6 +201,17 @@ class Main {
                 files: [],
             };
         }
+    };
+
+    updateFiles = (files: Mp.MediaFile[]) => {
+        files.forEach((file) => {
+            util.updateFile(file);
+            this.mutateFileExtensionMap(file);
+        });
+
+        this.getFileIcon();
+
+        return files;
     };
 
     private mutateFileExtensionMap = (file: Mp.MediaFile) => {
@@ -327,8 +335,8 @@ class Main {
 
     beforeCloseWindow = async () => {
         await this.abortWatch();
-        await ipc.invoke("unlisten_devices", undefined);
-        await ipc.invoke("unlisten_file_drop", undefined);
+        await ipc.invoke("unlisten_devices", null);
+        await ipc.invoke("unlisten_file_drop", null);
     };
 
     openListContextMenu = async (e: Mp.Position, fullPath: string, showAdminRunAs: boolean, inRecycleBin: boolean) => {
@@ -389,7 +397,7 @@ class Main {
     };
 
     launchNew = async () => {
-        await ipc.invoke("launch_new", undefined);
+        await ipc.invoke("launch_new", null);
     };
 
     private getNewName = async (directory: string, isFile: boolean) => {
@@ -552,18 +560,18 @@ class Main {
                 return false;
             }
         }
-        await ipc.invoke("empty_recycle_bin", undefined);
+        await ipc.invoke("empty_recycle_bin", null);
         return true;
     };
 
     getPathsFromClipboard = async (targets: Mp.MediaFile[], operation: Mp.ClipboardOperation): Promise<Mp.PasteData> => {
         const failedResult = { fullPaths: [], copy: true };
 
-        const uriAvailable = await ipc.invoke("is_uris_available", undefined);
+        const uriAvailable = await ipc.invoke("is_uris_available", null);
 
         if (!uriAvailable) return failedResult;
 
-        const data = await ipc.invoke("read_uris", undefined);
+        const data = await ipc.invoke("read_uris", null);
         if (!data.urls.length) return failedResult;
 
         const fullPaths = data.urls.map((url) => (url.startsWith("file://") ? decodeURIComponent(url.replace("file://", "")) : url));
@@ -714,11 +722,11 @@ class Main {
     };
 
     undoInput = async () => {
-        await ipc.invoke("undo", undefined);
+        await ipc.invoke("undo", null);
     };
 
     redoInput = async () => {
-        await ipc.invoke("redo", undefined);
+        await ipc.invoke("redo", null);
     };
 
     /* Do nothing to files which will be changed by watcher */

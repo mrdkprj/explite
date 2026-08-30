@@ -583,6 +583,20 @@ fn redo(window: WebviewWindow) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ItemCount {
+    files: u32,
+    directories: u32,
+}
+#[tauri::command]
+fn get_item_count(payload: String) -> Result<ItemCount, String> {
+    let (files, directories) = zouni::fs::get_item_count(payload)?;
+    Ok(ItemCount {
+        files,
+        directories,
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -656,7 +670,8 @@ pub fn run() {
             #[cfg(target_os = "linux")]
             undo,
             #[cfg(target_os = "linux")]
-            redo
+            redo,
+            get_item_count,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
