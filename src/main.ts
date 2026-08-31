@@ -176,7 +176,6 @@ class Main {
         }
 
         try {
-            const t = new Date().getTime();
             const allDirents = util.isRecycleBin(directory) ? await ipc.invoke("read_recycle_bin", null) : await ipc.invoke("readdir", { directory, recursive: false });
             const files = allDirents
                 .filter((dirent) => !dirent.attributes.is_system)
@@ -184,7 +183,7 @@ class Main {
                     const file = util.isRecycleBin(directory) ? util.toFileFromRecycleBinItem(dirent as RecycleBinItem) : util.toFile(dirent as Dirent);
                     return file;
                 });
-            console.log(new Date().getTime() - t);
+
             if (watchType == "Replace") {
                 this.startWatch(directory);
             } else if (watchType == "Add") {
