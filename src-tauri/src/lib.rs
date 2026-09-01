@@ -102,28 +102,28 @@ fn get_mime_type(payload: String) -> String {
     zouni::fs::get_mime_type(payload)
 }
 
+#[cfg(windows)]
 #[tauri::command]
-fn trash(payload: Vec<String>) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    {
-        zouni::fs::trash_all(&payload)
-    }
-    #[cfg(target_os = "linux")]
-    {
-        gtk_fs::trash(payload)
-    }
+async fn trash(payload: Vec<String>) -> Result<(), String> {
+    smol::spawn(async move { zouni::fs::trash_all(&payload) }).await
 }
 
+#[cfg(not(windows))]
+#[tauri::command]
+fn trash(payload: Vec<String>) -> Result<(), String> {
+    gtk_fs::trash(payload)
+}
+
+#[cfg(windows)]
+#[tauri::command]
+async fn delete(payload: Vec<String>) -> Result<(), String> {
+    smol::spawn(async move { zouni::fs::delete_all(&payload) }).await
+}
+
+#[cfg(not(windows))]
 #[tauri::command]
 fn delete(payload: Vec<String>) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    {
-        zouni::fs::delete_all(&payload)
-    }
-    #[cfg(target_os = "linux")]
-    {
-        gtk_fs::delete(payload)
-    }
+    gtk_fs::delete(payload)
 }
 
 #[tauri::command]
@@ -147,28 +147,28 @@ struct CopyInfo {
     to: String,
 }
 
+#[cfg(windows)]
 #[tauri::command]
-fn copy(payload: CopyInfo) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    {
-        zouni::fs::copy_all(&payload.from, payload.to)
-    }
-    #[cfg(target_os = "linux")]
-    {
-        gtk_fs::copy(payload)
-    }
+async fn copy(payload: CopyInfo) -> Result<(), String> {
+    smol::spawn(async move { zouni::fs::copy_all(&payload.from, payload.to) }).await
 }
 
+#[cfg(not(windows))]
+#[tauri::command]
+fn copy(payload: CopyInfo) -> Result<(), String> {
+    gtk_fs::copy(payload)
+}
+
+#[cfg(windows)]
+#[tauri::command]
+async fn mv(payload: CopyInfo) -> Result<(), String> {
+    smol::spawn(async move { zouni::fs::mv_all(&payload.from, payload.to) }).await
+}
+
+#[cfg(not(windows))]
 #[tauri::command]
 fn mv(payload: CopyInfo) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    {
-        zouni::fs::mv_all(&payload.from, payload.to)
-    }
-    #[cfg(target_os = "linux")]
-    {
-        gtk_fs::mv(payload)
-    }
+    gtk_fs::mv(payload)
 }
 
 #[tauri::command]
