@@ -812,22 +812,6 @@
         dispatch({ type: "hoverFavoriteId", value: "" });
     };
 
-    const reload = async (includeDrive: boolean) => {
-        if (headerState.search.searching) {
-            return await endSearch(true);
-        }
-
-        if (listState.isHome) {
-            const drives = await main.reloadDrive();
-            dispatch({ type: "updateDrives", value: drives });
-        } else {
-            const result = await main.reload(includeDrive);
-            if (result) {
-                load(result, false);
-            }
-        }
-    };
-
     const searchNext = (key: string) => {
         if ($appState.selection.selectedIds.length) {
             const selectedId = $appState.selection.selectedIds[0];
@@ -856,13 +840,17 @@
 
     const startSearch = async () => {
         dispatch({ type: "clearCopyCut" });
+        // Take snapshot to restore on search end
+        const currentFiles = $state.snapshot(listState.files);
         dispatch({ type: "startSearch" });
-        const files = await main.search($state.snapshot(listState.files), { dir: listState.currentDir.fullPath, key: headerState.search.key, refresh: false });
+        const files = await main.search(currentFiles, { dir: listState.currentDir.fullPath, key: headerState.search.key, refresh: false });
         await onSearched(files);
     };
 
     const onSearched = async (files: Mp.MediaFile[]) => {
         dispatch({ type: "replaceFiles", value: files });
+        await tick();
+        main.updateFiles(listState.files);
         await tick();
     };
 
@@ -1048,31 +1036,6 @@
         requestLoad(parent, false, "PathSelect");
     };
 
-    const requestLoad = async (fullPath: string, isFile: boolean, navigation: Mp.Navigation) => {
-        if (!isFile && headerState.search.searching) {
-            dispatch({ type: "endSearch" });
-            if (fullPath == listState.currentDir.fullPath) {
-                const files = main.onSearchEnd();
-                await onSearched(files);
-            } else {
-                await onSearched([]);
-            }
-            await tick();
-        }
-
-        if (fullPath != listState.currentDir.fullPath) {
-            const result = await main.onSelect({ fullPath, isFile, navigation });
-            if (result && !result.failed) {
-                // Without navigation, load files without time string
-                await preLoad(result);
-                // Update files time string
-                main.updateFiles(result.files);
-                dispatch({ type: "calculateColumnWidths", value: result.files });
-                load(result, true);
-            }
-        }
-    };
-
     const restoreSelection = (navigationHistory: Mp.NavigationHistory | undefined) => {
         if (!navigationHistory) return;
 
@@ -1084,6 +1047,46 @@
     const setTitle = async () => {
         const title = listState.currentDir.paths.length ? listState.currentDir.paths[listState.currentDir.paths.length - 1] : HOME;
         await WebviewWindow.getCurrent().setTitle(title);
+    };
+
+    const requestLoad = async (fullPath: string, isFile: boolean, navigation: Mp.Navigation, includeDrive = false) => {
+        if (!isFile && headerState.search.searching) {
+            dispatch({ type: "endSearch" });
+            if (fullPath == listState.currentDir.fullPath) {
+                const files = main.onSearchEnd();
+                await onSearched(files);
+            } else {
+                await onSearched([]);
+            }
+            await tick();
+        }
+
+        if (navigation != "Reload" && fullPath == listState.currentDir.fullPath) {
+            return;
+        }
+
+        const result = navigation == "Reload" ? await main.reload(includeDrive) : await main.onSelect({ fullPath, isFile, navigation });
+
+        if (result && !result.failed) {
+            // Without navigation, load files without time string
+            await load(result);
+            // Update files time string
+            main.updateFiles(listState.files);
+            dispatch({ type: "calculateColumnWidths", value: result.files });
+        }
+    };
+
+    const reload = async (includeDrive: boolean) => {
+        if (headerState.search.searching) {
+            return await endSearch(true);
+        }
+
+        if (listState.isHome) {
+            const drives = await main.reloadDrive();
+            dispatch({ type: "updateDrives", value: drives });
+        } else {
+            await requestLoad("", false, "Reload", includeDrive);
+        }
     };
 
     const navigate = (e: Mp.LoadEvent) => {
@@ -1114,9 +1117,10 @@
         return true;
     };
 
-    const preLoad = async (e: Mp.LoadEvent) => {
-        // Can navigate because reload never calls this
-        navigate(e);
+    const load = async (e: Mp.LoadEvent) => {
+        if (e.failed) return;
+
+        if (!navigate(e)) return;
 
         visibleStartIndex = 0;
         visibleEndIndex = 0;
@@ -1139,40 +1143,6 @@
         if ($appState.selection.selectedIds.length) {
             if (listState.files.some((file) => file.id == $appState.selection.selectedIds[0])) {
                 await select($appState.selection.selectedIds[0]);
-            }
-        }
-    };
-
-    const load = async (e: Mp.LoadEvent, preloaded: boolean) => {
-        if (e.failed) return;
-
-        if (preloaded) {
-            dispatch({ type: "load", value: { event: e } });
-        } else {
-            if (!navigate(e)) return;
-
-            visibleStartIndex = 0;
-            visibleEndIndex = 0;
-            dispatch({ type: "toggleGridView", value: false });
-            dispatch({ type: "load", value: { event: e } });
-
-            if (e.drives) {
-                dispatch({ type: "drives", value: e.drives });
-            }
-
-            await setTitle();
-
-            await tick();
-
-            if (fileListContainer) {
-                fileListContainer.scrollTop = 0;
-                fileListContainer.scrollLeft = 0;
-            }
-
-            if ($appState.selection.selectedIds.length) {
-                if (listState.files.some((file) => file.id == $appState.selection.selectedIds[0])) {
-                    await select($appState.selection.selectedIds[0]);
-                }
             }
         }
     };
@@ -1383,6 +1353,15 @@
                 return;
             }
         }
+
+        if (renameState.renaming) {
+            endEditFileName();
+        }
+
+        if (headerState.search.searching) {
+            endSearch(false);
+        }
+
         dispatch({ type: "clearCopyCut" });
     };
 
@@ -1397,12 +1376,6 @@
 
         if (e.key == "F3" || e.key == "F5") {
             e.preventDefault();
-        }
-
-        if (e.key == "Escape") {
-            if (renameState.renaming) {
-                endEditFileName();
-            }
         }
 
         if (renameState.renaming) return resolve_input_edit(e);

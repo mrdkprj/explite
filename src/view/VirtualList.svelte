@@ -159,6 +159,10 @@
                     scrollPromise = null;
                 }
 
+                if (rows.length && onRefresh) {
+                    onRefresh(rows);
+                }
+
                 isScrolling = false;
                 // TODO if we overestimated the space these
                 // rows would occupy we may need to add some

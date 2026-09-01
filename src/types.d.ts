@@ -139,6 +139,30 @@ declare global {
             columns: Mp.Column[];
         };
 
+        type FileAttribute = {
+            is_device: boolean;
+            is_directory: boolean;
+            is_file: boolean;
+            is_hidden: boolean;
+            is_read_only: boolean;
+            is_symbolic_link: boolean;
+            is_system: boolean;
+            atime_ms: number;
+            ctime_ms: number;
+            mtime_ms: number;
+            birthtime_ms: number;
+            size: number;
+            link_path: string;
+        };
+
+        type Dirent = {
+            name: string;
+            parent_path: string;
+            full_path: string;
+            mime_type: string;
+            attributes: FileAttribute;
+        };
+
         type EntityType = "File" | "Folder" | "SymlinkFile" | "SymlinkFolder";
         type FileType = "Video" | "Audio" | "Image" | "App" | "Normal" | "Folder" | "HiddenFolder" | "Zip" | "Desktop" | "Documents" | "Downloads" | "Music" | "Pictures" | "Videos";
         type MediaFile = {
@@ -359,6 +383,25 @@ declare global {
         type MessageResult = {
             button: string;
             cancelled: boolean;
+        };
+
+        type RecycleBinItem = {
+            name: string;
+            original_path: string;
+            deleted_date_ms: number;
+            mime_type: string;
+            attributes: Mp.FileAttribute;
+        };
+
+        type DeleteUndeleteRequest = {
+            original_path: string;
+            deleted_time_ms: number;
+        };
+
+        type ThumbnailArgs = {
+            full_path: string;
+            width: number;
+            height: number;
         };
 
         type AnyEvent = {

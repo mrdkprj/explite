@@ -159,10 +159,6 @@ const updater = (state: AppState, action: AppAction): AppState => {
                 return {
                     ...state,
                     copyCutTargets: { op: "Copy", ids: [], files: [] },
-                    selection: {
-                        selectedId: "",
-                        selectedIds: [],
-                    },
                 };
             }
 
@@ -183,6 +179,7 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return state;
 
         case "startSearch":
+            ListUpdater.reset();
             HeaderUpdater.startSearch();
             return state;
 

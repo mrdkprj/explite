@@ -1,6 +1,6 @@
 import util from "./util";
 import { HOME, OS, DEFAULT_LABLES } from "./constants";
-import { DeleteUndeleteRequest, Dirent, IPC, RecycleBinItem } from "./ipc";
+import { IPC } from "./ipc";
 import path from "./path";
 import { History } from "./history";
 import { t } from "./translation/useTranslation";
@@ -176,11 +176,11 @@ class Main {
         }
 
         try {
-            const allDirents = util.isRecycleBin(directory) ? await ipc.invoke("read_recycle_bin", null) : await ipc.invoke("readdir", { directory, recursive: false });
+            const allDirents = await util.readdir(directory, false, util.isRecycleBin(directory));
             const files = allDirents
                 .filter((dirent) => !dirent.attributes.is_system)
                 .map((dirent) => {
-                    const file = util.isRecycleBin(directory) ? util.toFileFromRecycleBinItem(dirent as RecycleBinItem) : util.toFile(dirent as Dirent);
+                    const file = util.isRecycleBin(directory) ? util.toFileFromRecycleBinItem(dirent as Mp.RecycleBinItem) : util.toFile(dirent as Mp.Dirent);
                     return file;
                 });
 
@@ -274,23 +274,28 @@ class Main {
         const key = e.key.toLocaleLowerCase();
         this.searchKeyword = key;
         if (e.dir in this.searchCache) {
-            return await this.filterCache(e.dir, key);
+            return await this.filterCacheAsync(e.dir, key);
         }
 
         let searchResult: Mp.MediaFile[] = [];
         if (util.isRecycleBin(e.dir)) {
             searchResult = this.filterRecycleBin(files, key);
         } else {
-            const allDirents = await ipc.invoke("readdir", { directory: e.dir, recursive: true });
-            this.searchCache[e.dir] = allDirents.filter((direcnt) => !direcnt.attributes.is_system).map((dirent) => path.join(dirent.parent_path, dirent.name));
-            searchResult = await this.filterCache(e.dir, key);
+            const allDirents = (await util.readdir(e.dir, true)) as Mp.Dirent[];
+            const files = allDirents.filter((direcnt) => !direcnt.attributes.is_system).map((dirent) => util.toFile(dirent));
+            this.searchCache[e.dir] = files.map((file) => file.fullPath);
+            searchResult = this.filterCache(files, key);
         }
 
         util.sort(searchResult, true, "name");
         return searchResult;
     };
 
-    private filterCache = async (dir: string, key: string) => {
+    private filterCache = (files: Mp.MediaFile[], key: string) => {
+        return files.filter((file) => this.isSearchFileFound(file.name, key));
+    };
+
+    private filterCacheAsync = async (dir: string, key: string) => {
         const fildtered = this.searchCache[dir].filter((fullPath) => this.isSearchFileFound(path.basename(fullPath), key));
         return await Promise.all(fildtered.map(async (fullPath) => await util.toFileFromPath(fullPath)));
     };
@@ -499,7 +504,7 @@ class Main {
 
         try {
             if (e.undeleteSpecific) {
-                const request: DeleteUndeleteRequest[] = e.items!.map((request) => {
+                const request: Mp.DeleteUndeleteRequest[] = e.items!.map((request) => {
                     return {
                         original_path: this.toFilePath(request.fullPath),
                         deleted_time_ms: request.deletedDate,
@@ -535,7 +540,7 @@ class Main {
             }
         }
 
-        const request: DeleteUndeleteRequest[] = e.items!.map((request) => {
+        const request: Mp.DeleteUndeleteRequest[] = e.items!.map((request) => {
             return {
                 original_path: this.toFilePath(request.fullPath),
                 deleted_time_ms: request.deletedDate,

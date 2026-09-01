@@ -11,35 +11,11 @@ type ReadDirRequest = {
     recursive: boolean;
 };
 
-export type FileAttribute = {
-    is_device: boolean;
-    is_directory: boolean;
-    is_file: boolean;
-    is_hidden: boolean;
-    is_read_only: boolean;
-    is_symbolic_link: boolean;
-    is_system: boolean;
-    atime_ms: number;
-    ctime_ms: number;
-    mtime_ms: number;
-    birthtime_ms: number;
-    size: number;
-    link_path: string;
-};
-
 type Volume = {
     mount_point: string;
     volume_label: string;
     available_units: number;
     total_units: number;
-};
-
-export type Dirent = {
-    name: string;
-    parent_path: string;
-    full_path: string;
-    mime_type: string;
-    attributes: FileAttribute;
 };
 
 type RenameInfo = {
@@ -116,25 +92,6 @@ type InitArgs = {
     restore_position: boolean;
 };
 
-export type RecycleBinItem = {
-    name: string;
-    original_path: string;
-    deleted_date_ms: number;
-    mime_type: string;
-    attributes: FileAttribute;
-};
-
-export type DeleteUndeleteRequest = {
-    original_path: string;
-    deleted_time_ms: number;
-};
-
-export type ThumbnailArgs = {
-    full_path: string;
-    width: number;
-    height: number;
-};
-
 type IconInfo = {
     full_path?: string;
     small: number[];
@@ -158,17 +115,18 @@ type TauriCommandMap = {
     open_in_new_window: TauriCommand<string, null>;
     show_app_selector: TauriCommand<string, null>;
     open_property_dielog: TauriCommand<string, null>;
-    readdir: TauriCommand<ReadDirRequest, Dirent[]>;
+    readdir: TauriCommand<ReadDirRequest, ArrayBuffer>;
+    read_recycle_bin: TauriCommand<null, ArrayBuffer>;
     rename: TauriCommand<RenameInfo, boolean>;
     list_volumes: TauriCommand<null, Volume[]>;
     start_drag: TauriCommand<string[], null>;
-    stat: TauriCommand<string, FileAttribute>;
+    stat: TauriCommand<string, Mp.FileAttribute>;
     get_mime_type: TauriCommand<string, string>;
     trash: TauriCommand<string[], null>;
     delete: TauriCommand<string[], null>;
     undelete: TauriCommand<string[], null>;
-    undelete_by_time: TauriCommand<DeleteUndeleteRequest[], null>;
-    delete_from_recycle_bin: TauriCommand<DeleteUndeleteRequest[], null>;
+    undelete_by_time: TauriCommand<Mp.DeleteUndeleteRequest[], null>;
+    delete_from_recycle_bin: TauriCommand<Mp.DeleteUndeleteRequest[], null>;
     copy: TauriCommand<CopyInfo, null>;
     mv: TauriCommand<CopyInfo, null>;
     is_uris_available: TauriCommand<null, boolean>;
@@ -196,9 +154,8 @@ type TauriCommandMap = {
     change_theme: TauriCommand<Mp.Theme, null>;
     show_file_folder_dialog: TauriCommand<OpenFileFolderOption, string | null>;
     create_symlink: TauriCommand<SymlinkRequest, null>;
-    read_recycle_bin: TauriCommand<null, RecycleBinItem[]>;
     empty_recycle_bin: TauriCommand<null, null>;
-    to_thumbnail: TauriCommand<ThumbnailArgs, number[]>;
+    to_thumbnail: TauriCommand<Mp.ThumbnailArgs, number[]>;
     to_image_thumbnail: TauriCommand<string, number[]>;
     is_file: TauriCommand<string, boolean>;
     assoc_icons: TauriCommand<string[], { [key: string]: IconInfo }>;

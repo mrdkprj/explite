@@ -40,30 +40,6 @@ const state: ListState = $state({
     expandedDir: {},
 });
 
-// const EMPTY_FILE: Mp.MediaFile = {
-//     id: "a",
-//     fullPath: "a",
-//     dir: "a",
-//     uuid: "a",
-//     name: "",
-//     mdate: 0,
-//     mdateString: "",
-//     cdate: 0,
-//     cdateString: "",
-//     size: 0,
-//     sizeString: "",
-//     extension: "",
-//     actualExtension: "",
-//     isFile: true,
-//     entityType: "File",
-//     fileType: "Normal",
-//     linkPath: "",
-//     ddate: 0,
-//     ddateString: "",
-//     originalPath: "",
-//     mimeType: "",
-// };
-
 export { state as listState };
 
 let canvas: HTMLCanvasElement;
@@ -144,16 +120,6 @@ export class ListUpdater {
     static replaceFiles = (files: Mp.MediaFile[]) => {
         this.sort(files);
         state.files = files;
-    };
-
-    static preload = (e: Mp.ItemCount) => {
-        const files = [];
-        for (let i = 0; i < e.directories; i++) {
-            files.push(i);
-        }
-        for (let i = 0; i < e.files; i++) {
-            files.push(i);
-        }
     };
 
     static load = (e: Mp.LoadEvent) => {

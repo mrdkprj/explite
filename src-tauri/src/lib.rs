@@ -66,8 +66,10 @@ struct ReadDirRequest {
 }
 
 #[tauri::command]
-fn readdir(payload: ReadDirRequest) -> Vec<zouni::Dirent> {
-    zouni::fs::readdir(payload.directory, payload.recursive, true).unwrap_or_default()
+fn readdir(payload: ReadDirRequest) -> tauri::ipc::Response {
+    let dirents = zouni::fs::readdir(payload.directory, payload.recursive, true).unwrap_or_default();
+    let bytes = rmp_serde::to_vec_named(&dirents).unwrap_or_default();
+    tauri::ipc::Response::new(bytes)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -583,20 +585,6 @@ fn redo(window: WebviewWindow) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct ItemCount {
-    files: u32,
-    directories: u32,
-}
-#[tauri::command]
-fn get_item_count(payload: String) -> Result<ItemCount, String> {
-    let (files, directories) = zouni::fs::get_item_count(payload)?;
-    Ok(ItemCount {
-        files,
-        directories,
-    })
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -671,7 +659,6 @@ pub fn run() {
             undo,
             #[cfg(target_os = "linux")]
             redo,
-            get_item_count,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

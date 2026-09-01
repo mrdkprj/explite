@@ -1,5 +1,5 @@
 import { PhysicalPosition, PhysicalSize } from "@tauri-apps/api/dpi";
-import { Dirent, FileAttribute, IPCBase, RecycleBinItem } from "./ipc";
+import { IPCBase } from "./ipc";
 import path from "./path";
 import {
     ARCHIVE_EXT,
@@ -18,6 +18,7 @@ import {
 } from "./constants";
 import { t } from "./translation/useTranslation";
 import { listState } from "./states/listState.svelte";
+import { decode } from "@msgpack/msgpack";
 
 type FileSize = {
     size: number;
@@ -39,6 +40,11 @@ class Util {
     isWsl(fullPath: string | undefined) {
         if (!fullPath) return false;
         return fullPath.startsWith(WSL_ROOT);
+    }
+
+    async readdir(directory: string, recursive: boolean, is_recycle_bin = false) {
+        const buffer = is_recycle_bin ? await ipc.invoke("read_recycle_bin", null) : await ipc.invoke("readdir", { directory, recursive });
+        return decode(new Uint8Array(buffer)) as Mp.Dirent[] | Mp.RecycleBinItem[];
     }
 
     async showErrorMessage(ex: any | string) {
@@ -77,7 +83,7 @@ class Util {
         return hash;
     }
 
-    private mayContainSpecialFolder(fullPath: string, attr: FileAttribute) {
+    private mayContainSpecialFolder(fullPath: string, attr: Mp.FileAttribute) {
         if (this.isWin() && fullPath.startsWith(WIN_USER_ROOT_DIR) && attr.is_directory) {
             return true;
         }
@@ -98,7 +104,7 @@ class Util {
         }
     }
 
-    private getEntityType(attr: FileAttribute): Mp.EntityType {
+    private getEntityType(attr: Mp.FileAttribute): Mp.EntityType {
         if (attr.is_symbolic_link) {
             return attr.is_directory ? "SymlinkFolder" : "SymlinkFile";
         }
@@ -110,7 +116,7 @@ class Util {
         return "File";
     }
 
-    private getFileType(fullPath: string, attr: FileAttribute, mimeType: string, extension: string): Mp.FileType {
+    private getFileType(fullPath: string, attr: Mp.FileAttribute, mimeType: string, extension: string): Mp.FileType {
         if (this.mayContainSpecialFolder(fullPath, attr)) {
             const specialFolder = this.getSpecialFolderType(fullPath);
             if (specialFolder) {
@@ -147,7 +153,7 @@ class Util {
         return "Normal";
     }
 
-    private getExtension(fullPath: string, attr: FileAttribute) {
+    private getExtension(fullPath: string, attr: Mp.FileAttribute) {
         if (attr.is_directory) {
             return attr.is_symbolic_link ? t("typeShortcut") : t("typeFolder");
         }
@@ -165,7 +171,7 @@ class Util {
         return path.basename(displayPath);
     }
 
-    toFile(dirent: Dirent): Mp.MediaFile {
+    toFile(dirent: Mp.Dirent): Mp.MediaFile {
         const fullPath = dirent.full_path;
         const attr = dirent.attributes;
         const extension = this.getExtension(fullPath, attr);
@@ -210,7 +216,7 @@ class Util {
         return file;
     }
 
-    toFileFromRecycleBinItem(dirent: RecycleBinItem): Mp.MediaFile {
+    toFileFromRecycleBinItem(dirent: Mp.RecycleBinItem): Mp.MediaFile {
         const originalPath = dirent.original_path;
         const attr = dirent.attributes;
         const extension = this.getExtension(originalPath, attr);
