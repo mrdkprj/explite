@@ -177,6 +177,7 @@ class Main {
 
         try {
             const allDirents = await util.readdir(directory, false, util.isRecycleBin(directory));
+            console.log(allDirents);
             const files = allDirents
                 .filter((dirent) => !dirent.attributes.is_system)
                 .map((dirent) => {

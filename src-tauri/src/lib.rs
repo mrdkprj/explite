@@ -72,6 +72,13 @@ fn readdir(payload: ReadDirRequest) -> tauri::ipc::Response {
     tauri::ipc::Response::new(bytes)
 }
 
+#[tauri::command]
+fn read_recycle_bin() -> tauri::ipc::Response {
+    let dirents = zouni::fs::read_recycle_bin().unwrap_or_default();
+    let bytes = rmp_serde::to_vec_named(&dirents).unwrap_or_default();
+    tauri::ipc::Response::new(bytes)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct RenameInfo {
     new: String,
@@ -492,11 +499,6 @@ fn listen_file_drop(window: WebviewWindow, app: AppHandle) -> tauri::Result<()> 
 fn unlisten_file_drop() {
     #[cfg(target_os = "windows")]
     zouni::webview2::clear();
-}
-
-#[tauri::command]
-fn read_recycle_bin() -> Result<Vec<zouni::RecycleBinDirent>, String> {
-    zouni::fs::read_recycle_bin()
 }
 
 #[tauri::command]
