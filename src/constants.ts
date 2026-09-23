@@ -11,6 +11,7 @@ export const HOME = "PC";
 export const RECYCLE_BIN = "Recycle Bin";
 
 export const SEPARATOR = navigator.userAgent.includes(OS.windows) ? "\\" : "/";
+export const LINK_EXTENSION = navigator.userAgent.includes(OS.windows) ? ".lnk" : "";
 
 export const FONT_FOR_CALCULATION = "sans-serif";
 

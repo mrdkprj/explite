@@ -54,7 +54,7 @@
     };
 </script>
 
-<div class="dialog-overlay" {onkeydown} role="button" tabindex="-1" use:setKeyboardFocus transition:scale={{ delay: 0, duration: 100 }}>
+<div class="dialog-overlay" {onkeydown} role="button" tabindex="-1" transition:scale={{ delay: 0, duration: 100 }}>
     <div class="dialog-container">
         <div class="dialog-header">
             <div class="dialog-close" onclick={close} onkeydown={handleKeyEvent} role="button" tabindex="-1">&times;</div>
@@ -65,7 +65,7 @@
                 <div class="dialog-item-block">
                     <div class="dialog-item">Target item:</div>
                     <div class="dialog-item">
-                        <input type="text" bind:value={symlinkTarget} />
+                        <input type="text" bind:value={symlinkTarget} use:setKeyboardFocus />
                         <button class="dialog-btn-md" style="margin-right: 3px;" onclick={() => getSymlinkTarget(false)}>File</button>
                         <button class="dialog-btn-md" onclick={() => getSymlinkTarget(true)}>Folder</button>
                     </div>

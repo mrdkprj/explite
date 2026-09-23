@@ -345,6 +345,7 @@
     outline-offset: -1px;
     user-select: none;
     -webkit-user-select: none;
+    margin-top: 1px;
 }
 
 .thumb-column{

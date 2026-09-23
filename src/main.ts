@@ -1,5 +1,5 @@
 import util from "./util";
-import { HOME, OS, DEFAULT_LABLES } from "./constants";
+import { HOME, OS, DEFAULT_LABLES, LINK_EXTENSION } from "./constants";
 import { IPC } from "./ipc";
 import path from "./path";
 import { History } from "./history";
@@ -91,6 +91,16 @@ class Main {
             return;
         }
         await ipc.invoke("open_path", fullPath);
+    };
+
+    openFiles = async (fullPaths: string[]) => {
+        for (const fullPath of fullPaths) {
+            try {
+                await ipc.invoke("open_path", fullPath);
+            } catch (_: any) {
+                // ignore
+            }
+        }
     };
 
     private openFolder = async (directory: string, navigation: Mp.Navigation): Promise<Mp.LoadEvent | null> => {
@@ -375,11 +385,13 @@ class Main {
         return await ipc.invoke("show_file_folder_dialog", { title, default_path: defaultPath, select_folder: folder });
     };
 
-    createSymlink = async (path: string, linkPath: string) => {
+    createSymlink = async (path: string, linkPath: string): Promise<boolean> => {
         try {
             await ipc.invoke("create_symlink", { path, link_path: linkPath });
+            return true;
         } catch (ex: any) {
             await util.showErrorMessage(ex);
+            return false;
         }
     };
 
@@ -441,7 +453,7 @@ class Main {
     };
 
     renameItem = async (fullPath: string, rawNewName: string): Promise<Mp.RenameResult> => {
-        const newName = fullPath.endsWith(".lnk") ? `${rawNewName.trimEnd()}.lnk` : rawNewName.trimEnd();
+        const newName = fullPath.endsWith(LINK_EXTENSION) ? `${rawNewName.trimEnd()}${LINK_EXTENSION}` : rawNewName.trimEnd();
         const newPath = path.join(path.dirname(fullPath), newName);
 
         try {
@@ -489,11 +501,6 @@ class Main {
         }
     };
 
-    private toFilePath(fullPath: string) {
-        /* Inside recycle bin, shortcut does not end with .lnk */
-        return path.extname(fullPath) == ".lnk" ? fullPath.replace(/.lnk$/, "") : fullPath;
-    }
-
     undeleteItems = async (e: Mp.UndeleteItemRequest) => {
         if (e.undeleteSpecific && !e.items) {
             return util.showErrorMessage("Invalid undelete arguments");
@@ -506,13 +513,15 @@ class Main {
             if (e.undeleteSpecific) {
                 const request: Mp.DeleteUndeleteRequest[] = e.items!.map((request) => {
                     return {
-                        original_path: this.toFilePath(request.fullPath),
+                        /* Inside recycle bin, shortcut does not end with .lnk */
+                        original_path: util.toFilePath(request.fullPath),
                         deleted_time_ms: request.deletedDate,
                     };
                 });
                 await ipc.invoke("undelete_by_time", request);
             } else {
-                const fullPaths = e.fullPaths!.map((fullPath) => this.toFilePath(fullPath));
+                /* Inside recycle bin, shortcut does not end with .lnk */
+                const fullPaths = e.fullPaths!.map((fullPath) => util.toFilePath(fullPath));
                 await ipc.invoke("undelete", fullPaths);
             }
         } catch (ex: any) {
@@ -540,9 +549,10 @@ class Main {
             }
         }
 
+        /* Inside recycle bin, shortcut does not end with .lnk */
         const request: Mp.DeleteUndeleteRequest[] = e.items!.map((request) => {
             return {
-                original_path: this.toFilePath(request.fullPath),
+                original_path: util.toFilePath(request.fullPath),
                 deleted_time_ms: request.deletedDate,
             };
         });

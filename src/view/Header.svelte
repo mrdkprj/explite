@@ -42,6 +42,7 @@
     const DIVIDER_WIDTH = 16;
     // border + display svg + divider + dots svg + divider + paddings + righ margin + click margin min-width
     const MIN_COMPONENT_WIDTH = 1 + 36 + DIVIDER_WIDTH + 36 + DIVIDER_WIDTH + COMPONENT_PADDINGS + COMPONENT_RIGHT_MARGIN + 100;
+    const MAX_HISTORY_ITEM = 6;
 
     let searchInterval = 0;
     let searchInput: HTMLInputElement;
@@ -143,6 +144,7 @@
 
         if (pendingPath) {
             showHiddenPaths = false;
+            navigationDialogType = "None";
             pendingPath = null;
         }
         requestLoad(path, false, "PathSelect");
@@ -161,6 +163,7 @@
         navigationDialogType == "Back" ? goBack() : goForward();
 
         if (pendingPath) {
+            showHiddenPaths = false;
             navigationDialogType = "None";
             pendingPath = null;
         }
@@ -243,7 +246,7 @@
 
     const showHistoryDialog = (e: MouseEvent, navigation: Mp.Navigation) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
-        dropdownPosition = { left: e.target.offsetLeft, top: e.target.offsetHeight + 15 };
+        dropdownPosition = { left: e.target.offsetLeft, top: e.target.offsetHeight + 5 };
         navigationDialogType = navigation;
     };
 
@@ -297,9 +300,9 @@
                     tabindex="0"
                     role="button"
                 >
-                    {#each navigationState.back.toReversed() as history}
+                    {#each navigationState.back.toReversed().slice(0, MAX_HISTORY_ITEM) as history}
                         {#if !util.isWsl(history.fullPath)}
-                            <div class="dropdown-data-med" data-path={history.fullPath} onclick={onHistoryClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+                            <div class="dropdown-data-sm" data-path={history.fullPath} onclick={onHistoryClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
                                 {path.basename(history.fullPath)}
                             </div>
                         {/if}
@@ -326,9 +329,9 @@
                     tabindex="0"
                     role="button"
                 >
-                    {#each navigationState.forward.toReversed() as history}
+                    {#each navigationState.forward.toReversed().slice(0, MAX_HISTORY_ITEM) as history}
                         {#if !util.isWsl(history.fullPath)}
-                            <div class="dropdown-data-med" data-path={history.fullPath} onclick={onHistoryClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+                            <div class="dropdown-data-sm" data-path={history.fullPath} onclick={onHistoryClick} onkeydown={handleKeyEvent} role="button" tabindex="-1">
                                 {path.basename(history.fullPath)}
                             </div>
                         {/if}
@@ -604,7 +607,7 @@
         white-space: nowrap;
         font-family: var(--font);
         font-size: 14px;
-        padding: 0 5px 0 0;
+        padding-right: 5px;
         border-radius: 5px;
     }
 
@@ -623,12 +626,15 @@
         color: var(--input-color);
     }
 
-    .header .path-input:focus {
+    .path-area:has(> input:focus) {
         outline: 1px solid var(--input-focus-outline);
         border-bottom: 2px solid var(--input-bottom-border);
+        border-radius: 5px;
+        margin-top: 2px;
     }
 
-    .header .search-input:focus {
+    .header .search-input:focus,
+    .header .path-input:focus {
         outline: none;
     }
 
@@ -645,6 +651,7 @@
         outline: 1px solid var(--input-focus-outline);
         border-bottom: 2px solid var(--input-bottom-border);
         border-radius: 5px;
+        margin-top: 2px;
     }
 
     .clear-area {

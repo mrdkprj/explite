@@ -20,7 +20,7 @@
     import Header from "./Header.svelte";
     import Left from "./Left.svelte";
     import Preference from "./Preference.svelte";
-    import Symlink from "./Symlink.svelte";
+    import SymlinkDialog from "./SymlinkDialog.svelte";
     import VirtualList from "./VirtualList.svelte";
     import Home from "./Home.svelte";
     import GridView from "./GridView.svelte";
@@ -578,14 +578,19 @@
             return await moveSelectionByShit(e.key);
         }
 
-        const currentId = $appState.selection.selectedId ? $appState.selection.selectedId : listState.files[0].id;
-        const currentIndex = getChildIndex(currentId);
+        if (!$appState.selection.selectedId) {
+            clearSelection();
+            await select(listState.files[0].id);
+            return;
+        }
+
+        const currentIndex = getChildIndex($appState.selection.selectedId);
         const nextId = getNextItemId(e.key, currentIndex);
 
-        if (!nextId) return;
-
-        clearSelection();
-        await select(nextId);
+        if (nextId) {
+            clearSelection();
+            await select(nextId);
+        }
     };
 
     const getNextItemId = (key: string, currentIndex: number) => {
@@ -1076,6 +1081,16 @@
         }
     };
 
+    const tryOpenSelected = async () => {
+        if (!$appState.selection.selectedIds.length) return;
+
+        const allFiles = listState.files.filter((file) => $appState.selection.selectedIds.includes(file.id));
+        const dirIncluded = allFiles.some((file) => !file.isFile);
+        if (dirIncluded) return;
+        const fullPaths = allFiles.map((file) => util.getRealPath(file));
+        await main.openFiles(fullPaths);
+    };
+
     const reload = async (includeDrive: boolean) => {
         if (headerState.search.searching) {
             return await endSearch(true);
@@ -1333,7 +1348,7 @@
     };
 
     /* Undo/Redo shortcut does not work on Webkit2gtk with Tauri */
-    const resolve_input_edit = async (e: KeyboardEvent) => {
+    const resolveInputEdit = async (e: KeyboardEvent) => {
         if (navigator.userAgent.includes(OS.windows)) return;
         if (!e.ctrlKey) return;
 
@@ -1378,11 +1393,11 @@
             e.preventDefault();
         }
 
-        if (renameState.renaming) return resolve_input_edit(e);
-        if (headerState.pathEditing) return resolve_input_edit(e);
-        if ($appState.prefVisible) return resolve_input_edit(e);
-        if ($appState.symlinkVisible) return resolve_input_edit(e);
-        if (header?.hasSearchInputFocus()) return resolve_input_edit(e);
+        if (renameState.renaming) return resolveInputEdit(e);
+        if (headerState.pathEditing) return resolveInputEdit(e);
+        if ($appState.prefVisible) return resolveInputEdit(e);
+        if ($appState.symlinkVisible) return resolveInputEdit(e);
+        if (header?.hasSearchInputFocus()) return resolveInputEdit(e);
 
         if (e.ctrlKey && e.key == "f") {
             e.preventDefault();
@@ -1396,14 +1411,8 @@
         }
 
         if (e.key == "Enter") {
-            if ($appState.selection.selectedIds.length == 1) {
-                const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
-                if (file) {
-                    e.preventDefault();
-                    requestLoad(util.getRealPath(file), file.isFile, "Direct");
-                }
-                return;
-            }
+            await tryOpenSelected();
+            return;
         }
 
         if (e.key == "F2") {
@@ -1525,7 +1534,17 @@
     };
 
     const createSymlink = async (path: string, linkPath: string) => {
-        await main.createSymlink(path, linkPath);
+        folderUpdatePromise = new Deferred();
+        const created = await main.createSymlink(path, linkPath);
+        if (created) {
+            await safePromise();
+            const linkFile = listState.files.find((file) => util.toFilePath(file.fullPath) == path);
+            if (linkFile) {
+                await select(linkFile.id);
+            }
+        } else {
+            folderUpdatePromise = null;
+        }
     };
 
     const minimize = async () => {
@@ -1625,12 +1644,12 @@
             if (!folderUpdatePromise) return;
 
             await tick();
-            folderUpdatePromise.resolve(0);
-            folderUpdatePromise = null;
             const containsSelected = files.some((file) => $appState.selection.selectedIds.includes(file.id));
             if (!containsSelected) {
                 dispatch({ type: "clearSelection" });
             }
+            folderUpdatePromise.resolve(0);
+            folderUpdatePromise = null;
         }, 200);
     };
 
@@ -1693,7 +1712,7 @@
                 <Preference changeAppMenuItems={main.changeAppMenuItems} {openSettingsAsJson} themeChanged={() => main.changeTheme(settings.data.theme)} onClose={onPreferenceClose} />
             {/if}
             {#if $appState.symlinkVisible}
-                <Symlink {getSymlinkTargetItem} {createSymlink} />
+                <SymlinkDialog {getSymlinkTargetItem} {createSymlink} />
             {/if}
             {#if renameState.renaming}
                 <Rename {endEditFileName} />

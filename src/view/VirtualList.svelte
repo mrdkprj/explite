@@ -233,6 +233,7 @@
         overflow: auto;
         -webkit-overflow-scrolling: touch;
         display: block;
+        outline: none;
     }
 
     svelte-virtual-list-contents,

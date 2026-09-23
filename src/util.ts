@@ -6,6 +6,7 @@ import {
     DATE_OPTION,
     GRID_ITEM_WIDTH,
     HOME,
+    LINK_EXTENSION,
     LINUX_SPECIAL_FOLDERS,
     LINUX_USER_ROOT_DIR,
     MIME_TYPE,
@@ -166,9 +167,13 @@ class Util {
     }
 
     private getName(fullPath: string) {
-        const displayPath = path.extname(fullPath) == ".lnk" ? fullPath.substring(0, fullPath.lastIndexOf(".lnk")) : fullPath;
+        const displayPath = path.extname(fullPath) == LINK_EXTENSION ? fullPath.substring(0, fullPath.lastIndexOf(LINK_EXTENSION)) : fullPath;
 
         return path.basename(displayPath);
+    }
+
+    toFilePath(fullPath: string) {
+        return path.extname(fullPath) == LINK_EXTENSION ? fullPath.replace(new RegExp(`${LINK_EXTENSION}$`), "") : fullPath;
     }
 
     toFile(dirent: Mp.Dirent): Mp.MediaFile {
