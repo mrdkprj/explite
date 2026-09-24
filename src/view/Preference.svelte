@@ -1,8 +1,8 @@
 <script lang="ts">
-    import { handleKeyEvent } from "../constants";
+    import { DIALOG_COLORS, handleKeyEvent } from "../constants";
     import { dispatch, settings } from "./appStateReducer.svelte";
     import JsonSvg from "../svg/JsonSvg.svelte";
-    import { scale } from "svelte/transition";
+    import Dialog from "./Dialog.svelte";
 
     let {
         changeAppMenuItems,
@@ -34,18 +34,16 @@
         dispatch({ type: "clearColumnHistory" });
     };
 
-    const onkeydown = (e: KeyboardEvent) => {
-        if (e.key == "Escape") {
-            dispatch({ type: "togglePreference" });
-        }
-    };
-
     const isAppMenuItemChanged = (newAppMenuItems: Mp.AppMenuItem[]): boolean => {
         if (newAppMenuItems.length != settings.data.appMenuItems.length) return true;
 
         return newAppMenuItems.some(
             (item, index) => settings.data.appMenuItems[index].label != item.label || settings.data.appMenuItems[index].path != item.path || settings.data.appMenuItems[index].target != item.target,
         );
+    };
+
+    const onDialogClose = () => {
+        close(false);
     };
 
     const close = (save: boolean) => {
@@ -66,113 +64,91 @@
         onClose();
     };
 
-    const setKeyboardFocus = (node: HTMLDivElement) => {
-        node.focus();
-    };
-
     const openSettings = async () => {
         await openSettingsAsJson();
     };
 </script>
 
-<div class="dialog-overlay" {onkeydown} role="button" tabindex="-1" use:setKeyboardFocus transition:scale={{ delay: 0, duration: 100 }}>
-    <div class="dialog-container">
-        <div class="dialog-header">
-            <div class="pref-json" onclick={openSettings} onkeydown={handleKeyEvent} role="button" tabindex="-1"><JsonSvg /></div>
-            <div class="dialog-close" onclick={() => close(false)} onkeydown={handleKeyEvent} role="button" tabindex="-1">&times;</div>
+<Dialog focusOnMount={true} overlayOffet={50} width={540} height={560} close={onDialogClose} colors={DIALOG_COLORS}>
+    {#snippet header()}
+        <div class="pref-json" onclick={openSettings} onkeydown={handleKeyEvent} role="button" tabindex="-1"><JsonSvg /></div>
+    {/snippet}
+    {#snippet content()}
+        <div class="dialog-title-block">Theme</div>
+        <div class="dialog-item-block">
+            <select class="dialog-select" name="theme" bind:value={theme}>
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+                <option value="system">System</option>
+            </select>
         </div>
-        <div class="dialog">
-            <div class="dialog-title-block">Theme</div>
-            <div class="dialog-item-block">
-                <select class="dialog-select" name="theme" bind:value={theme}>
-                    <option value="dark">Dark</option>
-                    <option value="light">Light</option>
-                    <option value="system">System</option>
-                </select>
-            </div>
-            <div class="dialog-separator"></div>
+        <div class="dialog-separator"></div>
 
-            <div class="dialog-title-block">View</div>
-            <div class="dialog-item-block"></div>
-            <div class="dialog-item">
-                <input id="treeView" type="checkbox" bind:checked={treeView} /><label for="treeView">TreeView</label>
-            </div>
-            <div class="dialog-item">
-                <input id="rememberColumns" type="checkbox" bind:checked={rememberColumns} /><label for="rememberColumns">Remember column settings</label>
-            </div>
-            <div class="dialog-item">
-                <button class="dialog-btn-md" onclick={removeHistory} disabled={!rememberColumns}>Remove history</button>
-            </div>
-            <div class="dialog-item">
-                <input id="allowMoveColumn" type="checkbox" bind:checked={allowMoveColumn} /><label for="allowMoveColumn">Allow column move</label>
-            </div>
-            <div class="dialog-item">
-                <input id="useOSFileIcon" type="checkbox" bind:checked={useOSIcon} /><label for="useOSFileIcon">Use PNG icons</label>
-            </div>
+        <div class="dialog-title-block">View</div>
+        <div class="dialog-item-block"></div>
+        <div class="dialog-item">
+            <input id="treeView" type="checkbox" bind:checked={treeView} /><label for="treeView">TreeView</label>
+        </div>
+        <div class="dialog-item">
+            <input id="rememberColumns" type="checkbox" bind:checked={rememberColumns} /><label for="rememberColumns">Remember column settings</label>
+        </div>
+        <div class="dialog-item">
+            <button class="dialog-btn-md" onclick={removeHistory} disabled={!rememberColumns}>Remove history</button>
+        </div>
+        <div class="dialog-item">
+            <input id="allowMoveColumn" type="checkbox" bind:checked={allowMoveColumn} /><label for="allowMoveColumn">Allow column move</label>
+        </div>
+        <div class="dialog-item">
+            <input id="useOSFileIcon" type="checkbox" bind:checked={useOSIcon} /><label for="useOSFileIcon">Use PNG icons</label>
+        </div>
 
-            <div class="dialog-separator"></div>
+        <div class="dialog-separator"></div>
 
-            <div class="dialog-title-block">Menu</div>
-            <div class="dialog-item-block">
-                <div class="dialog-item">
-                    <div>Manage application menu items</div>
+        <div class="dialog-title-block">Menu</div>
+        <div class="dialog-item-block">
+            <div class="dialog-item">
+                <div>Manage application menu items</div>
+            </div>
+            <div class="dialog-item">
+                <div class="pref-buttons">
+                    <div><button class="btn-md" onclick={addMenuItem}>Add</button></div>
                 </div>
-                <div class="dialog-item">
-                    <div class="pref-buttons">
-                        <div><button class="btn-md" onclick={addMenuItem}>Add</button></div>
+            </div>
+            <div class="dialog-item">
+                <div class="pref-table">
+                    <div class="pref-row">
+                        <div class="pref-cell"><div class="pref-content"></div></div>
+                        <div class="pref-cell"><div class="pref-content">Label</div></div>
+                        <div class="pref-cell"><div class="pref-content">Application Path</div></div>
+                        <div class="pref-cell"><div class="pref-content">Target</div></div>
                     </div>
-                </div>
-                <div class="dialog-item">
-                    <div class="pref-table">
+                    {#each appMenuItems as item, index}
                         <div class="pref-row">
-                            <div class="pref-cell"><div class="pref-content"></div></div>
-                            <div class="pref-cell"><div class="pref-content">Label</div></div>
-                            <div class="pref-cell"><div class="pref-content">Application Path</div></div>
-                            <div class="pref-cell"><div class="pref-content">Target</div></div>
-                        </div>
-                        {#each appMenuItems as item, index}
-                            <div class="pref-row">
-                                <div class="pref-cell"><div class="pref-content"><button onclick={() => removeMenuItem(index)}>-</button></div></div>
-                                <div class="pref-cell"><input type="text" class="pref-content" contenteditable="plaintext-only" bind:value={item.label} /></div>
-                                <div class="pref-cell"><input type="text" class="pref-content" contenteditable="plaintext-only" bind:value={item.path} /></div>
-                                <div class="pref-cell">
-                                    <div class="pref-content no-padding">
-                                        <select name="target" class="dialog-select pref-target" bind:value={item.target}>
-                                            <option value="File">File</option>
-                                            <option value="Folder">Folder</option>
-                                            <option value="Both">Both</option>
-                                        </select>
-                                    </div>
+                            <div class="pref-cell"><div class="pref-content"><button onclick={() => removeMenuItem(index)}>-</button></div></div>
+                            <div class="pref-cell"><input type="text" class="pref-content" contenteditable="plaintext-only" bind:value={item.label} /></div>
+                            <div class="pref-cell"><input type="text" class="pref-content" contenteditable="plaintext-only" bind:value={item.path} /></div>
+                            <div class="pref-cell">
+                                <div class="pref-content no-padding">
+                                    <select name="target" class="dialog-select pref-target" bind:value={item.target}>
+                                        <option value="File">File</option>
+                                        <option value="Folder">Folder</option>
+                                        <option value="Both">Both</option>
+                                    </select>
                                 </div>
                             </div>
-                        {/each}
-                    </div>
+                        </div>
+                    {/each}
                 </div>
             </div>
-
-            <div class="dialog-separator"></div>
-
-            <div class="dialog-item-block dialog-action">
-                <button class="dialog-btn-lg" onclick={() => close(true)}>Apply</button>
-                <button class="dialog-btn-lg" onclick={() => close(false)}>Close</button>
-            </div>
         </div>
-    </div>
-</div>
+    {/snippet}
+    {#snippet action()}
+        <button class="dialog-btn-lg" onclick={() => close(true)}>Apply</button>
+        <button class="dialog-btn-lg" onclick={() => close(false)}>Close</button>
+    {/snippet}
+</Dialog>
 
 <style>
-    .dialog-container {
-        background-color: var(--main-bgcolor);
-        color: var(--menu-color);
-        display: flex;
-        width: 540px;
-        height: 560px;
-        flex-direction: column;
-        box-shadow: 7px 5px 5px var(--dialog-shadow);
-        outline: 1px solid var(--dialog-border-color);
-        border-radius: 8px;
-    }
-
     .pref-json {
         height: 100%;
         display: flex;
@@ -232,6 +208,38 @@
 
     .pref-content.no-padding {
         padding: 0;
+    }
+
+    select {
+        width: 90%;
+        padding: 5px 0 5px 5px;
+        border-radius: 4px;
+        border-color: #ccc;
+        background-color: var(--button-bgcolor);
+        color: var(--button-color);
+    }
+
+    select.pref-target {
+        width: 100%;
+        outline: none;
+        border: none;
+        height: 100%;
+    }
+
+    button {
+        background-color: var(--button-bgcolor);
+        color: var(--button-color);
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+
+    button:hover,
+    button:not(:disabled):hover {
+        background-color: #e1e4ed;
+    }
+
+    button:disabled {
+        visibility: hidden;
     }
 
     input[type="text"] {

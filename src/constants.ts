@@ -1,3 +1,5 @@
+import type { DialogColors } from "./view/Dialog.svelte";
+
 export const handleKeyEvent = () => {
     /**/
 };
@@ -38,6 +40,16 @@ export const DEFAULT_SETTINGS: Mp.Settings = {
 export const BROWSER_SHORTCUT_KEYS = ["f", "p", "r", "+", "-", "u", "g", "j"];
 
 export const DATE_OPTION: Intl.DateTimeFormatOptions = { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "numeric", second: "numeric" };
+
+export const DIALOG_COLORS: DialogColors = {
+    background: "var(--main-bgcolor)",
+    color: "var(--menu-color)",
+    shadow: "var(--dialog-shadow)",
+    outline: "var(--dialog-border-color)",
+    closeHoverBackground: "var(--close-hover-bgcolor)",
+    closeHoverColor: "var(--close-hover-color)",
+    separator: "#ccc",
+};
 
 export const DEFAULT_LABLES: Mp.Column[] = [
     {

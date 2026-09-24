@@ -1,9 +1,11 @@
 <script lang="ts">
-    import { handleKeyEvent } from "../constants";
+    // import { handleKeyEvent } from "../constants";
     import { dispatch, listState } from "./appStateReducer.svelte";
     import path from "../path";
     import util from "../util";
-    import { scale } from "svelte/transition";
+    // import { scale } from "svelte/transition";
+    import Dialog from "./Dialog.svelte";
+    import { DIALOG_COLORS } from "../constants";
 
     let {
         getSymlinkTargetItem,
@@ -21,11 +23,6 @@
         let item = await getSymlinkTargetItem(listState.currentDir.fullPath, folder);
         if (item) {
             symlinkTarget = item;
-        }
-    };
-    const onkeydown = (e: KeyboardEvent) => {
-        if (e.key == "Escape") {
-            dispatch({ type: "toggleCreateSymlink" });
         }
     };
 
@@ -54,61 +51,38 @@
     };
 </script>
 
-<div class="dialog-overlay" {onkeydown} role="button" tabindex="-1" transition:scale={{ delay: 0, duration: 100 }}>
-    <div class="dialog-container">
-        <div class="dialog-header">
-            <div class="dialog-close" onclick={close} onkeydown={handleKeyEvent} role="button" tabindex="-1">&times;</div>
-        </div>
-        <div class="dialog">
-            <div class="dialog-title-block">Create Symlink</div>
-            {#if page == 0}
-                <div class="dialog-item-block">
-                    <div class="dialog-item">Target item:</div>
-                    <div class="dialog-item">
-                        <input type="text" bind:value={symlinkTarget} use:setKeyboardFocus />
-                        <button class="dialog-btn-md" style="margin-right: 3px;" onclick={() => getSymlinkTarget(false)}>File</button>
-                        <button class="dialog-btn-md" onclick={() => getSymlinkTarget(true)}>Folder</button>
-                    </div>
+<Dialog title={"Create Symlink"} overlayOffet={50} width={540} height={200} {close} colors={DIALOG_COLORS}>
+    {#snippet content()}
+        {#if page == 0}
+            <div class="dialog-item-block">
+                <div class="dialog-item">Target item:</div>
+                <div class="dialog-item">
+                    <input type="text" bind:value={symlinkTarget} use:setKeyboardFocus />
+                    <button class="dialog-btn-md" style="margin-right: 3px;" onclick={() => getSymlinkTarget(false)}>File</button>
+                    <button class="dialog-btn-md" onclick={() => getSymlinkTarget(true)}>Folder</button>
                 </div>
-                <div class="dialog-separator"></div>
-                <div class="dialog-action">
-                    <button class="dialog-btn-lg" onclick={next} disabled={!symlinkTarget}>Next</button>
-                    <button class="dialog-btn-lg" onclick={close}>Cancel</button>
+            </div>
+        {:else}
+            <div class="dialog-item-block">
+                <div class="dialog-item">Symlink name:</div>
+                <div>
+                    <input type="text" bind:value={symlinkName} />
                 </div>
-            {:else}
-                <div class="dialog-item-block">
-                    <div class="dialog-item">Symlink name:</div>
-                    <div>
-                        <input type="text" bind:value={symlinkName} />
-                    </div>
-                </div>
-                <div class="dialog-separator"></div>
-                <div class="dialog-action">
-                    <button class="dialog-btn-lg" onclick={create} disabled={!symlinkName}>Done</button>
-                    <button class="dialog-btn-lg" onclick={close}>Cancel</button>
-                </div>
-            {/if}
-        </div>
-    </div>
-</div>
+            </div>
+        {/if}
+    {/snippet}
+    {#snippet action()}
+        {#if page == 0}
+            <button class="dialog-btn-lg" onclick={next} disabled={!symlinkTarget}>Next</button>
+            <button class="dialog-btn-lg" onclick={close}>Cancel</button>
+        {:else}
+            <button class="dialog-btn-lg" onclick={create} disabled={!symlinkName}>Done</button>
+            <button class="dialog-btn-lg" onclick={close}>Cancel</button>
+        {/if}
+    {/snippet}
+</Dialog>
 
 <style>
-    .dialog-container {
-        background-color: var(--main-bgcolor);
-        color: var(--menu-color);
-        display: flex;
-        width: 540px;
-        height: 200px;
-        flex-direction: column;
-        box-shadow: 7px 5px 5px var(--dialog-shadow);
-        outline: 1px solid var(--dialog-border-color);
-        border-radius: 8px;
-    }
-
-    .dialog-action button:first-child {
-        margin-right: 10px;
-    }
-
     input[type="text"] {
         border: 1px solid #ccc;
         outline-color: #ccc;
