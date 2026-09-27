@@ -21,8 +21,11 @@
         overlayOffet = 0,
         width,
         height,
+        minWidth,
+        minHeight,
         colors,
         close,
+        onkeydown,
     }: {
         title?: string;
         header?: Snippet;
@@ -30,10 +33,13 @@
         action?: Snippet;
         focusOnMount?: boolean;
         overlayOffet?: number;
-        width: number;
-        height: number;
+        width?: number;
+        height?: number;
+        minWidth?: number;
+        minHeight?: number;
         colors: DialogColors;
         close: () => void;
+        onkeydown?: (e: KeyboardEvent) => void;
     } = $props();
 
     const position = $state({ x: 0, y: 0 });
@@ -43,10 +49,16 @@
         start: { x: 0, y: 0 },
         offset: { x: 0, y: 0 },
     };
+    let dialogWidth = $state(0);
+    let dialogHeight = $state(0);
 
-    const onkeydown = (e: KeyboardEvent) => {
+    const _onkeydown = (e: KeyboardEvent) => {
         if (e.key == "Escape") {
             close();
+        }
+
+        if (onkeydown) {
+            onkeydown(e);
         }
     };
 
@@ -57,8 +69,10 @@
     };
 
     const onmousedown = (e: MouseEvent) => {
-        const x = (window.innerWidth - width) / 2;
-        const y = (window.innerHeight - height - overlayOffet) / 2;
+        const w = width ?? dialogWidth;
+        const h = height ?? dialogHeight;
+        const x = (window.innerWidth - w) / 2;
+        const y = (window.innerHeight - h - overlayOffet) / 2;
         dragState.dragging = true;
         dragState.bounds = { x, y };
         dragState.offset = { x: position.x, y: position.y };
@@ -89,7 +103,7 @@
 <svelte:document {onmousemove} {onmouseup} />
 <div
     class="dialog-overlay"
-    style={`height:calc(100% - ${overlayOffet}px)`}
+    style={`height:calc(100% - ${overlayOffet}px); top:${overlayOffet}px;`}
     style:--background={colors.background}
     style:--color={colors.color}
     style:--shadow={colors.shadow}
@@ -97,13 +111,20 @@
     style:--closeHoverBackground={colors.closeHoverBackground}
     style:--closeHoverColor={colors.closeHoverColor}
     style:--seperatorColor={colors.separator}
-    {onkeydown}
+    onkeydown={_onkeydown}
     role="button"
     tabindex="-1"
     transition:scale={{ delay: 0, duration: 100 }}
     use:setKeyboardFocus
 >
-    <div class="dialog-container" style={`width:${width}px; height:${height}px; transform: translate(${position.x}px, ${position.y}px);`}>
+    <div
+        class="dialog-container"
+        style:width={width ? `${width}px;` : "fit-content;"}
+        style:height={height ? `${height}px;` : "fit-content;"}
+        style={`min-width:${minWidth}px; min-height:${minHeight}px; transform: translate(${position.x}px, ${position.y}px);`}
+        bind:clientWidth={dialogWidth}
+        bind:clientHeight={dialogHeight}
+    >
         <div class="dialog-header" {onmousedown} onkeydown={handleKeyEvent} role="button" tabindex="-1">
             {#if header}
                 {@render header()}
@@ -134,6 +155,8 @@
         justify-content: center;
         position: absolute;
         z-index: 9999;
+        left: 0px;
+        outline: none;
     }
 
     .dialog-container {
@@ -178,6 +201,10 @@
         margin-bottom: 5px;
     }
 
+    :global(.dialog-item label) {
+        user-select: none;
+    }
+
     :global(.dialog-title-block) {
         font-size: 16px;
         font-weight: bold;
@@ -196,7 +223,7 @@
         position: relative;
         -webkit-app-region: no-drag;
         line-height: 35px;
-        border-top-right-radius: 8px;
+        border-top-right-radius: 4px;
     }
 
     .dialog-close:hover {
@@ -214,6 +241,14 @@
         margin-right: 10px;
     }
 
+    :global(.dialog-btn-lg) {
+        padding: 8px;
+    }
+
+    :global(.dialog-btn-lgw) {
+        padding: 8px 20px;
+    }
+
     :global(.dialog-btn-md) {
         padding: 5px;
     }
@@ -221,10 +256,6 @@
     :global(.dialog-btn-md:disabled) {
         background-color: #ccc;
         pointer-events: none;
-    }
-
-    :global(.dialog-btn-lg) {
-        padding: 8px;
     }
 
     :global(.dialog-action button:first-child) {

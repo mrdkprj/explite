@@ -19,7 +19,7 @@
     import BottomBar from "./BottomBar.svelte";
     import Header from "./Header.svelte";
     import Left from "./Left.svelte";
-    import Preference from "./Preference.svelte";
+    import PreferenceDialog from "./PreferenceDialog.svelte";
     import SymlinkDialog from "./SymlinkDialog.svelte";
     import VirtualList from "./VirtualList.svelte";
     import Home from "./Home.svelte";
@@ -1709,7 +1709,7 @@
         <TopBar {minimize} {toggleMaximize} {launchNew} {close} />
         <div class="view">
             {#if $appState.prefVisible}
-                <Preference changeAppMenuItems={main.changeAppMenuItems} {openSettingsAsJson} themeChanged={() => main.changeTheme(settings.data.theme)} onClose={onPreferenceClose} />
+                <PreferenceDialog changeAppMenuItems={main.changeAppMenuItems} {openSettingsAsJson} themeChanged={() => main.changeTheme(settings.data.theme)} onClose={onPreferenceClose} />
             {/if}
             {#if $appState.symlinkVisible}
                 <SymlinkDialog {getSymlinkTargetItem} {createSymlink} />
