@@ -69,6 +69,9 @@
     };
 
     const onmousedown = (e: MouseEvent) => {
+        if (!e.target || !(e.target instanceof HTMLElement)) return;
+        if (!e.target.classList.contains("dialog-header")) return;
+
         const w = width ?? dialogWidth;
         const h = height ?? dialogHeight;
         const x = (window.innerWidth - w) / 2;
