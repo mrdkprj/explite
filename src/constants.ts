@@ -35,6 +35,7 @@ export const DEFAULT_SETTINGS: Mp.Settings = {
     useOSIcon: false,
     rememberColumns: true,
     treeView: false,
+    tabMode: false,
 };
 
 export const BROWSER_SHORTCUT_KEYS = ["f", "p", "r", "+", "-", "u", "g", "j"];
@@ -50,6 +51,15 @@ export const DIALOG_COLORS: DialogColors = {
     closeHoverColor: "var(--close-hover-color)",
     separator: "#ccc",
 };
+
+export enum ChangedSettings {
+    None = 0,
+    MenuItem = 1 << 0,
+    Theme = 1 << 1,
+    TabMode = 1 << 2,
+    Column = 1 << 3,
+    Favorite = 1 << 4,
+}
 
 export const DEFAULT_LABLES: Mp.Column[] = [
     {

@@ -1,33 +1,92 @@
 use crate::{
-    session::Session,
+    manager::{self, create_new_window},
+    menu,
     watcher::{self, WatchTx},
     IconInfo, ThumbnailArgs,
 };
-use std::{collections::HashMap, path::PathBuf};
-use tauri::Manager;
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::{Mutex, OnceLock},
+};
+use tauri::{AppHandle, Manager, WebviewWindow};
 use zouni::{process::SpawnOption, Size};
+
+static RESTORE_POSITION: OnceLock<bool> = OnceLock::new();
+static LOCALE: OnceLock<String> = OnceLock::new();
 
 pub fn setup(app: &tauri::App) {
     let mut urls = Vec::new();
     for arg in std::env::args().skip(1) {
         urls.push(arg);
     }
-    app.manage(urls);
-
-    let id = &app.config().identifier;
-    if let Ok(session) = crate::session::start(id) {
-        app.manage(session);
-    }
+    let args = new_init_arg(urls, false, None);
+    app.manage(Mutex::new(InitArg {
+        args: Some(args),
+    }));
 
     let (tx_cmd, rx_cmd) = smol::channel::bounded(5);
     app.manage(WatchTx(tx_cmd));
     watcher::spwan_watcher(app.app_handle(), rx_cmd).unwrap();
+    manager::init(app.handle());
+    menu::init(app.handle());
 }
 
-pub fn exit(app: &tauri::AppHandle) {
-    if let Some(session) = app.try_state::<Session>() {
-        crate::session::end(session.inner());
+pub fn new_window(window: WebviewWindow, detach: bool, path: Option<String>) {
+    let app = window.app_handle();
+    let state = app.state::<Mutex<InitArg>>();
+    let mut state = state.lock().unwrap();
+
+    let urls = if let Some(path) = path {
+        vec![path]
+    } else {
+        Vec::new()
+    };
+    let args = new_init_arg(urls, detach, Some(window.label()));
+    state.args = Some(args);
+    create_new_window(app);
+}
+
+struct InitArg {
+    args: Option<Args>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Args {
+    urls: Vec<String>,
+    locales: Vec<String>,
+    restore_position: bool,
+    opener: String,
+    detach: bool,
+}
+
+fn new_init_arg(urls: Vec<String>, detach: bool, opener: Option<&str>) -> Args {
+    let locale = LOCALE.get_or_init(zouni::shell::get_locale).to_string();
+    let restore_position = if RESTORE_POSITION.get().is_none() {
+        *RESTORE_POSITION.get_or_init(|| true)
+    } else {
+        false
+    };
+
+    Args {
+        urls,
+        locales: vec![locale],
+        restore_position,
+        opener: opener.unwrap_or_default().to_string(),
+        detach,
     }
+}
+
+pub fn get_init_args(app: AppHandle) -> Args {
+    let state = app.state::<Mutex<InitArg>>();
+    let mut state = state.lock().unwrap();
+    state.args.take().unwrap_or_default()
+}
+
+pub fn exit(app: &AppHandle, label: &str) {
+    menu::remove(app, label);
+    manager::remove_window(app, label);
 }
 
 fn get_extension(full_path: &str) -> String {

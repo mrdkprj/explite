@@ -1,4 +1,5 @@
-import { DEFAULT_LABLES, DEFAULT_SETTINGS, DEFAULT_SORT_TYPE } from "../constants";
+import { ChangedSettings, DEFAULT_LABLES, DEFAULT_SETTINGS, DEFAULT_SORT_TYPE } from "../constants";
+import { driveState } from "./driveState.svelte";
 import { listState, ListUpdater } from "./listState.svelte";
 
 type SettingsState = {
@@ -9,21 +10,61 @@ const state: SettingsState = $state({ data: DEFAULT_SETTINGS });
 
 export { state as settings };
 
-export type PreferenceAction = { theme: Mp.Theme; appMenuItems: Mp.AppMenuItem[]; allowMoveColumn: boolean; useOSIcon: boolean; rememberColumns: boolean; treeView: boolean };
+export type PreferenceAction = { theme: Mp.Theme; appMenuItems: Mp.AppMenuItem[]; allowMoveColumn: boolean; useOSIcon: boolean; rememberColumns: boolean; treeView: boolean; tabMode: boolean };
+
+let changeCallback: (e: ChangedSettings) => void = () => {};
 
 export class SettingsUpdater {
-    static updatePreference = (action: PreferenceAction) => {
-        state.data.theme = action.theme;
-        state.data.allowMoveColumn = action.allowMoveColumn;
-        state.data.appMenuItems = action.appMenuItems;
-        state.data.useOSIcon = action.useOSIcon;
-        state.data.rememberColumns = action.rememberColumns;
-        if (state.data.treeView != action.treeView) {
-            if (!action.treeView) {
+    static init = (data: Mp.Settings, callback: (e: ChangedSettings) => void) => {
+        state.data = data;
+        changeCallback = callback;
+    };
+
+    static isMaximized = (isMaximized: boolean) => {
+        state.data.isMaximized = isMaximized;
+    };
+
+    static setBounds = (bounds: Mp.Bounds) => {
+        state.data.bounds = bounds;
+    };
+
+    static clearColumnHistory = () => {
+        state.data.columnHistory = {};
+    };
+
+    static toggleTabMode = (tabMode: boolean) => {
+        state.data.tabMode = tabMode;
+    };
+
+    static update = (data: Mp.Settings) => {
+        const newAppMenuItems = data.appMenuItems.filter((item) => item.path != "");
+        let changedSettings = ChangedSettings.None;
+        if (this.isAppMenuItemChanged(newAppMenuItems)) {
+            changedSettings |= ChangedSettings.MenuItem;
+        }
+        if (data.theme != state.data.theme) {
+            changedSettings |= ChangedSettings.Theme;
+        }
+        if (data.tabMode != state.data.tabMode) {
+            changedSettings |= ChangedSettings.TabMode;
+        }
+
+        if (state.data.treeView != data.treeView) {
+            if (!data.treeView) {
                 ListUpdater.clearTreeState();
             }
-            state.data.treeView = action.treeView;
         }
+
+        state.data = data;
+        changeCallback(changedSettings);
+    };
+
+    private static isAppMenuItemChanged = (newAppMenuItems: Mp.AppMenuItem[]): boolean => {
+        if (newAppMenuItems.length != state.data.appMenuItems.length) return true;
+
+        return newAppMenuItems.some(
+            (item, index) => state.data.appMenuItems[index].label != item.label || state.data.appMenuItems[index].path != item.path || state.data.appMenuItems[index].target != item.target,
+        );
     };
 
     static updateColumnSetting = (sortType: Mp.SortType | null, columns: Mp.Column[] | null) => {
@@ -44,6 +85,7 @@ export class SettingsUpdater {
             state.data.columnHistory[directory] = { time: new Date().getTime(), sortType: sortType ?? DEFAULT_SORT_TYPE, columns: columns ?? DEFAULT_LABLES };
             ListUpdater.swichColumns();
         }
+        changeCallback(ChangedSettings.Column);
     };
 
     static validateColumnHistory = (directory: string) => {
@@ -61,5 +103,29 @@ export class SettingsUpdater {
             .filter(([_, value]) => value.time > monthBefore)
             .forEach(([key, value]) => (newHistory[key] = value));
         state.data.columnHistory = newHistory;
+    };
+
+    static updateFavorite = (files: Mp.MediaFile[]) => {
+        state.data.favorites = files;
+        changeCallback(ChangedSettings.Favorite);
+    };
+
+    static addToFavorites = (file: Mp.MediaFile | undefined) => {
+        if (file && !file.isFile) {
+            state.data.favorites.push(file);
+            changeCallback(ChangedSettings.Favorite);
+        }
+    };
+
+    static removeFromFavorites = () => {
+        if (driveState.hoverFavoriteId) {
+            const newFavorites = state.data.favorites.filter((file) => file.id != driveState.hoverFavoriteId);
+            state.data.favorites = newFavorites;
+            changeCallback(ChangedSettings.Favorite);
+        }
+    };
+
+    static updateLeftWidth = (width: number) => {
+        state.data.leftAreaWidth = width;
     };
 }

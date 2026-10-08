@@ -1,5 +1,6 @@
 import { listen, emit, UnlistenFn, once, emitTo, EventName } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import { getAllWebviewWindows } from "@tauri-apps/api/webviewWindow";
 
 type TauriCommand<Req, Res> = {
     Request: Req;
@@ -90,6 +91,8 @@ type InitArgs = {
     urls: string[];
     locales: string[];
     restore_position: boolean;
+    opener: string;
+    detach: boolean;
 };
 
 type IconInfo = {
@@ -112,7 +115,8 @@ type TauriCommandMap = {
     exists: TauriCommand<string, boolean>;
     open_path: TauriCommand<string, null>;
     open_path_with: TauriCommand<OpenWithArg, null>;
-    open_in_new_window: TauriCommand<string, null>;
+    open_in_new_window: TauriCommand<string | undefined, null>;
+    open_in_new_tab: TauriCommand<string | undefined, null>;
     show_app_selector: TauriCommand<string, null>;
     open_property_dielog: TauriCommand<string, null>;
     readdir: TauriCommand<ReadDirRequest, ArrayBuffer>;
@@ -143,7 +147,6 @@ type TauriCommandMap = {
     unwatch: TauriCommand<NotifyRequest, null>;
     message: TauriCommand<DialogOptions, Mp.MessageResult>;
     open_terminal: TauriCommand<TerminalArgs, null>;
-    launch_new: TauriCommand<null, null>;
     get_args: TauriCommand<null, InitArgs>;
     register_drop_target: TauriCommand<null, null>;
     listen_devices: TauriCommand<null, boolean>;
@@ -162,6 +165,8 @@ type TauriCommandMap = {
     get_wsl_names: TauriCommand<null, string[]>;
     undo: TauriCommand<null, null>;
     redo: TauriCommand<null, null>;
+    tab_request: TauriCommand<Tab.TabRequest, boolean>;
+    change_window_state: TauriCommand<Ws.ChangeWindowStateRequest, null>;
 };
 
 export class IPCBase {
@@ -176,23 +181,23 @@ export class IPC extends IPCBase {
     private label: string;
     private funcs: UnlistenFn[] = [];
 
-    constructor(label: RendererName) {
+    constructor(label: string) {
         super();
         this.label = label;
     }
 
-    receiveOnce = async <K extends keyof RendererChannelEventMap>(channel: K, handler: (e: RendererChannelEventMap[K]) => void) => {
-        const fn = await once<RendererChannelEventMap[K]>(channel, (e) => handler(e.payload), { target: { kind: "WebviewWindow", label: this.label } });
+    receiveOnce = async <K extends keyof MainChannelEventMap>(channel: K, handler: (e: MainChannelEventMap[K]) => void) => {
+        const fn = await once<MainChannelEventMap[K]>(channel, (e) => handler(e.payload), { target: { kind: "WebviewWindow", label: this.label } });
         this.funcs.push(fn);
     };
 
-    receive = async <K extends keyof RendererChannelEventMap>(channel: K, handler: (e: RendererChannelEventMap[K]) => void) => {
-        const fn = await listen<RendererChannelEventMap[K]>(channel, (e) => handler(e.payload), { target: { kind: "WebviewWindow", label: this.label } });
+    receive = async <K extends keyof MainChannelEventMap>(channel: K, handler: (e: MainChannelEventMap[K]) => void) => {
+        const fn = await listen<MainChannelEventMap[K]>(channel, (e) => handler(e.payload), { target: { kind: "WebviewWindow", label: this.label } });
         this.funcs.push(fn);
     };
 
-    receiveAny = async <K extends keyof RendererChannelEventMap>(channel: K, handler: (e: RendererChannelEventMap[K]) => void) => {
-        const fn = await once<RendererChannelEventMap[K]>(channel, (e) => handler(e.payload), { target: { kind: "Any" } });
+    receiveAny = async <K extends keyof MainChannelEventMap>(channel: K, handler: (e: MainChannelEventMap[K]) => void) => {
+        const fn = await once<MainChannelEventMap[K]>(channel, (e) => handler(e.payload), { target: { kind: "Any" } });
         this.funcs.push(fn);
     };
 
@@ -207,7 +212,15 @@ export class IPC extends IPCBase {
         await emit(channel, data);
     };
 
-    sendTo = async <K extends keyof RendererChannelEventMap>(rendererName: RendererName, channel: K, data: RendererChannelEventMap[K]) => {
+    sendOthers = async <K extends keyof MainChannelEventMap>(channel: K, data: MainChannelEventMap[K]) => {
+        const allWindows = await getAllWebviewWindows();
+        const others = allWindows.filter((win) => win.label != this.label).map((win) => win.label);
+        for (const other of others) {
+            await emitTo({ kind: "WebviewWindow", label: other }, channel, data);
+        }
+    };
+
+    sendTo = async <K extends keyof MainChannelEventMap>(rendererName: string, channel: K, data: MainChannelEventMap[K]) => {
         await emitTo({ kind: "WebviewWindow", label: rendererName }, channel, data);
     };
 

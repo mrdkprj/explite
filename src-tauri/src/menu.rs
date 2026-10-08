@@ -1,9 +1,9 @@
 use crate::translate::t;
-use crate::{AppMenuItem, Column, ColumnWithLabel};
+use crate::{manager, AppMenuItem, Column, ColumnWithLabel};
 use serde::{Deserialize, Serialize};
+use smol::lock::Mutex;
 use std::{collections::HashMap, path::Path};
-use tauri::async_runtime::Mutex;
-use tauri::{Emitter, EventTarget, Manager};
+use tauri::{AppHandle, Emitter, EventTarget, Manager, WebviewWindow};
 use wcpopup::config::{IconSettings, MenuFont};
 use wcpopup::{
     config::{ColorScheme, Config, MenuSize, Theme, ThemeColor, DEFAULT_DARK_COLOR_SCHEME},
@@ -37,37 +37,72 @@ pub struct Position {
     y: i32,
 }
 
-pub struct Menus(HashMap<String, Menu>);
+#[derive(Default)]
+pub struct Menus(HashMap<String, MenuMember>);
+pub struct MenuMember {
+    list: Menu,
+    fav: Menu,
+    no_item: Menu,
+    recycle_bin: Menu,
+    column: Menu,
+}
 type MenusState = Mutex<Menus>;
 pub struct AppMenuItems(Vec<AppMenuItem>);
 type AppMenuItemsState = Mutex<AppMenuItems>;
 
-pub fn create(app_handle: &tauri::AppHandle, window_handle: isize, columns: Vec<ColumnWithLabel>) {
+pub fn init(app: &AppHandle) {
+    app.manage(Mutex::new(Menus::default()));
+    app.manage(Mutex::new(AppMenuItems(Vec::new())));
+}
+
+pub fn create(window: &WebviewWindow, window_handle: isize, columns: Vec<ColumnWithLabel>) {
+    let app = window.app_handle();
     let list = create_list_menu(window_handle);
     let fav = create_fav_menu(window_handle);
     let no_item = create_noitem_menu(window_handle);
     let recycle_bin = create_recycle_bin_menu(window_handle);
     let column_menu = create_column_menu(window_handle, columns);
-    let menus = Menus(HashMap::from([(LIST.to_string(), list), (FAV.to_string(), fav), (NO_ITEM.to_string(), no_item), (RECYCLE_BIN.to_string(), recycle_bin), (COLUMN.to_string(), column_menu)]));
-    app_handle.manage(Mutex::new(menus));
-    app_handle.manage(Mutex::new(AppMenuItems(Vec::new())));
+    let member = MenuMember {
+        list,
+        fav,
+        no_item,
+        recycle_bin,
+        column: column_menu,
+    };
+    let menus = app.state::<MenusState>();
+    let mut menus = menus.try_lock().unwrap();
+    menus.0.insert(window.label().to_string(), member);
+}
+
+pub fn remove(app: &AppHandle, label: &str) {
+    let state = app.state::<MenusState>();
+    let mut state = state.try_lock().unwrap();
+    let _ = state.0.remove(label);
 }
 
 #[allow(unused_variables)]
-pub async fn popup_menu(app_handle: &tauri::AppHandle, window_label: &str, menu_name: &str, position: Position, full_path: Option<String>, show_admin_runas: bool) {
+pub async fn popup_menu(app: &AppHandle, window_label: &str, menu_name: &str, position: Position, full_path: Option<String>, show_admin_runas: bool) {
     let full_path = full_path.unwrap_or_default();
     let target_menu_name = if menu_name == LIST && full_path.is_empty() {
         NO_ITEM
     } else {
         menu_name
     };
-    let state = app_handle.state::<MenusState>();
-    let menus = state.try_lock().unwrap();
-    let menu = menus.0.get(target_menu_name).unwrap();
+    let state = app.state::<MenusState>();
+    let state = state.try_lock().unwrap();
+    let menus = state.0.get(window_label).unwrap();
+    let menu = match target_menu_name {
+        LIST => &menus.list,
+        FAV => &menus.fav,
+        NO_ITEM => &menus.no_item,
+        RECYCLE_BIN => &menus.recycle_bin,
+        COLUMN => &menus.column,
+        _ => &menus.list,
+    };
 
     if target_menu_name == LIST {
-        update_open_with(menu, &full_path);
-        toggle_app_items(app_handle, menu, &full_path);
+        update_open_with(app, menu, &full_path);
+        toggle_app_items(app, menu, &full_path);
     }
 
     #[cfg(target_os = "windows")]
@@ -78,26 +113,26 @@ pub async fn popup_menu(app_handle: &tauri::AppHandle, window_label: &str, menu_
     let result = menu.popup_at_async(position.x, position.y).await;
 
     if let Some(item) = result {
-        app_handle
-            .emit_to(
-                EventTarget::WebviewWindow {
-                    label: window_label.to_string(),
-                },
-                MENU_EVENT_NAME,
-                if item.id.starts_with(APP_MENU_ITEM_PREFIX) {
-                    item.id.replace(APP_MENU_ITEM_PREFIX, "")
-                } else {
-                    item.id
-                },
-            )
-            .unwrap();
+        app.emit_to(
+            EventTarget::WebviewWindow {
+                label: window_label.to_string(),
+            },
+            MENU_EVENT_NAME,
+            if item.id.starts_with(APP_MENU_ITEM_PREFIX) {
+                item.id.replace(APP_MENU_ITEM_PREFIX, "")
+            } else {
+                item.id
+            },
+        )
+        .unwrap();
     };
 }
 
-pub async fn open_column_context_menu(app_handle: &tauri::AppHandle, window_label: &str, position: Position, items: Vec<Column>, is_recycle_bin: bool) {
-    let state = app_handle.state::<MenusState>();
-    let menus = state.try_lock().unwrap();
-    let menu = menus.0.get(COLUMN).unwrap();
+pub async fn open_column_context_menu(app: &AppHandle, window_label: &str, position: Position, items: Vec<Column>, is_recycle_bin: bool) {
+    let state = app.state::<MenusState>();
+    let mut state = state.try_lock().unwrap();
+    let menus = state.0.get_mut(window_label).unwrap();
+    let menu = &menus.column;
 
     if is_recycle_bin {
         menu.get_menu_item_by_id("orig_path").unwrap().set_visible(true);
@@ -116,32 +151,35 @@ pub async fn open_column_context_menu(app_handle: &tauri::AppHandle, window_labe
     let result = menu.popup_at_async(position.x, position.y).await;
 
     if let Some(item) = result {
-        app_handle
-            .emit_to(
-                EventTarget::WebviewWindow {
-                    label: window_label.to_string(),
-                },
-                MENU_EVENT_NAME,
-                if item.id.starts_with(APP_MENU_ITEM_PREFIX) {
-                    item.id.replace(APP_MENU_ITEM_PREFIX, "")
-                } else {
-                    item.id
-                },
-            )
-            .unwrap();
+        app.emit_to(
+            EventTarget::WebviewWindow {
+                label: window_label.to_string(),
+            },
+            MENU_EVENT_NAME,
+            if item.id.starts_with(APP_MENU_ITEM_PREFIX) {
+                item.id.replace(APP_MENU_ITEM_PREFIX, "")
+            } else {
+                item.id
+            },
+        )
+        .unwrap();
     };
 }
 
-pub fn change_menu_theme(app_handle: &tauri::AppHandle, theme: Theme) {
-    let state = app_handle.state::<MenusState>();
+pub fn change_menu_theme(app: &AppHandle, theme: Theme) {
+    let state = app.state::<MenusState>();
     let menus = state.try_lock().unwrap();
 
     for menu in menus.0.values() {
-        menu.set_theme(theme);
+        menu.list.set_theme(theme);
+        menu.column.set_theme(theme);
+        menu.fav.set_theme(theme);
+        menu.no_item.set_theme(theme);
+        menu.recycle_bin.set_theme(theme);
     }
 }
 
-fn update_open_with(menu: &Menu, file_path: &str) {
+fn update_open_with(app: &AppHandle, menu: &Menu, file_path: &str) {
     let submenu_item = menu.get_menu_item_by_id("OpenWith").unwrap();
 
     let mut submenu = submenu_item.submenu.unwrap();
@@ -159,7 +197,10 @@ fn update_open_with(menu: &Menu, file_path: &str) {
 
     if Path::new(file_path).is_dir() {
         select_app_item.set_visible(false);
-        submenu.insert(MenuItem::builder(MenuItemType::Text).id("OpenInNewWindow").label(t!("OpenInNewWindow")).build(), 0);
+        if manager::is_tab_mode(app) {
+            submenu.insert(MenuItem::builder(MenuItemType::Text).id("OpenInNewWindow").label(t!("OpenInNewWindow")).build(), 0);
+        }
+        submenu.insert(MenuItem::builder(MenuItemType::Text).id("OpenInNewTab").label(t!("OpenInNewTab")).build(), 0);
         return;
     }
 
@@ -201,9 +242,9 @@ fn update_open_with(menu: &Menu, file_path: &str) {
     }
 }
 
-fn toggle_app_items(app_handle: &tauri::AppHandle, menu: &Menu, file_path: &str) {
+fn toggle_app_items(app: &AppHandle, menu: &Menu, file_path: &str) {
     let is_dir = Path::new(file_path).is_dir();
-    let state = app_handle.state::<AppMenuItemsState>();
+    let state = app.state::<AppMenuItemsState>();
     let app_items = state.try_lock().unwrap();
     for app_item in &app_items.0 {
         let menu_id = app_menu_item_id(&app_item.path);
@@ -228,48 +269,50 @@ fn toggle_app_items(app_handle: &tauri::AppHandle, menu: &Menu, file_path: &str)
     }
 }
 
-pub fn change_app_menu_items(app_handle: &tauri::AppHandle, new_app_menu_items: Vec<AppMenuItem>) {
-    let state = app_handle.state::<MenusState>();
-    let mut menus = state.try_lock().unwrap();
-    let menu = menus.0.get_mut(LIST).unwrap();
-
-    let app_item_state = app_handle.state::<AppMenuItemsState>();
+pub fn change_app_menu_items(app: &AppHandle, new_app_menu_items: Vec<AppMenuItem>) {
+    let state = app.state::<MenusState>();
+    let mut state = state.try_lock().unwrap();
+    let app_item_state = app.state::<AppMenuItemsState>();
     let mut items = app_item_state.try_lock().unwrap();
 
-    for old_item in &items.0 {
-        if let Some(item) = menu.get_menu_item_by_id(&old_item.path) {
-            #[cfg(target_os = "windows")]
-            menu.remove_at(item.index as _);
-            #[cfg(target_os = "linux")]
-            menu.remove(&item);
+    for menus in state.0.values_mut() {
+        let menu = &mut menus.list;
+
+        for old_item in &items.0 {
+            if let Some(item) = menu.get_menu_item_by_id(&app_menu_item_id(&old_item.path)) {
+                #[cfg(target_os = "windows")]
+                menu.remove_at(item.index as _);
+                #[cfg(target_os = "linux")]
+                menu.remove(&item);
+            }
         }
-    }
 
-    let terminal = menu.get_menu_item_by_id("Terminal").unwrap();
+        let terminal = menu.get_menu_item_by_id("Terminal").unwrap();
 
-    #[cfg(target_os = "windows")]
-    let start_index = terminal.index + 1;
-    #[cfg(target_os = "linux")]
-    let start_index = menu.items().iter().position(|item| item.uuid == terminal.uuid).unwrap() as u32 + 1;
-    for (i, new_item) in new_app_menu_items.iter().enumerate() {
-        let menu_id = app_menu_item_id(&new_item.path);
-        let width = 16;
-        let height = 16;
-        if let Ok(icon) = zouni::shell::extract_icon(
-            &new_item.path,
-            Size {
-                width,
-                height,
-            },
-        ) {
-            #[cfg(target_os = "windows")]
-            let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, Some(MenuIcon::from_data(icon.raw_pixels, width, height)));
-            #[cfg(target_os = "linux")]
-            let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, Some(MenuIcon::new(icon.file, width, height)));
-            menu.insert(item, start_index + i as u32);
-        } else {
-            let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, None);
-            menu.insert(item, start_index + i as u32);
+        #[cfg(target_os = "windows")]
+        let start_index = terminal.index + 1;
+        #[cfg(target_os = "linux")]
+        let start_index = menu.items().iter().position(|item| item.uuid == terminal.uuid).unwrap() as u32 + 1;
+        for (i, new_item) in new_app_menu_items.iter().enumerate() {
+            let menu_id = app_menu_item_id(&new_item.path);
+            let width = 16;
+            let height = 16;
+            if let Ok(icon) = zouni::shell::extract_icon(
+                &new_item.path,
+                Size {
+                    width,
+                    height,
+                },
+            ) {
+                #[cfg(target_os = "windows")]
+                let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, Some(MenuIcon::from_data(icon.raw_pixels, width, height)));
+                #[cfg(target_os = "linux")]
+                let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, Some(MenuIcon::new(icon.file, width, height)));
+                menu.insert(item, start_index + i as u32);
+            } else {
+                let item = MenuItem::new_text_item(&menu_id, &new_item.label, None, false, None);
+                menu.insert(item, start_index + i as u32);
+            }
         }
     }
     items.0 = new_app_menu_items;

@@ -4,8 +4,15 @@ import { IPC } from "./ipc";
 import path from "./path";
 
 const ipc = new IPC("View");
-const SETTING_FILE_NAME = "explite.settings.json";
 const EXCEPTION_KEYS = ["columnHistory"];
+
+const getFileName = () => {
+    if (import.meta.env.DEV) {
+        return "explite.settings.dev.json";
+    } else {
+        return "explite.settings.json";
+    }
+};
 
 export default class Settings {
     private file = "";
@@ -15,7 +22,7 @@ export default class Settings {
         let data: Mp.Settings = DEFAULT_SETTINGS;
         this.dataDir = await appDataDir();
         const settingPath = path.join(this.dataDir, "temp");
-        this.file = path.join(settingPath, SETTING_FILE_NAME);
+        this.file = path.join(settingPath, getFileName());
         const fileExists = await ipc.invoke("exists", this.file);
 
         if (fileExists) {
@@ -56,6 +63,13 @@ export default class Settings {
 
     getFilePath() {
         return this.file;
+    }
+
+    async reload() {
+        const readResult = await ipc.invoke("read_text_file", this.file);
+        if (readResult) {
+            return JSON.parse(readResult) as Mp.Settings;
+        }
     }
 
     async save(data: Mp.Settings) {

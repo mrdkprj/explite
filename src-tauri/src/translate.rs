@@ -45,6 +45,7 @@ static JA: LazyLock<HashMap<&str, &str>> = LazyLock::new(|| {
         ("Trash", "削除"),
         ("AddToFavorite", "ピン留めする"),
         ("OpenInNewWindow", "新しいウィンドウで開く"),
+        ("OpenInNewTab", "新しいタブで開く"),
     ])
 });
 static EN: LazyLock<HashMap<&str, &str>> = LazyLock::new(|| {
@@ -75,6 +76,7 @@ static EN: LazyLock<HashMap<&str, &str>> = LazyLock::new(|| {
         ("Paste", "Paste"),
         ("Trash", "Trash"),
         ("AddToFavorite", "Pin"),
-        ("OpenInNewWindow", "Open New Window"),
+        ("OpenInNewWindow", "Open In New Window"),
+        ("OpenInNewTab", "Open In New Tab"),
     ])
 });

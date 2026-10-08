@@ -3,7 +3,7 @@
   "identifier": "default",
   "description": "Capability for the main window",
   "context": "local",
-  "windows": ["View"],
+  "windows": ["*"],
   "permissions": [
     "core:default",
     "core:window:allow-destroy",
@@ -30,7 +30,8 @@
     "core:webview:allow-internal-toggle-devtools",
     "core:webview:allow-webview-position",
     "core:webview:allow-webview-size",
-    "core:window:allow-start-resize-dragging"
+    "core:window:allow-start-resize-dragging",
+    "core:webview:allow-set-webview-focus"
   ],
   "platforms": [
     "linux",

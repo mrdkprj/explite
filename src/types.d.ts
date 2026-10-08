@@ -6,9 +6,6 @@ declare global {
     type RendererName = "View";
 
     type MainChannelEventMap = {
-        minimize: Mp.AnyEvent;
-        "toggle-maximize": Mp.AnyEvent;
-        close: Mp.AnyEvent;
         selected: Mp.SelectEvent;
         sort: Mp.SortRequest;
         search: Mp.SearchRequest;
@@ -26,34 +23,120 @@ declare global {
         "rename-file": Mp.RenameRequest;
         pasteFile: Mp.AnyEvent;
         writeClipboard: Mp.WriteClipboardRequest;
-    };
-
-    type RendererChannelEventMap = {
-        ready: Mp.ReadyEvent;
-        load: Mp.LoadEvent;
-        sorted: Mp.SortResult;
-        searched: Mp.SearchResult;
-        favoriteChanged: Mp.MediaFile[];
-        markItem: Mp.MarkItemRequest;
-        itemCreated: Mp.CreateItemResult;
-        pasteRequest: Mp.AnyEvent;
-        getSelectedFavorite: Mp.AnyEvent;
-        "after-toggle-maximize": Mp.SettingsChangeEvent;
-        "start-rename": Mp.AnyEvent;
-        "after-rename": Mp.RenameResult;
-        moved: Mp.MoveItemResult;
         contextmenu_event: keyof MainContextMenuSubTypeMap | FavContextMenuSubTypeMap;
         watch_event: Mp.WatchEvent;
         device_event: Mp.DeviceEvent;
+        closeTab: null;
+        scrollTab: number;
+        restoreFocus: null;
+        settingsChanged: Mp.Settings;
+        tab_event: Mp.TabEvent;
+        startTabDrag: Tab.StartDragEvent;
+        endTabDrag: null;
+        tabDropHandled: null;
+        "window-state-changed": Ws.ChangeWindowStateResult;
+        reloadSettings: null;
     };
 
+    namespace Ws {
+        type WebviewTitle = {
+            label: string;
+            title: string;
+            path: string;
+        };
+
+        type ChangeWindowStateRequest = { name: "minimize"; data?: never } | { name: "toggleMaximize"; data?: never } | { name: "updateTitle"; data: WebviewTitle };
+        type ChangeWindowStateResult = { name: "maximized"; data?: never } | { name: "unmaximized"; data?: never } | { name: "toggled"; data?: Mp.Bounds } | { name: "minimized"; data: Mp.Bounds };
+    }
+
+    namespace Tab {
+        type TabState = {
+            tabs: WebviewTitle[];
+            scrollLeft: number;
+            willStartDrag: boolean;
+            dragging: boolean;
+            added: boolean;
+        };
+
+        type ToggleTabModeRequest = {
+            tab_mode: bool;
+            bounds?: Tab.Bounds;
+        };
+
+        type AddTabRequest = {
+            opener: string;
+            bounds: Tab.Bounds;
+            detach: boolean;
+        };
+
+        type Bounds = {
+            width: number;
+            height: number;
+            x: number;
+            y: number;
+        };
+
+        type StartDragEvent = {
+            initiator: string;
+            target: string;
+        };
+
+        type AttachRequest = {
+            from: string;
+            to: string;
+            attach_target: string | null;
+            attach_before: boolean;
+        };
+
+        type TabEvent =
+            | { name: "maximized"; data?: never }
+            | { name: "unmaximized"; data?: never }
+            | { name: "titleChanged"; data: Ws.WebviewTitle }
+            | { name: "reordered"; data: Ws.WebviewTitle[] }
+            | { name: "closed"; data: string }
+            | { name: "modeChanged"; data: { tab_mode: boolean; webviews: Ws.WebviewTitle[] } }
+            | { name: "close"; data?: never }
+            | { name: "scrolled"; data: number }
+            | { name: "activated"; data?: never }
+            | { name: "attached"; data: Ws.WebviewTitle[] }
+            | { name: "added"; data: Ws.WebviewTitle };
+
+        type TabRequest =
+            | { name: "select"; data: string }
+            | { name: "selectNext"; data?: never }
+            | { name: "selectPrevious"; data?: never }
+            | { name: "reorder"; data: Ws.WebviewTitle[] }
+            | { name: "closeAll"; data?: never }
+            | { name: "cancel"; data?: never }
+            | { name: "update"; data: Ws.WebviewTitle }
+            | { name: "add"; data: AddTabRequest }
+            | { name: "attach"; data: AttachRequest }
+            | { name: "detach"; data: string }
+            | { name: "close"; data?: never }
+            | { name: "minimize"; data?: never }
+            | { name: "toggleMaximize"; data?: never }
+            | { name: "startDrag"; data?: never }
+            | { name: "startResizeDrag"; data: ResizeDirection }
+            | { name: "toggleTabMode"; data: ToggleTabModeRequest };
+    }
+
     namespace Mp {
+        type ReadyEvent = {
+            data: Mp.LoadEvent;
+            locale: Mp.LocaleName;
+            selectId?: string;
+            restorePosition: boolean;
+            opener: string;
+            detach: boolean;
+        };
+
         type SortKey = "name" | "extension" | "cdate" | "mdate" | "size" | "directory" | "ddate" | "orig_path";
         type Theme = "dark" | "light" | "system";
 
         type MainContextMenuSubTypeMap = {
             Open: null;
             OpenInNewWindow: null;
+            OpenInNewTab: null;
             SelectApp: null;
             Copy: null;
             Cut: null;
@@ -109,6 +192,7 @@ declare global {
             useOSIcon: boolean;
             rememberColumns: boolean;
             treeView: boolean;
+            tabMode: boolean;
         };
 
         type Preference = {
@@ -194,13 +278,6 @@ declare global {
             level: number;
             opened: boolean;
             root: string;
-        };
-
-        type ReadyEvent = {
-            data: Mp.LoadEvent;
-            locale: Mp.LocaleName;
-            selectId?: string;
-            restorePosition: boolean;
         };
 
         type LoadEvent = {
@@ -435,47 +512,6 @@ declare global {
             deleteFromRecycleBinMsg: string;
             emptyRecycleBinMsg: string;
         };
-    }
-}
-
-/**
- * window.chrome.webview is the class to access the WebView2-specific APIs that are available
- * to the script running within WebView2 Runtime.
- */
-export interface WebView extends EventTarget {
-    /**
-     * The standard EventTarget.addEventListener method. Use it to subscribe to the message event
-     * or sharedbufferreceived event. The message event receives messages posted from the WebView2
-     * host via CoreWebView2.PostWebMessageAsJson or CoreWebView2.PostWebMessageAsString. The
-     * sharedbufferreceived event receives shared buffers posted from the WebView2 host via
-     * CoreWebView2.PostSharedBufferToScript.
-     * See CoreWebView2.PostWebMessageAsJson( Win32/C++, .NET, WinRT).
-     * @param type The name of the event to subscribe to. Valid values are message, and sharedbufferreceived.
-     * @param listener The callback to invoke when the event is raised.
-     * @param options Options to control how the event is handled.
-     */
-    addEventListener(type: string, listener: WebViewEventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
-
-    /**
-     * The standard EventTarget.removeEventListener method. Use it to unsubscribe to the message
-     * or sharedbufferreceived event.
-     * @param type The name of the event to unsubscribe from. Valid values are message and sharedbufferreceived.
-     * @param listener The callback to remove from the event.
-     * @param options Options to control how the event is handled.
-     */
-    removeEventListener(type: string, listener?: WebViewEventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
-}
-
-// Global object
-declare global {
-    interface Window {
-        chrome: {
-            webview: WebView;
-        };
-    }
-
-    interface Uint8Array {
-        toBase64(): string;
     }
 }
 

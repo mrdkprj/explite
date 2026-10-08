@@ -54,6 +54,14 @@
 
         --current-dir-bg-color: #44444f;
         --cut-color: #747d97;
+
+        --tab-bg-color:#212337;
+        --tab-active-bg-color:#191a31;
+        --tab-hover-bg-color:#272424;
+        --tab-color:#eceef3;
+        --tab-border:#191a31;
+        --tab-close-btn-hover-bg-color:#eceef3;
+        --tab-close-btn-hover-color:#212337;
     }
 }
 
@@ -109,6 +117,13 @@
 
         --cut-color:#747d97;
 
+        --tab-bg-color:#d6d4e9;
+        --tab-active-bg-color:#eceef3;
+        --tab-hover-bg-color:#f5f5f5;
+        --tab-color:#0e0e0e;
+        --tab-border:#d6d4e9;
+        --tab-close-btn-hover-bg-color:#b9c7db;
+        --tab-close-btn-hover-color:#373232;
     }
 }
 

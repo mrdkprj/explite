@@ -22,7 +22,6 @@ class Main {
         const drives = await util.getDriveInfo();
 
         const args = await ipc.invoke("get_args", null);
-
         const locale = args.locales.some((locale) => locale.toLowerCase().includes("ja")) ? "ja" : "en";
         window.lang = locale;
 
@@ -62,6 +61,8 @@ class Main {
             },
             selectId,
             restorePosition: args.restore_position,
+            opener: args.opener,
+            detach: args.detach,
         };
     };
 
@@ -333,8 +334,12 @@ class Main {
         await ipc.invoke("open_path_with", { full_path: safeFullPath, app_path: appPath });
     };
 
-    openInNewWindow = async (fullPath: string) => {
+    openInNewWindow = async (fullPath?: string) => {
         await ipc.invoke("open_in_new_window", fullPath);
+    };
+
+    openInNewTab = async (fullPath?: string) => {
+        await ipc.invoke("open_in_new_tab", fullPath);
     };
 
     showAppSelector = async (fullPath: string) => {
@@ -410,10 +415,6 @@ class Main {
 
     openTerminal = async (dir: string, admin: boolean) => {
         await ipc.invoke("open_terminal", { path: dir, admin });
-    };
-
-    launchNew = async () => {
-        await ipc.invoke("launch_new", null);
     };
 
     private getNewName = async (directory: string, isFile: boolean) => {

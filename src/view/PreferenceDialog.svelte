@@ -4,22 +4,12 @@
     import JsonSvg from "../svg/JsonSvg.svelte";
     import Dialog from "./Dialog.svelte";
 
-    let {
-        changeAppMenuItems,
-        openSettingsAsJson,
-        themeChanged,
-        onClose,
-    }: { changeAppMenuItems: () => Promise<void>; openSettingsAsJson: () => Promise<void>; themeChanged: () => Promise<void>; onClose: () => Promise<void> } = $props();
+    let { openSettingsAsJson, onClose }: { openSettingsAsJson: () => Promise<void>; onClose: () => Promise<void> } = $props();
 
-    let theme = $state($state.snapshot(settings.data.theme));
-    let appMenuItems = $state($state.snapshot(settings.data.appMenuItems));
-    let allowMoveColumn = $state($state.snapshot(settings.data.allowMoveColumn));
-    let useOSIcon = $state($state.snapshot(settings.data.useOSIcon));
-    let rememberColumns = $state($state.snapshot(settings.data.rememberColumns));
-    let treeView = $state($state.snapshot(settings.data.treeView));
+    let data = $state($state.snapshot(settings.data));
 
     const addMenuItem = () => {
-        appMenuItems.push({
+        data.appMenuItems.push({
             label: "",
             path: "",
             target: "File",
@@ -27,19 +17,11 @@
     };
 
     const removeMenuItem = (index: number) => {
-        appMenuItems.splice(index, 1);
+        data.appMenuItems.splice(index, 1);
     };
 
     const removeHistory = () => {
         dispatch({ type: "clearColumnHistory" });
-    };
-
-    const isAppMenuItemChanged = (newAppMenuItems: Mp.AppMenuItem[]): boolean => {
-        if (newAppMenuItems.length != settings.data.appMenuItems.length) return true;
-
-        return newAppMenuItems.some(
-            (item, index) => settings.data.appMenuItems[index].label != item.label || settings.data.appMenuItems[index].path != item.path || settings.data.appMenuItems[index].target != item.target,
-        );
     };
 
     const onDialogClose = () => {
@@ -48,16 +30,7 @@
 
     const close = (save: boolean) => {
         if (save) {
-            const newAppMenuItems = appMenuItems.filter((item) => item.path != "");
-            const appMenuItemChanged = isAppMenuItemChanged(newAppMenuItems);
-            const isThemeChanged = theme != settings.data.theme;
-            dispatch({ type: "setPreference", value: { theme, appMenuItems: appMenuItems.filter((item) => item.path != ""), allowMoveColumn, useOSIcon, rememberColumns, treeView } });
-            if (appMenuItemChanged) {
-                changeAppMenuItems();
-            }
-            if (isThemeChanged) {
-                themeChanged();
-            }
+            dispatch({ type: "updateSettings", value: data });
         }
 
         dispatch({ type: "togglePreference" });
@@ -76,7 +49,7 @@
     {#snippet content()}
         <div class="dialog-title-block">Theme</div>
         <div class="dialog-item-block">
-            <select class="dialog-select" name="theme" bind:value={theme}>
+            <select class="dialog-select" name="theme" bind:value={data.theme}>
                 <option value="dark">Dark</option>
                 <option value="light">Light</option>
                 <option value="system">System</option>
@@ -87,28 +60,28 @@
         <div class="dialog-title-block">View</div>
         <div class="dialog-item-block"></div>
         <div class="dialog-item">
-            <input id="treeView" type="checkbox" bind:checked={treeView} /><label for="treeView">TreeView</label>
+            <input id="tabMode" type="checkbox" bind:checked={data.tabMode} /><label for="tabMode">Enable Tab</label>
         </div>
         <div class="dialog-item">
-            <input id="rememberColumns" type="checkbox" bind:checked={rememberColumns} /><label for="rememberColumns">Remember column settings</label>
+            <input id="treeView" type="checkbox" bind:checked={data.treeView} /><label for="treeView">TreeView</label>
         </div>
         <div class="dialog-item">
-            <button class="dialog-btn-md" onclick={removeHistory} disabled={!rememberColumns}>Remove history</button>
+            <input id="rememberColumns" type="checkbox" bind:checked={data.rememberColumns} /><label for="rememberColumns">Remember column settings</label>
         </div>
         <div class="dialog-item">
-            <input id="allowMoveColumn" type="checkbox" bind:checked={allowMoveColumn} /><label for="allowMoveColumn">Allow column move</label>
+            <button class="dialog-btn-md" onclick={removeHistory} disabled={!data.rememberColumns}>Remove history</button>
         </div>
         <div class="dialog-item">
-            <input id="useOSFileIcon" type="checkbox" bind:checked={useOSIcon} /><label for="useOSFileIcon">Use PNG icons</label>
+            <input id="allowMoveColumn" type="checkbox" bind:checked={data.allowMoveColumn} /><label for="allowMoveColumn">Allow column move</label>
+        </div>
+        <div class="dialog-item">
+            <input id="useOSFileIcon" type="checkbox" bind:checked={data.useOSIcon} /><label for="useOSFileIcon">Use PNG icons</label>
         </div>
 
         <div class="dialog-separator"></div>
 
         <div class="dialog-title-block">Menu</div>
         <div class="dialog-item-block">
-            <div class="dialog-item">
-                <div>Manage application menu items</div>
-            </div>
             <div class="dialog-item">
                 <div class="pref-buttons">
                     <div><button class="btn-md" onclick={addMenuItem}>Add</button></div>
@@ -122,7 +95,7 @@
                         <div class="pref-cell"><div class="pref-content">Application Path</div></div>
                         <div class="pref-cell"><div class="pref-content">Target</div></div>
                     </div>
-                    {#each appMenuItems as item, index}
+                    {#each data.appMenuItems as item, index}
                         <div class="pref-row">
                             <div class="pref-cell"><div class="pref-content"><button onclick={() => removeMenuItem(index)}>-</button></div></div>
                             <div class="pref-cell"><input type="text" class="pref-content" contenteditable="plaintext-only" bind:value={item.label} /></div>

@@ -3,12 +3,17 @@
     import { handleKeyEvent } from "../constants";
     import ListSvg from "../svg/ListSvg.svelte";
     import TileSvg from "../svg/TileSvg.svelte";
+    import PrefSvg from "../svg/PrefSvg.svelte";
 
     const MB = 1024;
     const GB = 1.049e6;
 
     const toggleViewMode = () => {
         dispatch({ type: "toggleGridView", value: !$appState.isGridView });
+    };
+
+    const displayPreference = () => {
+        dispatch({ type: "togglePreference" });
     };
 
     let fileCount = $derived.by(() => {
@@ -57,16 +62,20 @@
                 <TileSvg />
             </div>
         {/if}
+        <div class="button no-drag" class:disabled={$appState.symlinkVisible} onclick={displayPreference} onkeydown={handleKeyEvent} role="button" tabindex="-1">
+            <PrefSvg />
+        </div>
     </div>
 </div>
 
 <style>
     .bottom-bar {
         height: 25px;
+        min-height: 25px;
         width: 100%;
         display: flex;
         justify-content: space-between;
-        padding-bottom: 1px;
+        margin-bottom: 1px;
     }
 
     .info-area {

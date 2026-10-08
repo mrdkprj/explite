@@ -6,7 +6,8 @@ import { ClipUpdater } from "../states/clipState.svelte";
 import { driveState, DriveUpdater } from "../states/driveState.svelte";
 import { headerState, HeaderUpdater } from "../states/headerState.svelte";
 import { SlidUpdater, slideState } from "../states/slideState.svelte";
-import { PreferenceAction, settings, SettingsUpdater } from "../states/settingsState.svelte";
+import { SettingsUpdater } from "../states/settingsState.svelte";
+import { ChangedSettings } from "../constants";
 export { navigationState, Navigation } from "../states/navigationState.svelte";
 export { listState } from "../states/listState.svelte";
 export { renameState } from "../states/renameState.svelte";
@@ -15,6 +16,7 @@ export { driveState } from "../states/driveState.svelte";
 export { headerState } from "../states/headerState.svelte";
 export { slideState } from "../states/slideState.svelte";
 export { settings } from "../states/settingsState.svelte";
+export { tabState } from "../states/tabState.svelte";
 export const icons: Mp.IconCache = $state({ cache: {} });
 
 // Linux only
@@ -117,13 +119,13 @@ type AppAction =
     | { type: "endDrag" }
     | { type: "startRename"; value: { rect: Mp.PartialRect; oldName: string; fullPath: string; uuid: string } }
     | { type: "endRename" }
-    | { type: "setPreference"; value: PreferenceAction }
+    | { type: "updateSettings"; value: Mp.Settings }
     | { type: "togglePreference" }
     | { type: "toggleCreateSymlink" }
     | { type: "toggleGridView"; value: boolean }
     | { type: "scrolling"; value: boolean }
     | { type: "adjustAllColumnWidths" }
-    | { type: "settings"; value: Mp.Settings }
+    | { type: "settings"; value: { data: Mp.Settings; callback: (e: ChangedSettings) => void } }
     | { type: "clearColumnHistory" }
     | { type: "updateColumnSetting"; value: { sortType: Mp.SortType | null; columns: Mp.Column[] | null } }
     | { type: "columns"; value: Mp.Column[] }
@@ -131,6 +133,7 @@ type AppAction =
     | { type: "updateDrives"; value: Mp.DriveInfo[] }
     | { type: "expand"; value: { directory: Mp.MediaFile; children: Mp.MediaFile[] } }
     | { type: "collapse"; value: Mp.MediaFile }
+    | { type: "toggleTabMode"; value: boolean }
     | { type: "load"; value: { event: Mp.LoadEvent } };
 
 const updater = (state: AppState, action: AppAction): AppState => {
@@ -140,8 +143,8 @@ const updater = (state: AppState, action: AppAction): AppState => {
             headerState.pathEditing = false;
             return state;
 
-        case "setPreference":
-            SettingsUpdater.updatePreference(action.value);
+        case "updateSettings":
+            SettingsUpdater.update(action.value);
             state.isTreeview = action.value.treeView;
             return state;
 
@@ -213,19 +216,14 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return { ...state, preventBlur: action.value };
 
         case "changeFavorites":
-            settings.data.favorites = action.value;
+            SettingsUpdater.updateFavorite(action.value);
             return state;
         case "addToFavorites":
             const file = listState.files.find((file) => file.id == state.selection.selectedIds[0]);
-            if (file && !file.isFile) {
-                settings.data.favorites.push(file);
-            }
+            SettingsUpdater.addToFavorites(file);
             return state;
         case "removeFromFavorites":
-            if (driveState.hoverFavoriteId) {
-                const newFavorites = settings.data.favorites.filter((file) => file.id != driveState.hoverFavoriteId);
-                settings.data.favorites = newFavorites;
-            }
+            SettingsUpdater.removeFromFavorites();
             return state;
         case "hoverFavoriteId": {
             driveState.hoverFavoriteId = action.value;
@@ -238,7 +236,7 @@ const updater = (state: AppState, action: AppAction): AppState => {
         }
         case "slide": {
             if (slideState.target == "Area") {
-                settings.data.leftAreaWidth = slideState.initial + action.value;
+                SettingsUpdater.updateLeftWidth(slideState.initial + action.value);
                 return state;
             }
             ListUpdater.updateWidth(action.value);
@@ -327,19 +325,22 @@ const updater = (state: AppState, action: AppAction): AppState => {
             return state;
 
         case "settings":
-            settings.data = action.value;
-            return { ...state, isTreeview: action.value.treeView };
+            SettingsUpdater.init(action.value.data, action.value.callback);
+            return { ...state, isTreeview: action.value.data.treeView };
         case "isMaximized":
-            settings.data.isMaximized = action.value;
+            SettingsUpdater.isMaximized(action.value);
             return state;
         case "setBounds":
-            settings.data.bounds = action.value;
+            SettingsUpdater.setBounds(action.value);
             return state;
         case "clearColumnHistory":
-            settings.data.columnHistory = {};
+            SettingsUpdater.cleanColumnHistory();
             return state;
         case "updateColumnSetting":
             SettingsUpdater.updateColumnSetting(action.value.sortType, action.value.columns);
+            return state;
+        case "toggleTabMode":
+            SettingsUpdater.toggleTabMode(action.value);
             return state;
 
         case "updateIconCache":

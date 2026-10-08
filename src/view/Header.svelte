@@ -40,7 +40,7 @@
     const COMPONENT_PADDINGS = 20;
     const COMPONENT_RIGHT_MARGIN = 5;
     const DIVIDER_WIDTH = 16;
-    // border + display svg + divider + dots svg + divider + paddings + righ margin + click margin min-width
+    /* MIN_COMPONENT_WIDTH = border + display svg + divider + dots svg + divider + paddings + righ margin + click margin min-width */
     const MIN_COMPONENT_WIDTH = 1 + 36 + DIVIDER_WIDTH + 36 + DIVIDER_WIDTH + COMPONENT_PADDINGS + COMPONENT_RIGHT_MARGIN + 100;
     const MAX_HISTORY_ITEM = 6;
 
@@ -90,7 +90,6 @@
         });
 
         visiblePaths.reverse();
-        overflownPaths.reverse();
 
         return {
             visiblePaths,
@@ -418,7 +417,7 @@
                                     {#if !util.isWsl(hiddenPath)}
                                         <div
                                             class="dropdown-data-med"
-                                            data-path={buildPaths(paths.overflownPaths.slice(0, index + 1))}
+                                            data-path={buildPaths(paths.overflownPaths.slice(index).reverse())}
                                             onclick={onPathClick}
                                             onkeydown={handleKeyEvent}
                                             role="button"

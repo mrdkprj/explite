@@ -1,4 +1,4 @@
-use crate::{session::Session, watcher::WatcherCommand};
+use crate::watcher::WatcherCommand;
 use dialog::DialogOptions;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, env, path::PathBuf};
@@ -9,12 +9,12 @@ mod dialog;
 mod gtk_thumb;
 mod helper;
 mod menu;
-mod session;
 mod translate;
 mod watcher;
 use watcher::WatchTx;
 #[cfg(target_os = "linux")]
 mod gtk_fs;
+mod manager;
 
 #[cfg(target_os = "linux")]
 fn get_window_handel(window: &WebviewWindow) -> isize {
@@ -255,7 +255,7 @@ struct ColumnWithLabel {
 #[tauri::command]
 fn prepare_menu(window: WebviewWindow, payload: Vec<ColumnWithLabel>) {
     let window_handle = get_window_handel(&window);
-    menu::create(window.app_handle(), window_handle, payload);
+    menu::create(&window, window_handle, payload);
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -271,12 +271,13 @@ fn change_app_menu_items(window: WebviewWindow, payload: Vec<AppMenuItem>) {
 
 #[tauri::command]
 fn change_theme(window: WebviewWindow, payload: String) {
-    let (tauri_them, menu_theme) = match payload.as_str() {
+    let (tauri_theme, menu_theme) = match payload.as_str() {
         "dark" => (tauri::Theme::Dark, wcpopup::config::Theme::Dark),
         "light" => (tauri::Theme::Light, wcpopup::config::Theme::Light),
         _ => (tauri::Theme::Light, wcpopup::config::Theme::System),
     };
-    let _ = window.set_theme(Some(tauri_them));
+    let _ = window.set_theme(Some(tauri_theme));
+    manager::change_theme(window.app_handle(), tauri_theme == tauri::Theme::Dark);
     menu::change_menu_theme(window.app_handle(), menu_theme);
 }
 
@@ -406,49 +407,18 @@ fn open_terminal(payload: TerminalArgs) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn launch_new(app: AppHandle) -> Result<(), String> {
-    let app_path = tauri::process::current_binary(&app.env()).map_err(|e| e.to_string())?;
-
-    if cfg!(windows) {
-        zouni::shell::open_path(app_path)
-    } else {
-        std::process::Command::new(app_path).spawn().map_err(|e| e.to_string())?;
-        Ok(())
-    }
+fn open_in_new_window(window: WebviewWindow, payload: Option<String>) {
+    helper::new_window(window, true, payload);
 }
 
 #[tauri::command]
-fn open_in_new_window(app: AppHandle, payload: String) -> Result<(), String> {
-    let app_path = tauri::process::current_binary(&app.env()).map_err(|e| e.to_string())?;
-    if cfg!(windows) {
-        zouni::shell::open_path_with(payload, app_path)
-    } else {
-        std::process::Command::new(app_path).arg(payload).spawn().map_err(|e| e.to_string())?;
-        Ok(())
-    }
+fn open_in_new_tab(window: WebviewWindow, payload: Option<String>) {
+    helper::new_window(window, false, payload);
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct InitArgs {
-    urls: Vec<String>,
-    locales: Vec<String>,
-    restore_position: bool,
-}
 #[tauri::command]
-fn get_args(app: AppHandle) -> InitArgs {
-    if let Some(urls) = app.try_state::<Vec<String>>() {
-        return InitArgs {
-            urls: urls.inner().clone(),
-            locales: vec![zouni::shell::get_locale()],
-            restore_position: app.try_state::<Session>().is_some(),
-        };
-    }
-
-    InitArgs {
-        urls: Vec::new(),
-        locales: Vec::new(),
-        restore_position: app.try_state::<Session>().is_some(),
-    }
+fn get_args(app: AppHandle) -> helper::Args {
+    helper::get_init_args(app)
 }
 
 #[allow(unused_variables)]
@@ -587,6 +557,16 @@ fn redo(window: WebviewWindow) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn tab_request(window: WebviewWindow, payload: manager::TabRequest) -> bool {
+    manager::on_tab_request(&window, payload)
+}
+
+#[tauri::command]
+fn change_window_state(window: WebviewWindow, payload: manager::ChangeWindowStateRequest) {
+    manager::change_window_state(&window, payload)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -597,7 +577,7 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Destroyed = event {
-                helper::exit(window.app_handle());
+                helper::exit(window.app_handle(), window.label());
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -637,10 +617,10 @@ pub fn run() {
             unwatch,
             open_terminal,
             message,
-            launch_new,
             get_args,
             register_drop_target,
             open_in_new_window,
+            open_in_new_tab,
             listen_devices,
             unlisten_devices,
             listen_file_drop,
@@ -657,6 +637,8 @@ pub fn run() {
             is_file,
             assoc_icons,
             get_wsl_names,
+            tab_request,
+            change_window_state,
             #[cfg(target_os = "linux")]
             undo,
             #[cfg(target_os = "linux")]

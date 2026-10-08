@@ -14,6 +14,7 @@
         settings,
         Navigation,
         navigationState,
+        tabState,
     } from "./appStateReducer.svelte";
     import TopBar from "./TopBar.svelte";
     import BottomBar from "./BottomBar.svelte";
@@ -27,16 +28,17 @@
     import ListView from "./ListView.svelte";
     import Rename from "./Rename.svelte";
 
-    import { BROWSER_SHORTCUT_KEYS, COLUMN_HEADER_HEIGHT, GRID_VERTICAL_MARGIN, HOME, INPUT_TEXT_BORDER_WIDTH, OS, handleKeyEvent } from "../constants";
+    import { BROWSER_SHORTCUT_KEYS, COLUMN_HEADER_HEIGHT, ChangedSettings, GRID_VERTICAL_MARGIN, HOME, INPUT_TEXT_BORDER_WIDTH, OS, handleKeyEvent } from "../constants";
     import { IPC } from "../ipc";
     import main from "../main";
-    import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+    import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
     import util from "../util";
     import path from "../path";
     import Deferred from "../deferred";
     import Settings from "../settings";
     import WebkitDnd from "../webkitDnd";
     import GtkResize from "./GtkResize.svelte";
+    import { getCurrentWebview } from "@tauri-apps/api/webview";
 
     let ready = $state(false);
     let fileListContainer = $state<HTMLDivElement>();
@@ -52,7 +54,8 @@
     const webkitDnd = new WebkitDnd(navigator.userAgent);
     // Webkit only end
 
-    const ipc = new IPC("View");
+    const label = getCurrentWebviewWindow().label;
+    const ipc = new IPC(label);
     const settingsStore = new Settings();
     const operationStack: Mp.WatchEvent[] = [];
 
@@ -101,9 +104,16 @@
         }
     };
 
-    const onWindowSizeChanged = async () => {
-        const isMaximized = await WebviewWindow.getCurrent().isMaximized();
-        dispatch({ type: "isMaximized", value: isMaximized });
+    const toggleMaximize = async () => {
+        await ipc.invoke("change_window_state", { name: "toggleMaximize" });
+    };
+
+    const minimize = async () => {
+        await ipc.invoke("change_window_state", { name: "minimize" });
+    };
+
+    const onWindowSizeChanged = async (maximized: boolean) => {
+        dispatch({ type: "isMaximized", value: maximized });
     };
 
     const safePromise = async () => {
@@ -263,8 +273,6 @@
     };
 
     const sortItems = async (key: Mp.SortKey) => {
-        // if ($appState.isTreeview) return;
-
         dispatch({ type: "updateSortType", value: key });
         dispatch({ type: "updateColumnSetting", value: { sortType: listState.sortType, columns: null } });
         dispatch({ type: "sortInPlace", value: listState.files });
@@ -1049,9 +1057,21 @@
         }
     };
 
+    const updateTabTitle = (e: Ws.WebviewTitle) => {
+        tabState.tabs
+            .filter((tab) => tab.label == e.label)
+            .forEach((tab) => {
+                tab.title = e.title;
+                tab.path = e.path;
+            });
+    };
+
     const setTitle = async () => {
         const title = listState.currentDir.paths.length ? listState.currentDir.paths[listState.currentDir.paths.length - 1] : HOME;
-        await WebviewWindow.getCurrent().setTitle(title);
+        const webviewTitle = { label, title, path: listState.currentDir.fullPath };
+        updateTabTitle(webviewTitle);
+        ipc.invoke("change_window_state", { name: "updateTitle", data: webviewTitle });
+        await getCurrentWebviewWindow().setTitle(title);
     };
 
     const requestLoad = async (fullPath: string, isFile: boolean, navigation: Mp.Navigation, includeDrive = false) => {
@@ -1189,7 +1209,13 @@
             case "OpenInNewWindow": {
                 const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
                 if (!file) return;
-                await main.openInNewWindow(util.getRealPath(file));
+                openInNew(false, util.getRealPath(file));
+                break;
+            }
+            case "OpenInNewTab": {
+                const file = listState.files.find((file) => file.id == $appState.selection.selectedIds[0]);
+                if (!file) return;
+                openInNew(true, util.getRealPath(file));
                 break;
             }
 
@@ -1406,7 +1432,7 @@
         }
 
         if (e.ctrlKey && e.key == "e") {
-            await main.launchNew();
+            await openInNew(false);
             return;
         }
 
@@ -1547,36 +1573,23 @@
         }
     };
 
-    const minimize = async () => {
-        const view = WebviewWindow.getCurrent();
-        const position = await view.innerPosition();
-        const size = await view.innerSize();
-        dispatch({ type: "setBounds", value: util.toBounds(position, size) });
-        await view.minimize();
+    const openInNew = async (tab: boolean, fullPath?: string) => {
+        tab ? await main.openInNewTab(fullPath) : await main.openInNewWindow(fullPath);
     };
 
-    const toggleMaximize = async () => {
-        const view = WebviewWindow.getCurrent();
-        const maximized = await view.isMaximized();
-        if (maximized) {
-            view.unmaximize();
-            view.setPosition(util.toPhysicalPosition(settings.data.bounds));
+    const tryClose = async () => {
+        if (settings.data.tabMode) {
+            await ipc.invoke("tab_request", { name: "closeAll" });
         } else {
-            const position = await view.innerPosition();
-            const size = await view.innerSize();
-            dispatch({ type: "setBounds", value: util.toBounds(position, size) });
-            await view.maximize();
+            await close();
         }
-
-        dispatch({ type: "isMaximized", value: !maximized });
-    };
-
-    const launchNew = async () => {
-        await main.launchNew();
     };
 
     const close = async () => {
-        const view = WebviewWindow.getCurrent();
+        const view = getCurrentWebviewWindow();
+
+        await ipc.invoke("tab_request", { name: "close" });
+
         const isMinimized = await view.isMinimized();
         if (!settings.data.isMaximized && !isMinimized) {
             const position = await view.innerPosition();
@@ -1586,7 +1599,7 @@
 
         await settingsStore.save(settings.data);
 
-        await view.close();
+        await view.destroy();
     };
 
     const delayGetDrives = async (): Promise<Mp.DriveInfo[]> => {
@@ -1653,19 +1666,137 @@
         }, 200);
     };
 
+    const onSettingsChanged = async (e: ChangedSettings) => {
+        const shouldSave = e != ChangedSettings.None;
+
+        if ((e & ChangedSettings.MenuItem) != 0) {
+            main.changeAppMenuItems;
+        }
+
+        if ((e & ChangedSettings.Theme) != 0) {
+            main.changeTheme(settings.data.theme);
+        }
+
+        if ((e & ChangedSettings.TabMode) != 0) {
+            await ipc.invoke("tab_request", { name: "toggleTabMode", data: { tab_mode: settings.data.tabMode } });
+        }
+
+        if (shouldSave) {
+            await settingsStore.save($state.snapshot(settings.data));
+            ipc.sendOthers("reloadSettings", null);
+        }
+    };
+
+    const reloadSettings = async () => {
+        const data = await settingsStore.reload();
+        if (data) {
+            dispatch({ type: "settings", value: { data, callback: onSettingsChanged } });
+        }
+    };
+
+    const scrollTab = (scrollLeft: number) => {
+        tabState.scrollLeft = scrollLeft;
+    };
+
+    const onTabEvent = async (e: Tab.TabEvent) => {
+        switch (e.name) {
+            case "activated": {
+                getCurrentWebview().setFocus();
+                break;
+            }
+            case "maximized": {
+                onWindowSizeChanged(true);
+                return;
+            }
+            case "unmaximized": {
+                onWindowSizeChanged(false);
+                return;
+            }
+            case "titleChanged": {
+                updateTabTitle(e.data);
+                break;
+            }
+            case "reordered": {
+                tabState.tabs = e.data;
+                break;
+            }
+            case "closed": {
+                let index = tabState.tabs.findIndex((tab) => tab.label == e.data);
+                if (index >= 0) {
+                    tabState.tabs.splice(index, 1);
+                }
+                break;
+            }
+            case "modeChanged": {
+                dispatch({ type: "toggleTabMode", value: e.data.tab_mode });
+                if (e.data.webviews.length) {
+                    tabState.tabs = e.data.webviews;
+                }
+                break;
+            }
+            case "attached": {
+                tabState.tabs = e.data;
+                break;
+            }
+            case "added": {
+                tabState.added = true;
+                tabState.tabs.push(e.data);
+                await tick();
+                tabState.added = false;
+                break;
+            }
+            case "close": {
+                close();
+                break;
+            }
+            case "scrolled": {
+                tabState.scrollLeft = e.data;
+                break;
+            }
+        }
+    };
+
+    const onWindowStateChanged = async (e: Ws.ChangeWindowStateResult) => {
+        switch (e.name) {
+            case "toggled": {
+                const bounds = e.data;
+                if (bounds) {
+                    dispatch({ type: "setBounds", value: bounds });
+                } else {
+                    const view = getCurrentWebviewWindow();
+                    view.setPosition(util.toPhysicalPosition(settings.data.bounds));
+                    view.setSize(util.toPhysicalSize(settings.data.bounds));
+                }
+                break;
+            }
+            case "maximized": {
+                onWindowSizeChanged(true);
+                return;
+            }
+            case "unmaximized": {
+                onWindowSizeChanged(false);
+                return;
+            }
+            case "minimized": {
+                dispatch({ type: "setBounds", value: e.data });
+                break;
+            }
+        }
+    };
+
     const prepare = async () => {
         /* Must init settings before everyting */
         const data = await settingsStore.init();
-        dispatch({ type: "settings", value: data });
+        dispatch({ type: "settings", value: { data, callback: onSettingsChanged } });
 
         const e = await main.onMainReady("viewContent");
 
         await main.changeTheme(data.theme);
         await main.changeAppMenuItems();
 
-        dispatch({ type: "changeFavorites", value: data.favorites });
-
+        // requestLoad(e.data.directory,)
         dispatch({ type: "load", value: { event: e.data } });
+        main.updateFiles(e.data.files);
 
         await setTitle();
         await tick();
@@ -1674,23 +1805,35 @@
             await select(e.selectId);
         }
 
-        const webview = WebviewWindow.getCurrent();
+        const webview = getCurrentWebviewWindow();
         await webview.setSize(util.toPhysicalSize(data.bounds));
         if (e.restorePosition) {
             await webview.setPosition(util.toPhysicalPosition(data.bounds));
         }
-        await webview.show();
+
+        if (settings.data.tabMode) {
+            const toggled = await ipc.invoke("tab_request", { name: "toggleTabMode", data: { tab_mode: settings.data.tabMode, bounds: settings.data.bounds } });
+            if (!toggled) {
+                await ipc.invoke("tab_request", { name: "add", data: { opener: e.opener, bounds: settings.data.bounds, detach: e.detach } });
+            }
+        } else {
+            await webview.show();
+            await webview.setFocus();
+        }
 
         ready = true;
     };
 
     onMount(() => {
         prepare();
-        ipc.receiveTauri("tauri://resize", onWindowSizeChanged);
         ipc.receive("contextmenu_event", handleContextMenuEvent);
         ipc.receive("watch_event", onWatchEvent);
         ipc.receive("device_event", onDeviceEvent);
         ipc.receiveTauri<Mp.FileDropEvent>("tauri://drag-drop", onFileDrop);
+        ipc.receive("reloadSettings", reloadSettings);
+        ipc.receive("window-state-changed", onWindowStateChanged);
+        ipc.receive("tab_event", onTabEvent);
+        ipc.receive("scrollTab", scrollTab);
 
         return () => {
             ipc.release();
@@ -1706,10 +1849,10 @@
         {#if util.isLinux()}
             <GtkResize />
         {/if}
-        <TopBar {minimize} {toggleMaximize} {launchNew} {close} />
+        <TopBar {label} {minimize} {toggleMaximize} {openInNew} close={tryClose} />
         <div class="view">
             {#if $appState.prefVisible}
-                <PreferenceDialog changeAppMenuItems={main.changeAppMenuItems} {openSettingsAsJson} themeChanged={() => main.changeTheme(settings.data.theme)} onClose={onPreferenceClose} />
+                <PreferenceDialog {openSettingsAsJson} onClose={onPreferenceClose} />
             {/if}
             {#if $appState.symlinkVisible}
                 <SymlinkDialog {getSymlinkTargetItem} {createSymlink} />
