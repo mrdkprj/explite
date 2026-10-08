@@ -118,7 +118,7 @@ pub fn add(window: &WebviewWindow, request: AddTabRequest) {
 
     if request.detach {
         attach_to_tab(window, &host, &tab, size.width as _, size.height as _);
-        detach(app, window.label().to_string());
+        detach(app, label.to_string());
     } else {
         attach_to_tab(window, &host, &tab, size.width as _, size.height as _);
         /* Delay switching for smooth rendering */

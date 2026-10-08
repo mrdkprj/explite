@@ -76,8 +76,9 @@ pub fn add(window: &tauri::WebviewWindow, request: AddTabRequest) {
     }
 
     let label = window.label();
-
     let host_name = state.find_host(app, &request.opener);
+    let host = app.get_webview_window(&host_name).unwrap();
+
     /* Before attach and show this tab, send current tab data to the window */
     let tabs = state.tabs(&host_name).unwrap();
     let titles: Vec<WebviewTitle> = tabs
@@ -94,22 +95,26 @@ pub fn add(window: &tauri::WebviewWindow, request: AddTabRequest) {
     tab.bounds = request.bounds;
     state.add(&host_name, tab.clone());
 
-    let host = app.get_webview_window(&host_name).unwrap();
-    attach_to_tab(&host, &tab);
-    /* Delay switching for smooth rendering */
-    bring_to_front_async(app, tab, Some(state.tabs(&host_name).unwrap().clone()));
+    if request.detach {
+        attach_to_tab(&host, &tab);
+        detach(app, label.to_string());
+    } else {
+        attach_to_tab(&host, &tab);
+        /* Delay switching for smooth rendering */
+        bring_to_front_async(app, tab, Some(state.tabs(&host_name).unwrap().clone()));
 
-    /* Unminimize */
-    let app = app.clone();
-    smol::spawn(async move {
-        smol::Timer::after(Duration::from_millis(5)).await;
-        let host = app.get_webview_window(&host_name).unwrap();
-        if host.is_minimized().unwrap() {
-            host.unminimize().unwrap();
-        }
-        let _ = host.set_focus();
-    })
-    .detach();
+        /* Unminimize */
+        let app = app.clone();
+        smol::spawn(async move {
+            smol::Timer::after(Duration::from_millis(5)).await;
+            let host = app.get_webview_window(&host_name).unwrap();
+            if host.is_minimized().unwrap() {
+                host.unminimize().unwrap();
+            }
+            let _ = host.set_focus();
+        })
+        .detach();
+    }
 }
 
 pub fn update(app: &tauri::AppHandle, label: &str, title: &str, path: &str) {
@@ -567,19 +572,18 @@ fn bring_to_front_async(app: &tauri::AppHandle, tab: Tab, emit_targets: Option<V
             let mode = app.state::<Mutex<WindowMode>>();
             if let Ok(mut mode) = mode.try_lock() {
                 bring_to_front(&app, &state, &mut mode, &tab.label);
+                if let Some(tabs) = emit_targets {
+                    emit_filter(
+                        &app,
+                        TabEvent::Added(WebviewTitle {
+                            label: tab.label.clone(),
+                            title: tab.title.clone(),
+                            path: tab.path.clone(),
+                        }),
+                        &tabs,
+                    );
+                }
             };
-
-            if let Some(tabs) = emit_targets {
-                emit_filter(
-                    &app,
-                    TabEvent::Added(WebviewTitle {
-                        label: tab.label.clone(),
-                        title: tab.title.clone(),
-                        path: tab.path.clone(),
-                    }),
-                    &tabs,
-                );
-            }
         };
     })
     .detach();

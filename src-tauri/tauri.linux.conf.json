@@ -3,7 +3,7 @@
     "windows": [
       {
         "title": "",
-        "label": "View",
+        "label": "Main",
         "minHeight":400,
         "minWidth":400,
         "fullscreen": false,

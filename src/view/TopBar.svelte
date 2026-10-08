@@ -102,6 +102,7 @@
         width: 80%;
         flex: 1 1 auto;
         max-width: stretch;
+        max-width: -webkit-fill-available;
         justify-content: flex-start;
     }
 
