@@ -132,6 +132,7 @@ declare global {
 
         type SortKey = "name" | "extension" | "cdate" | "mdate" | "size" | "directory" | "ddate" | "orig_path";
         type Theme = "dark" | "light" | "system";
+        type ResizeDirection = "East" | "North" | "NorthEast" | "NorthWest" | "South" | "SouthEast" | "SouthWest" | "West";
 
         type MainContextMenuSubTypeMap = {
             Open: null;

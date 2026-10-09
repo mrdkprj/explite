@@ -1,12 +1,13 @@
 <script lang="ts">
-    import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+    import { IPCBase } from "../ipc";
 
-    type ResizeDirection = "East" | "North" | "NorthEast" | "NorthWest" | "South" | "SouthEast" | "SouthWest" | "West";
+    const ipc = new IPCBase();
+
     const dragResize = async (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
         const direction = e.target.getAttribute("data-direction");
         if (direction) {
-            getCurrentWebviewWindow().startResizeDragging(direction as ResizeDirection);
+            ipc.invoke("tab_request", { name: "startResizeDrag", data: direction as Mp.ResizeDirection });
         }
     };
 </script>

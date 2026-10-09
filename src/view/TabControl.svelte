@@ -257,7 +257,7 @@
 <svelte:window ondragenter={onDragEnter} ondragleave={onDragLeave} />
 <div class="tab" bind:this={tab} onwheel={onmousewheel} role="button" tabindex="-1">
     {#each tabState.tabs as tab, index (tab.label)}
-        <div class="tab-container" animate:flip={{ duration: tabState.dragging ? 400 : 0 }} transition:smartSlide={index == tabState.tabs.length - 1 && tabState.added}>
+        <div class="tab-container" animate:flip={{ duration: tabState.dragging ? 400 : 0 }}>
             <div
                 id={tab.label}
                 draggable="true"
@@ -274,6 +274,7 @@
                 ondrop={onDrop}
                 role="button"
                 tabindex="-1"
+                transition:smartSlide={index == tabState.tabs.length - 1 && tabState.added}
                 use:scrollIntoView={index == tabState.tabs.length - 1 && tabState.added}
             >
                 <div class="tab-title" title={tab.title}>{tab.title}</div>
