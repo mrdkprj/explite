@@ -6,7 +6,8 @@
     import { IPC } from "../ipc";
     import { onMount } from "svelte";
 
-    let { label, addTab }: { label: string; addTab: () => void } = $props();
+    let { label, addTab, onmousedown, onmouseup, dragWindow }: { label: string; addTab: () => void; onmousedown: (e: MouseEvent) => void; onmouseup: () => void; dragWindow: (e: DragEvent) => void } =
+        $props();
 
     // svelte-ignore state_referenced_locally
     const ipc = new IPC(label);
@@ -291,7 +292,7 @@
     {/each}
 </div>
 <div class="add-tab"><button class="add-tab-button" onclick={addTab}>+</button></div>
-<div class="tab-right-margin" class:drop-target={isDropTaget} ondrop={onDrop} role="button" tabindex="-1"></div>
+<div class="tab-right-margin" class:drop-target={isDropTaget} class:drag-region={util.isLinux()} {onmousedown} {onmouseup} ondragstart={dragWindow} ondrop={onDrop} role="button" tabindex="-1"></div>
 
 <style>
     .tab-container {

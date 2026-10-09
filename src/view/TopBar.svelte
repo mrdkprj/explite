@@ -70,7 +70,7 @@
     </div>
     <div class="titlebar-center" class:drag-region={util.isLinux()} class:align-center={!settings.data.tabMode} class:align-bottom={settings.data.tabMode}>
         {#if settings.data.tabMode}
-            <TabControl {label} addTab={() => openInNew(true)} />
+            <TabControl {label} addTab={() => openInNew(true)} {onmousedown} {onmouseup} {dragWindow} />
         {:else}
             <div class="title" class:drag-region={util.isLinux()} {onmousedown} {onmouseup} ondragstart={dragWindow} draggable="true" role="button" tabindex="-1">
                 {listState.currentDir.paths.length ? listState.currentDir.paths[listState.currentDir.paths.length - 1] : ""}
