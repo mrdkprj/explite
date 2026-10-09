@@ -1794,7 +1794,6 @@
         await main.changeTheme(data.theme);
         await main.changeAppMenuItems();
 
-        // requestLoad(e.data.directory,)
         dispatch({ type: "load", value: { event: e.data } });
         main.updateFiles(e.data.files);
 
@@ -1811,6 +1810,8 @@
             await webview.setPosition(util.toPhysicalPosition(data.bounds));
         }
 
+        ready = true;
+
         if (settings.data.tabMode) {
             const toggled = await ipc.invoke("tab_request", { name: "toggleTabMode", data: { tab_mode: settings.data.tabMode, bounds: settings.data.bounds } });
             if (!toggled) {
@@ -1820,8 +1821,6 @@
             await webview.show();
             await webview.setFocus();
         }
-
-        ready = true;
     };
 
     onMount(() => {

@@ -74,7 +74,7 @@
 
     const startDrag = async (e: DragEvent) => {
         if (util.isLinux()) {
-            e.dataTransfer?.setData("text/plain", "dummy");
+            e.dataTransfer?.setData("application/x-tabctrl-dummy-data", "dummy");
         }
 
         if (!e.target || !(e.target instanceof HTMLElement)) return;
@@ -262,8 +262,9 @@
                 id={tab.label}
                 draggable="true"
                 class="tablinks"
-                data-drag-id={tab.label}
+                class:is-dragging={tabState.dragging}
                 class:tablinks-active={tab.label == label}
+                data-drag-id={tab.label}
                 onclick={(e) => onTabClick(e, tab.label)}
                 onkeydown={() => {}}
                 ondragstart={startDrag}
@@ -357,12 +358,12 @@
         flex-shrink: 0;
     }
 
-    .tab-close-btn:hover {
+    .tab-close-btn:not(.is-dragging):hover {
         background-color: var(--tab-close-btn-hover-bg-color);
         color: var(--tab-close-btn-hover-color);
     }
 
-    .tablinks:not(.tablinks-active):hover {
+    .tablinks:not(.tablinks-active):not(.is-dragging):hover {
         background-color: var(--tab-active-bg-color);
     }
 

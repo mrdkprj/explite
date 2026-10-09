@@ -528,13 +528,12 @@ fn exit_tab_mode(app: &tauri::AppHandle, state: &mut TabState, mode: &mut Window
 }
 
 fn attach_to_tab(parent_window: &WebviewWindow, tab: &Tab) {
-    let vbox = get_overlay(parent_window);
+    let overlay = get_overlay(parent_window);
     let child = parent_window.get_webview_window(&tab.label).unwrap();
     let child_vbox = child.default_vbox().unwrap();
     let webview = to_widget(tab.window_handle);
     child_vbox.remove(&webview);
-    vbox.add_overlay(&webview);
-    vbox.reorder_overlay(&webview, 0);
+    overlay.add_overlay(&webview);
     webview.show();
     /* Must show so that menu can popup */
     child.gtk_window().unwrap().show();
