@@ -265,6 +265,7 @@
     const onColumnHeaderClick = (e: MouseEvent) => {
         if (!e.target || !(e.target instanceof HTMLElement)) return;
         if (slideState.sliding) return;
+        if (clipState.clipping) return;
 
         if (e.button != 2 && e.target.hasAttribute("data-sort-key")) {
             const key = e.target.getAttribute("data-sort-key") as Mp.SortKey;
@@ -305,6 +306,11 @@
         dispatch({ type: "startDrag", value: { id: "", type: "View" } });
 
         await main.startDrag(paths);
+    };
+
+    const endDrag = () => {
+        if ($appState.dragHandler != "View") return;
+        dispatch({ type: "endDrag" });
     };
 
     const onDragOver = (e: DragEvent) => {
@@ -1872,6 +1878,7 @@
                     onkeydown={handleKeyEvent}
                     onscroll={endEditFileName}
                     ondragstart={startDrag}
+                    ondragend={endDrag}
                     role="button"
                     tabindex="-1"
                 >

@@ -113,7 +113,8 @@ pub fn add(window: &WebviewWindow, request: AddTabRequest) {
         .collect();
     emit_to(app, TabEvent::Attached(titles), label);
 
-    let tab = new_tab(window, Some(&host_name));
+    let mut tab = new_tab(window, Some(&host_name));
+    tab.bounds = request.bounds;
     state.add(&host_name, tab.clone());
 
     if request.detach {
