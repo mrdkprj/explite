@@ -993,6 +993,7 @@
             const result = await main.readFiles(util.getRealPath(directory), "Add");
             if (result.done) {
                 dispatch({ type: "expand", value: { directory, children: result.files } });
+                main.updateFiles(listState.files);
             }
         } else {
             await main.removeFromWatch(util.getRealPath(directory));
