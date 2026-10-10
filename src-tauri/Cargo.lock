@@ -1256,7 +1256,6 @@ dependencies = [
  "url",
  "wcpopup",
  "windows",
- "zbus",
  "zouni",
 ]
 
