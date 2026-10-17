@@ -1,4 +1,3 @@
-use crate::watcher::WatcherCommand;
 use dialog::DialogOptions;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, env, path::PathBuf};
@@ -6,15 +5,14 @@ use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 use zouni::dialog::MessageResult;
 mod dialog;
 #[cfg(target_os = "linux")]
+mod gtk_fs;
+#[cfg(target_os = "linux")]
 mod gtk_thumb;
 mod helper;
+mod manager;
 mod menu;
 mod translate;
 mod watcher;
-use watcher::WatchTx;
-#[cfg(target_os = "linux")]
-mod gtk_fs;
-mod manager;
 
 #[cfg(target_os = "linux")]
 fn get_window_handel(window: &WebviewWindow) -> isize {
@@ -358,27 +356,19 @@ fn create_symlink(payload: SymlinkRequest) -> Result<(), String> {
     zouni::fs::create_symlink(payload.path, payload.link_path)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct NotifyRequest {
-    path: String,
-    network: bool,
-}
 #[tauri::command]
-async fn watch(app: AppHandle, payload: NotifyRequest) -> Result<(), String> {
-    if let Some(tx) = app.try_state::<WatchTx>() {
-        tx.inner().0.send(WatcherCommand::Watch(payload.path, payload.network)).await.map_err(|e| e.to_string())
-    } else {
-        Ok(())
-    }
+async fn watch(app: AppHandle, payload: watcher::NotifyRequest) -> Result<(), String> {
+    watcher::watch(&app, payload).await
 }
 
 #[tauri::command]
-async fn unwatch(app: AppHandle, payload: NotifyRequest) -> Result<(), String> {
-    if let Some(tx) = app.try_state::<WatchTx>() {
-        tx.inner().0.send(WatcherCommand::Unwatch(payload.path, payload.network)).await.map_err(|e| e.to_string())
-    } else {
-        Ok(())
-    }
+async fn unwatch(app: AppHandle, payload: watcher::NotifyRequest) -> Result<(), String> {
+    watcher::unwatch(&app, payload).await
+}
+
+#[tauri::command]
+async fn clear_watch(app: AppHandle, payload: Vec<watcher::NotifyRequest>) {
+    watcher::clear_watch(&app, payload).await
 }
 
 #[tauri::command]
@@ -615,6 +605,7 @@ pub fn run() {
             write_text_file,
             watch,
             unwatch,
+            clear_watch,
             open_terminal,
             message,
             get_args,

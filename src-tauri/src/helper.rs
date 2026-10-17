@@ -28,6 +28,7 @@ pub fn setup(app: &tauri::App) {
 
     let (tx_cmd, rx_cmd) = smol::channel::bounded(5);
     app.manage(WatchTx(tx_cmd));
+    watcher::init(app.handle());
     watcher::spwan_watcher(app.app_handle(), rx_cmd).unwrap();
     manager::init(app.handle());
     menu::init(app.handle());

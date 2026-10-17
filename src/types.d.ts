@@ -441,6 +441,11 @@ declare global {
             event: "Added" | "Removed";
         };
 
+        type NotifyRequest = {
+            path: string;
+            network: boolean;
+        };
+
         type WatchEvent = {
             operation: "Create" | "Remove" | "Rename";
             to_paths: string[];

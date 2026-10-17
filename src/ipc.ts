@@ -101,11 +101,6 @@ type IconInfo = {
     large: number[];
 };
 
-type NotifyRequest = {
-    path: string;
-    network: boolean;
-};
-
 type TauriCommandMap = {
     prepare_menu: TauriCommand<ColumnWithLabel[], null>;
     open_list_context_menu: TauriCommand<ContextMenuArg, null>;
@@ -143,8 +138,9 @@ type TauriCommandMap = {
     create: TauriCommand<string, null>;
     read_text_file: TauriCommand<string, string>;
     write_text_file: TauriCommand<WriteFileInfo, null>;
-    watch: TauriCommand<NotifyRequest, null>;
-    unwatch: TauriCommand<NotifyRequest, null>;
+    watch: TauriCommand<Mp.NotifyRequest, null>;
+    unwatch: TauriCommand<Mp.NotifyRequest, null>;
+    clear_watch: TauriCommand<Mp.NotifyRequest[], null>;
     message: TauriCommand<DialogOptions, Mp.MessageResult>;
     open_terminal: TauriCommand<TerminalArgs, null>;
     get_args: TauriCommand<null, InitArgs>;

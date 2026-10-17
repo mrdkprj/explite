@@ -76,6 +76,13 @@ class Main {
         });
     };
 
+    beforeClose = async () => {
+        const targets: Mp.NotifyRequest[] = this.watchTargets.map((target) => {
+            return { path: target, network: this.isNetwork(target) };
+        });
+        await ipc.invoke("clear_watch", targets);
+    };
+
     onSelect = async (e: Mp.SelectEvent): Promise<Mp.LoadEvent | null> => {
         if (e.isFile) {
             await this.openFile(e.fullPath);

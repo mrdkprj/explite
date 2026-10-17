@@ -7,9 +7,12 @@ use notify_debouncer_full::{
     DebouncedEvent,
 };
 use serde::{Deserialize, Serialize};
-use smol::channel::{bounded, Receiver, Sender};
+use smol::{
+    channel::{bounded, Receiver, Sender},
+    lock::Mutex,
+};
 use std::time::Duration;
-use tauri::Emitter;
+use tauri::{AppHandle, Emitter, Manager};
 
 const WATCH_EVENT_NAME: &str = "watch_event";
 const CREATE: &str = "Create";
@@ -35,7 +38,31 @@ enum Watcher<L, R> {
     PollWatcher(R),
 }
 
-pub fn spwan_watcher(app_handle: &tauri::AppHandle, cmd_rx: Receiver<WatcherCommand>) -> Result<(), String> {
+#[derive(Debug, Default, PartialEq, Eq, Hash)]
+struct WatchTargetType {
+    path: String,
+    poll: bool,
+}
+
+impl WatchTargetType {
+    fn new(path: String, poll: bool) -> Self {
+        Self {
+            path,
+            poll,
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct WatchTargets {
+    targets: Vec<WatchTargetType>,
+}
+
+pub fn init(app: &AppHandle) {
+    app.manage(Mutex::new(WatchTargets::default()));
+}
+
+pub fn spwan_watcher(app_handle: &AppHandle, cmd_rx: Receiver<WatcherCommand>) -> Result<(), String> {
     let (tx, rx) = bounded(1);
     let (tx_poll, rx_poll) = bounded(1);
 
@@ -115,7 +142,7 @@ pub fn spwan_watcher(app_handle: &tauri::AppHandle, cmd_rx: Receiver<WatcherComm
     Ok(())
 }
 
-fn handle_event(app_handle: &tauri::AppHandle, event: DebouncedEvent) {
+fn handle_event(app_handle: &AppHandle, event: DebouncedEvent) {
     let event_type = get_event_type(event.kind);
 
     match event_type {
@@ -190,5 +217,59 @@ fn get_event_type(event_kind: EventKind) -> EventType {
         EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => EventType::Rename,
         EventKind::Remove(_) => EventType::Remove,
         _ => EventType::None,
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotifyRequest {
+    path: String,
+    network: bool,
+}
+pub async fn watch(app: &AppHandle, request: NotifyRequest) -> Result<(), String> {
+    let tx = app.state::<WatchTx>();
+    let command = WatcherCommand::Watch(request.path.clone(), request.network);
+    let state = app.state::<Mutex<WatchTargets>>();
+    let mut state = state.lock().await;
+    let target_type = WatchTargetType::new(request.path, request.network);
+    state.targets.push(target_type);
+
+    tx.inner().0.send(command).await.map_err(|e| e.to_string())
+}
+
+pub async fn unwatch(app: &AppHandle, request: NotifyRequest) -> Result<(), String> {
+    let tx = app.state::<WatchTx>();
+    let command = WatcherCommand::Unwatch(request.path.clone(), request.network);
+    let state = app.state::<Mutex<WatchTargets>>();
+    let mut state = state.lock().await;
+    let target_type = WatchTargetType::new(request.path, request.network);
+    if let Some(index) = state.targets.iter().position(|target| target == &target_type) {
+        state.targets.remove(index);
+    }
+
+    tx.inner().0.send(command).await.map_err(|e| e.to_string())
+}
+
+pub async fn clear_watch(app: &AppHandle, commands: Vec<NotifyRequest>) {
+    let state = app.state::<Mutex<WatchTargets>>();
+    let mut state = state.lock().await;
+    let tx = app.state::<WatchTx>();
+    for command in &commands {
+        let target_type = WatchTargetType {
+            path: command.path.clone(),
+            poll: command.network,
+        };
+        if let Some(index) = state.targets.iter().position(|a| a == &target_type) {
+            state.targets.remove(index);
+        }
+    }
+
+    for command in commands {
+        let target_type = WatchTargetType {
+            path: command.path,
+            poll: command.network,
+        };
+        if !state.targets.contains(&target_type) {
+            let _ = tx.inner().0.send(WatcherCommand::Unwatch(target_type.path, target_type.poll)).await;
+        }
     }
 }

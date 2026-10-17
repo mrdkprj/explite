@@ -1597,6 +1597,8 @@
 
         await ipc.invoke("tab_request", { name: "close" });
 
+        await main.beforeClose();
+
         const isMinimized = await view.isMinimized();
         if (!settings.data.isMaximized && !isMinimized) {
             const position = await view.innerPosition();
@@ -1644,6 +1646,10 @@
     };
 
     const onWatchEvent = async (e: Mp.WatchEvent) => {
+        const to_paths = e.to_paths.filter((to_path) => path.dirname(to_path) == listState.currentDir.fullPath);
+        if (!to_paths.length) return;
+
+        e.to_paths = to_paths;
         operationStack.push(e);
 
         // Delay operation until batch events are consumed
