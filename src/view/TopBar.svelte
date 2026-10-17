@@ -58,7 +58,7 @@
     tabindex="-1"
 >
     <div class="titlebar-drag-region"></div>
-    <div class="titlebar-left" class:drag-region={util.isLinux()}>
+    <div class="titlebar-left" class:drag-region={util.isLinux()} class:fit-content={settings.data.tabMode}>
         <div class="icon-area">
             <div style="width:20px;height:20px;" class:drag-region={util.isLinux()} {onmousedown} {onmouseup} onkeydown={handleKeyEvent} role="button" tabindex="-1"></div>
             {#if !settings.data.tabMode}
@@ -88,6 +88,9 @@
 </div>
 
 <style>
+    .fit-content {
+        max-width: fit-content;
+    }
     .no-bottom-border {
         border-bottom: none;
     }
