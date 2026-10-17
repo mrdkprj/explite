@@ -357,18 +357,13 @@ fn create_symlink(payload: SymlinkRequest) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn watch(app: AppHandle, payload: watcher::NotifyRequest) -> Result<(), String> {
-    watcher::watch(&app, payload).await
+async fn watch(window: WebviewWindow, payload: watcher::NotifyRequest) -> Result<(), String> {
+    watcher::watch(window, payload).await
 }
 
 #[tauri::command]
-async fn unwatch(app: AppHandle, payload: watcher::NotifyRequest) -> Result<(), String> {
-    watcher::unwatch(&app, payload).await
-}
-
-#[tauri::command]
-async fn clear_watch(app: AppHandle, payload: Vec<watcher::NotifyRequest>) {
-    watcher::clear_watch(&app, payload).await
+async fn unwatch(window: WebviewWindow, payload: watcher::NotifyRequest) -> Result<(), String> {
+    watcher::unwatch(window, payload).await
 }
 
 #[tauri::command]
@@ -605,7 +600,6 @@ pub fn run() {
             write_text_file,
             watch,
             unwatch,
-            clear_watch,
             open_terminal,
             message,
             get_args,

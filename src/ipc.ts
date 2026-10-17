@@ -140,7 +140,6 @@ type TauriCommandMap = {
     write_text_file: TauriCommand<WriteFileInfo, null>;
     watch: TauriCommand<Mp.NotifyRequest, null>;
     unwatch: TauriCommand<Mp.NotifyRequest, null>;
-    clear_watch: TauriCommand<Mp.NotifyRequest[], null>;
     message: TauriCommand<DialogOptions, Mp.MessageResult>;
     open_terminal: TauriCommand<TerminalArgs, null>;
     get_args: TauriCommand<null, InitArgs>;

@@ -88,6 +88,7 @@ pub fn get_init_args(app: AppHandle) -> Args {
 pub fn exit(app: &AppHandle, label: &str) {
     menu::remove(app, label);
     manager::remove_window(app, label);
+    watcher::remove(app, label);
 }
 
 fn get_extension(full_path: &str) -> String {

@@ -11,8 +11,8 @@ use smol::{
     channel::{bounded, Receiver, Sender},
     lock::Mutex,
 };
-use std::time::Duration;
-use tauri::{AppHandle, Emitter, Manager};
+use std::{collections::HashMap, time::Duration};
+use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 
 const WATCH_EVENT_NAME: &str = "watch_event";
 const CREATE: &str = "Create";
@@ -36,26 +36,6 @@ pub enum WatcherCommand {
 enum Watcher<L, R> {
     Normal(L),
     PollWatcher(R),
-}
-
-#[derive(Debug, Default, PartialEq, Eq, Hash)]
-struct WatchTargetType {
-    path: String,
-    poll: bool,
-}
-
-impl WatchTargetType {
-    fn new(path: String, poll: bool) -> Self {
-        Self {
-            path,
-            poll,
-        }
-    }
-}
-
-#[derive(Debug, Default)]
-struct WatchTargets {
-    targets: Vec<WatchTargetType>,
 }
 
 pub fn init(app: &AppHandle) {
@@ -225,51 +205,91 @@ pub struct NotifyRequest {
     path: String,
     network: bool,
 }
-pub async fn watch(app: &AppHandle, request: NotifyRequest) -> Result<(), String> {
-    let tx = app.state::<WatchTx>();
-    let command = WatcherCommand::Watch(request.path.clone(), request.network);
-    let state = app.state::<Mutex<WatchTargets>>();
-    let mut state = state.lock().await;
-    let target_type = WatchTargetType::new(request.path, request.network);
-    state.targets.push(target_type);
 
-    tx.inner().0.send(command).await.map_err(|e| e.to_string())
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+struct WatchTargetType {
+    path: String,
+    poll: bool,
 }
 
-pub async fn unwatch(app: &AppHandle, request: NotifyRequest) -> Result<(), String> {
-    let tx = app.state::<WatchTx>();
-    let command = WatcherCommand::Unwatch(request.path.clone(), request.network);
-    let state = app.state::<Mutex<WatchTargets>>();
-    let mut state = state.lock().await;
-    let target_type = WatchTargetType::new(request.path, request.network);
-    if let Some(index) = state.targets.iter().position(|target| target == &target_type) {
-        state.targets.remove(index);
+impl WatchTargetType {
+    fn new(path: String, poll: bool) -> Self {
+        Self {
+            path,
+            poll,
+        }
     }
-
-    tx.inner().0.send(command).await.map_err(|e| e.to_string())
 }
 
-pub async fn clear_watch(app: &AppHandle, commands: Vec<NotifyRequest>) {
-    let state = app.state::<Mutex<WatchTargets>>();
-    let mut state = state.lock().await;
-    let tx = app.state::<WatchTx>();
-    for command in &commands {
-        let target_type = WatchTargetType {
-            path: command.path.clone(),
-            poll: command.network,
-        };
-        if let Some(index) = state.targets.iter().position(|a| a == &target_type) {
-            state.targets.remove(index);
-        }
+#[derive(Debug, Default)]
+struct WatchTargets {
+    targets: HashMap<WatchTargetType, u64>,
+    listeners: HashMap<String, Vec<WatchTargetType>>,
+}
+
+impl WatchTargets {
+    async fn watch(&mut self, window: &WebviewWindow, path: String, poll: bool) -> Result<(), String> {
+        let target_type = WatchTargetType::new(path.clone(), poll);
+        let count = self.targets.entry(target_type.clone()).or_insert(0);
+        *count += 1;
+        let listener = self.listeners.entry(window.label().to_string()).or_default();
+        listener.push(target_type);
+
+        let tx = window.app_handle().state::<WatchTx>();
+        let command = WatcherCommand::Watch(path, poll);
+        tx.inner().0.send(command).await.map_err(|e| e.to_string())
     }
 
-    for command in commands {
-        let target_type = WatchTargetType {
-            path: command.path,
-            poll: command.network,
-        };
-        if !state.targets.contains(&target_type) {
-            let _ = tx.inner().0.send(WatcherCommand::Unwatch(target_type.path, target_type.poll)).await;
+    async fn unwatch(&mut self, app: &AppHandle, label: &str, path: String, poll: bool) -> Result<(), String> {
+        let target_type = WatchTargetType::new(path.clone(), poll);
+        if let Some(count) = self.targets.get_mut(&target_type) {
+            if *count > 0 {
+                *count -= 1;
+            }
+
+            let listener = self.listeners.entry(label.to_string()).or_default();
+            if let Some(index) = listener.iter().position(|e| e == &target_type) {
+                listener.remove(index);
+            }
+
+            /* If no more windows are watching this path, unwatch it */
+            if *count == 0 {
+                self.targets.remove(&target_type);
+
+                let tx = app.state::<WatchTx>();
+                let command = WatcherCommand::Unwatch(path, poll);
+                return tx.inner().0.send(command).await.map_err(|e| e.to_string());
+            }
         }
+
+        Ok(())
     }
+}
+
+pub async fn watch(window: WebviewWindow, request: NotifyRequest) -> Result<(), String> {
+    let state = window.app_handle().state::<Mutex<WatchTargets>>();
+    let mut state = state.lock().await;
+    state.watch(&window, request.path, request.network).await
+}
+
+pub async fn unwatch(window: WebviewWindow, request: NotifyRequest) -> Result<(), String> {
+    let app = window.app_handle();
+    let state = app.state::<Mutex<WatchTargets>>();
+    let mut state = state.lock().await;
+    state.unwatch(app, window.label(), request.path, request.network).await
+}
+
+pub fn remove(app: &tauri::AppHandle, label: &str) {
+    let app = app.clone();
+    let label = label.to_string();
+    smol::spawn(async move {
+        let state = app.app_handle().state::<Mutex<WatchTargets>>();
+        let mut state = state.lock().await;
+        if let Some(targets) = state.listeners.remove(&label) {
+            for target in targets {
+                let _ = state.unwatch(&app, &label, target.path, target.poll).await;
+            }
+        }
+    })
+    .detach();
 }

@@ -1597,8 +1597,6 @@
 
         await ipc.invoke("tab_request", { name: "close" });
 
-        await main.beforeClose();
-
         const isMinimized = await view.isMinimized();
         if (!settings.data.isMaximized && !isMinimized) {
             const position = await view.innerPosition();

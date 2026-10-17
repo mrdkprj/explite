@@ -13,7 +13,7 @@ class Main {
     private searchCache: { [key: string]: string[] } = { "": [] };
     private searchKeyword = "";
     private searchBackup: Mp.MediaFile[] = [];
-    private watchTargets = [HOME];
+    private watchTargets: string[] = [];
     private history = new History();
     private pendingRenameFrom = "";
     private fileExtensionMap: { [key: string]: string } = {};
@@ -74,13 +74,6 @@ class Main {
                 visible: true,
             };
         });
-    };
-
-    beforeClose = async () => {
-        const targets: Mp.NotifyRequest[] = this.watchTargets.map((target) => {
-            return { path: target, network: this.isNetwork(target) };
-        });
-        await ipc.invoke("clear_watch", targets);
     };
 
     onSelect = async (e: Mp.SelectEvent): Promise<Mp.LoadEvent | null> => {
