@@ -94,7 +94,7 @@
         return {
             visiblePaths,
             overflownPaths,
-            overflown: overflownPaths.join(SEPARATOR),
+            overflown: overflownPaths.toReversed().join(SEPARATOR),
         };
     });
 
