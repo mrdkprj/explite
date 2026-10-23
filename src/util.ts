@@ -306,7 +306,7 @@ class Util {
     }
 
     getRealPath(file: Mp.MediaFile) {
-        return file.linkPath ? file.linkPath : file.fullPath;
+        return file.entityType == "SymlinkFile" || file.entityType == "SymlinkFolder" ? file.linkPath : file.fullPath;
     }
 
     toFolder(fullPath: string): Mp.MediaFile {

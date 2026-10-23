@@ -276,6 +276,11 @@
         return before ? path.join(before, current) : current;
     };
 
+    const onHeaderDropdownClick = (e: MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+    };
+
     const onkeydown = (e: KeyboardEvent) => {
         if (e.key == "Escape") {
             showHiddenPaths = false;
@@ -295,6 +300,7 @@
                     style="top:{dropdownPosition.top}px;left:{dropdownPosition.left}px;"
                     use:setHistoryDialogFocus
                     onblur={togglePathDialog}
+                    onclick={onHeaderDropdownClick}
                     {onkeydown}
                     tabindex="0"
                     role="button"
@@ -324,6 +330,7 @@
                     style="top:{dropdownPosition.top}px;left:{dropdownPosition.left}px;"
                     use:setHistoryDialogFocus
                     onblur={togglePathDialog}
+                    onclick={onHeaderDropdownClick}
                     {onkeydown}
                     tabindex="0"
                     role="button"
@@ -359,6 +366,7 @@
                     style="top:{dropdownPosition.top}px;left:{dropdownPosition.left}px;"
                     use:setCreateDirDialogFocus
                     onblur={hideCreateDirDialog}
+                    onclick={onHeaderDropdownClick}
                     {onkeydown}
                     tabindex="0"
                     role="button"
@@ -409,6 +417,7 @@
                                 style="top:{dropdownPosition.top}px;left:{dropdownPosition.left}px;"
                                 use:setPathDialogFocus
                                 onblur={togglePathDialog}
+                                onclick={onHeaderDropdownClick}
                                 {onkeydown}
                                 tabindex="0"
                                 role="button"

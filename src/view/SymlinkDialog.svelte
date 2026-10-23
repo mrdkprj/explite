@@ -91,4 +91,16 @@
         line-height: 25px;
         text-indent: 5px;
     }
+
+    button {
+        background-color: var(--button-bgcolor);
+        color: var(--button-color);
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+
+    button:hover,
+    button:not(:disabled):hover {
+        background-color: #e1e4ed;
+    }
 </style>

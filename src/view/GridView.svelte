@@ -94,7 +94,7 @@
                         tabindex="-1"
                     >
                         <div class="icon" class:folder={item.entityType == "Folder" || item.entityType == "SymlinkFolder"} class:hidden-folder={item.fileType == "HiddenFolder"} data-file-id={item.id}>
-                            {#if item.linkPath}
+                            {#if item.entityType == "SymlinkFolder" || item.entityType == "SymlinkFile"}
                                 <div class="symlink-icon"><div class="symlink-arrow"></div></div>
                             {/if}
                             <FileIcon {item} size={LARGE_ICON_SIZE} showThumbnail={true} />

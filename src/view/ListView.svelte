@@ -134,7 +134,7 @@
                                 class:hidden-folder={item.fileType == "HiddenFolder"}
                                 data-file-id={item.id}
                             >
-                                {#if item.linkPath}
+                                {#if item.entityType == "SymlinkFile" || item.entityType == "SymlinkFolder"}
                                     <div class="symlink-icon"><div class="symlink-arrow"></div></div>
                                 {/if}
                                 <FileIcon {item} size={16} showThumbnail={false} />
