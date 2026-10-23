@@ -43,7 +43,6 @@
     height: 100%;
     align-items: center;
     position:relative;
-    max-width: fit-content;
 }
 
 .titlebar-center{
