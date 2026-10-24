@@ -187,18 +187,21 @@ class Main {
         }
 
         try {
-            const allDirents = await util.readdir(directory, false, util.isRecycleBin(directory));
+            const isRecycleBin = util.isRecycleBin(directory);
+            const allDirents = await util.readdir(directory, false, isRecycleBin);
             const files = allDirents
                 .filter((dirent) => !dirent.attributes.is_system)
                 .map((dirent) => {
-                    const file = util.isRecycleBin(directory) ? util.toFileFromRecycleBinItem(dirent as Mp.RecycleBinItem) : util.toFile(dirent as Mp.Dirent);
+                    const file = isRecycleBin ? util.toFileFromRecycleBinItem(dirent as Mp.RecycleBinItem) : util.toFile(dirent as Mp.Dirent);
                     return file;
                 });
 
-            if (watchType == "Replace") {
-                this.startWatch(directory);
-            } else if (watchType == "Add") {
-                this.addWatch(directory);
+            if (!isRecycleBin) {
+                if (watchType == "Replace") {
+                    this.startWatch(directory);
+                } else if (watchType == "Add") {
+                    this.addWatch(directory);
+                }
             }
             return {
                 done: true,

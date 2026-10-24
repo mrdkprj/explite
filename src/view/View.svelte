@@ -1082,7 +1082,7 @@
     };
 
     const requestLoad = async (fullPath: string, isFile: boolean, navigation: Mp.Navigation, includeDrive = false) => {
-        if (!fullPath) return;
+        if (!fullPath && navigation != "Reload") return;
 
         if (!isFile && headerState.search.searching) {
             dispatch({ type: "endSearch" });
