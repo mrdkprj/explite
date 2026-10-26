@@ -739,7 +739,7 @@ fn detach_from_tab(removed: &Tab, size: Option<PhysicalSize<u32>>) {
 }
 
 unsafe extern "system" fn subclass_parent(hwnd: HWND, umsg: u32, wparam: WPARAM, lparam: LPARAM, _uidsubclass: usize, dwrefdata: usize) -> LRESULT {
-    if umsg == WM_WINDOWPOSCHANGED {
+    if umsg == WM_WINDOWPOSCHANGED && !IsIconic(hwnd).as_bool() {
         let mut rect = RECT::default();
 
         if GetClientRect(hwnd, &mut rect).is_ok() {
