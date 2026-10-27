@@ -1628,10 +1628,10 @@
     const onDeviceEvent = async (e: Mp.DeviceEvent) => {
         if (!e.name.includes("Disk") && !e.name.includes("Storage")) return;
 
-        const drives = e.event == "Added" ? await delayGetDrives() : driveState.drives;
+        const drives = await delayGetDrives();
 
         if (e.event == "Removed") {
-            const newMountPoints = drives.map((info) => info.path);
+            const newMountPoints = drives.map((drive) => drive.path);
             const removedMountPoints = driveState.drives.filter((info) => !newMountPoints.includes(info.path)).map((info) => info.path);
             const currentDirRoot = util.getRootDirectory(listState.currentDir.fullPath);
 
