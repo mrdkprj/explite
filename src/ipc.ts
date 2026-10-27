@@ -103,6 +103,7 @@ type IconInfo = {
 
 type TauriCommandMap = {
     prepare_menu: TauriCommand<ColumnWithLabel[], null>;
+    open_dev_tool: TauriCommand<null, null>;
     open_list_context_menu: TauriCommand<ContextMenuArg, null>;
     open_fav_context_menu: TauriCommand<Mp.Position, null>;
     open_recycle_context_menu: TauriCommand<ContextMenuArg, null>;

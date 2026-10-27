@@ -543,6 +543,11 @@ fn redo(window: WebviewWindow) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn open_dev_tool(window: WebviewWindow) {
+    window.open_devtools();
+}
+
+#[tauri::command]
 fn tab_request(window: WebviewWindow, payload: manager::TabRequest) -> bool {
     manager::on_tab_request(&window, payload)
 }
@@ -567,6 +572,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             prepare_menu,
+            open_dev_tool,
             open_list_context_menu,
             open_fav_context_menu,
             open_recycle_context_menu,

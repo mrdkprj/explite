@@ -1342,6 +1342,12 @@
     };
 
     const onkeyup = async (e: KeyboardEvent) => {
+        /* F12 can only be handled on keyup*/
+        if (e.key == "F12") {
+            ipc.invoke("open_dev_tool", null);
+            return;
+        }
+
         if (!handleKeyUp) return;
         handleKeyUp = false;
 
