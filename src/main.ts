@@ -747,10 +747,67 @@ class Main {
         await ipc.invoke("redo", null);
     };
 
+    private canUndoRedo = async (type: "Undo" | "Redo", fileOperation: Mp.FileOperation) => {
+        if (type == "Undo") {
+            switch (fileOperation.operation) {
+                case "Move": {
+                    const fromsExist = await Promise.all(fileOperation.from.map(async (filePath) => await util.exists(filePath)));
+                    const fromsExists = fromsExist.every((a) => a);
+                    const toExists = await util.exists(fileOperation.to);
+                    return fromsExists && toExists;
+                }
+
+                case "Delete": {
+                    const exist = await Promise.all(fileOperation.target.map(async (filePath) => await util.exists(filePath)));
+                    return exist.every((a) => a);
+                }
+
+                case "Undelete": {
+                    return true;
+                }
+
+                case "Rename": {
+                    return await util.exists(fileOperation.from[0]);
+                }
+
+                default:
+                    return false;
+            }
+        }
+
+        if (type == "Redo") {
+            switch (fileOperation.operation) {
+                case "Copy":
+                case "Move": {
+                    const fromsExist = await Promise.all(fileOperation.from.map(async (filePath) => await util.exists(filePath)));
+                    const fromsExists = fromsExist.every((a) => a);
+                    const toExists = await util.exists(fileOperation.to);
+                    return fromsExists && toExists;
+                }
+                case "Create":
+                    return true;
+
+                case "Trash":
+                    const exist = await Promise.all(fileOperation.target.map(async (filePath) => await util.exists(filePath)));
+                    return exist.every((a) => a);
+
+                case "Rename":
+                    return await util.exists(fileOperation.from[0]);
+
+                default:
+                    return false;
+            }
+        }
+    };
+
     /* Do nothing to files which will be changed by watcher */
     undo = async () => {
         const fileOperation = await this.history.undo();
         if (!fileOperation) return;
+
+        const canUndo = await this.canUndoRedo("Undo", fileOperation);
+        console.log(canUndo);
+        if (!canUndo) return;
 
         try {
             switch (fileOperation.operation) {
@@ -781,8 +838,10 @@ class Main {
 
     redo = async () => {
         const fileOperation = await this.history.redo();
-
         if (!fileOperation) return;
+
+        const canRedo = await this.canUndoRedo("Redo", fileOperation);
+        if (!canRedo) return;
 
         try {
             switch (fileOperation.operation) {
