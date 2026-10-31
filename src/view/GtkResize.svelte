@@ -1,5 +1,6 @@
 <script lang="ts">
     import { IPCBase } from "../ipc";
+    import { settings } from "./appStateReducer.svelte";
 
     const ipc = new IPCBase();
 
@@ -12,14 +13,16 @@
     };
 </script>
 
-<div class="resize-handle edge top" data-direction="North" onmousedown={dragResize} role="button" tabindex="-1"></div>
-<div class="resize-handle corner top-right" data-direction="NorthEast" onmousedown={dragResize} role="button" tabindex="-1"></div>
-<div class="resize-handle edge right" data-direction="East" onmousedown={dragResize} role="button" tabindex="-1"></div>
-<div class="resize-handle corner bottom-right" data-direction="SouthEast" onmousedown={dragResize} role="button" tabindex="-1"></div>
-<div class="resize-handle edge bottom" data-direction="South" onmousedown={dragResize} role="button" tabindex="-1"></div>
-<div class="resize-handle corner bottom-left" data-direction="SouthWest" onmousedown={dragResize} role="button" tabindex="-1"></div>
-<div class="resize-handle edge left" data-direction="West" onmousedown={dragResize} role="button" tabindex="-1"></div>
-<div class="resize-handle corner top-left" data-direction="NorthWest" onmousedown={dragResize} role="button" tabindex="-1"></div>
+{#if !settings.data.isMaximized}
+    <div class="resize-handle edge top" data-direction="North" onmousedown={dragResize} role="button" tabindex="-1"></div>
+    <div class="resize-handle corner top-right" data-direction="NorthEast" onmousedown={dragResize} role="button" tabindex="-1"></div>
+    <div class="resize-handle edge right" data-direction="East" onmousedown={dragResize} role="button" tabindex="-1"></div>
+    <div class="resize-handle corner bottom-right" data-direction="SouthEast" onmousedown={dragResize} role="button" tabindex="-1"></div>
+    <div class="resize-handle edge bottom" data-direction="South" onmousedown={dragResize} role="button" tabindex="-1"></div>
+    <div class="resize-handle corner bottom-left" data-direction="SouthWest" onmousedown={dragResize} role="button" tabindex="-1"></div>
+    <div class="resize-handle edge left" data-direction="West" onmousedown={dragResize} role="button" tabindex="-1"></div>
+    <div class="resize-handle corner top-left" data-direction="NorthWest" onmousedown={dragResize} role="button" tabindex="-1"></div>
+{/if}
 
 <style>
     /* Base style for all drag hitboxes */
