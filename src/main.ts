@@ -420,79 +420,6 @@ class Main {
         await ipc.invoke("open_terminal", { path: dir, admin });
     };
 
-    private getNewName = async (directory: string, isFile: boolean) => {
-        const name = isFile ? t("newFile") : t("newFolder");
-        const found = await util.exists(path.join(directory, isFile ? `${name}.txt` : name));
-        if (!found) return name;
-
-        let number = 1;
-        for (const _ of [...Array(100)]) {
-            const uniqueName = `${name}(${number})`;
-            const found = await util.exists(path.join(directory, isFile ? `${uniqueName}.txt` : uniqueName));
-            if (!found) return uniqueName;
-            number++;
-        }
-        return `${name}(${number})`;
-    };
-
-    createItem = async (directory: string, isFile: boolean): Promise<Mp.CreateItemResult> => {
-        const itemName = await this.getNewName(directory, isFile);
-        const fullPath = path.join(directory, isFile ? `${itemName}.txt` : itemName);
-
-        try {
-            if (isFile) {
-                await ipc.invoke("create", fullPath);
-            } else {
-                await ipc.invoke("mkdir", fullPath);
-            }
-
-            this.trackOperation("Create", [], "", [fullPath], isFile);
-
-            const newItemId = encodeURIComponent(fullPath);
-            return { newItemId, success: true };
-        } catch (ex: any) {
-            util.showErrorMessage(ex);
-            return { newItemId: "", success: false };
-        }
-    };
-
-    renameItem = async (fullPath: string, rawNewName: string): Promise<Mp.RenameResult> => {
-        const newName = fullPath.endsWith(LINK_EXTENSION) ? `${rawNewName.trimEnd()}${LINK_EXTENSION}` : rawNewName.trimEnd();
-        const newPath = path.join(path.dirname(fullPath), newName);
-
-        try {
-            const found = await util.exists(newPath);
-            if (found) {
-                throw new Error(`File name "${newName}" exists`);
-            }
-            await ipc.invoke("rename", { new: newPath, old: fullPath });
-
-            this.trackOperation("Rename", [fullPath], newPath, []);
-
-            return {
-                done: true,
-                newId: encodeURIComponent(newPath),
-            };
-        } catch (ex) {
-            util.showErrorMessage(ex);
-            return {
-                done: false,
-                newId: "",
-            };
-        }
-    };
-
-    trashItems = async (e: Mp.TrashItemRequest) => {
-        try {
-            const fullPaths = e.files.map((file) => file.fullPath);
-            await ipc.invoke("trash", fullPaths);
-
-            this.trackOperation("Trash", [], "", fullPaths);
-        } catch (ex: any) {
-            util.showErrorMessage(ex);
-        }
-    };
-
     deleteItems = async (e: Mp.TrashItemRequest) => {
         try {
             const result = await ipc.invoke("message", { dialog_type: "confirm", kind: "info", message: t("deleteConfirm"), ok_label: t("yes"), cancel_label: t("no") });
@@ -616,6 +543,79 @@ class Main {
         return true;
     }
 
+    private getNewName = async (directory: string, isFile: boolean) => {
+        const name = isFile ? t("newFile") : t("newFolder");
+        const found = await util.exists(path.join(directory, isFile ? `${name}.txt` : name));
+        if (!found) return name;
+
+        let number = 1;
+        for (const _ of [...Array(100)]) {
+            const uniqueName = `${name}(${number})`;
+            const found = await util.exists(path.join(directory, isFile ? `${uniqueName}.txt` : uniqueName));
+            if (!found) return uniqueName;
+            number++;
+        }
+        return `${name}(${number})`;
+    };
+
+    createItem = async (directory: string, isFile: boolean): Promise<Mp.CreateItemResult> => {
+        const itemName = await this.getNewName(directory, isFile);
+        const fullPath = path.join(directory, isFile ? `${itemName}.txt` : itemName);
+
+        try {
+            if (isFile) {
+                await ipc.invoke("create", fullPath);
+            } else {
+                await ipc.invoke("mkdir", fullPath);
+            }
+
+            this.trackOperation("Create", [], "", [fullPath], isFile);
+
+            const newItemId = encodeURIComponent(fullPath);
+            return { newItemId, success: true };
+        } catch (ex: any) {
+            util.showErrorMessage(ex);
+            return { newItemId: "", success: false };
+        }
+    };
+
+    renameItem = async (fullPath: string, rawNewName: string): Promise<Mp.RenameResult> => {
+        const newName = fullPath.endsWith(LINK_EXTENSION) ? `${rawNewName.trimEnd()}${LINK_EXTENSION}` : rawNewName.trimEnd();
+        const newPath = path.join(path.dirname(fullPath), newName);
+
+        try {
+            const found = await util.exists(newPath);
+            if (found) {
+                throw new Error(`File name "${newName}" exists`);
+            }
+            await ipc.invoke("rename", { new: newPath, old: fullPath });
+
+            this.trackOperation("Rename", [fullPath], newPath, []);
+
+            return {
+                done: true,
+                newId: encodeURIComponent(newPath),
+            };
+        } catch (ex) {
+            util.showErrorMessage(ex);
+            return {
+                done: false,
+                newId: "",
+            };
+        }
+    };
+
+    trashItems = async (e: Mp.TrashItemRequest) => {
+        try {
+            const fullPaths = e.files.map((file) => file.fullPath);
+            await ipc.invoke("trash", fullPaths);
+
+            this.trackOperation("Trash", [], "", fullPaths);
+        } catch (ex: any) {
+            util.showErrorMessage(ex);
+        }
+    };
+
     moveItems = async (e: Mp.MoveItemsRequest): Promise<Mp.MoveItemResult> => {
         if (!e.fullPaths.length) {
             return { fullPaths: [], done: false };
@@ -626,12 +626,10 @@ class Main {
         try {
             const from = e.fullPaths;
             const to = e.dir;
-            if (e.copy) {
-                await ipc.invoke("copy", { from, to });
-            } else {
-                await ipc.invoke("mv", { from, to });
-            }
-            this.trackOperation(e.copy ? "Copy" : "Move", from, to, []);
+
+            const result = e.copy ? await ipc.invoke("copy", { from, to }) : await ipc.invoke("mv", { from, to });
+            this.postMoveItesm(e, result);
+
             return {
                 fullPaths: movedPaths,
                 done: true,
@@ -639,6 +637,25 @@ class Main {
         } catch (ex: any) {
             util.showErrorMessage(ex);
             return { fullPaths: [], done: true };
+        }
+    };
+
+    private postMoveItesm = async (e: Mp.MoveItemsRequest, result: string[] | null) => {
+        if (e.copy) {
+            if (util.isLinux()) {
+                this.trackOperation("Copy", e.fullPaths, e.dir, []);
+            } else if (result && result.length) {
+                this.trackOperation("Copy", result, e.dir, []);
+            }
+        } else {
+            const moved = [];
+            for (const fullPath of e.fullPaths) {
+                const exists = await util.exists(fullPath);
+                if (!exists) {
+                    moved.push(fullPath);
+                }
+            }
+            this.trackOperation("Move", moved, e.dir, []);
         }
     };
 
@@ -806,7 +823,6 @@ class Main {
         if (!fileOperation) return;
 
         const canUndo = await this.canUndoRedo("Undo", fileOperation);
-        console.log(canUndo);
         if (!canUndo) return;
 
         try {

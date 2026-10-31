@@ -127,7 +127,7 @@ type TauriCommandMap = {
     undelete: TauriCommand<string[], null>;
     undelete_by_time: TauriCommand<Mp.DeleteUndeleteRequest[], null>;
     delete_from_recycle_bin: TauriCommand<Mp.DeleteUndeleteRequest[], null>;
-    copy: TauriCommand<CopyInfo, null>;
+    copy: TauriCommand<CopyInfo, string[] | null>;
     mv: TauriCommand<CopyInfo, null>;
     is_uris_available: TauriCommand<null, boolean>;
     read_uris: TauriCommand<null, Mp.ClipboardData>;

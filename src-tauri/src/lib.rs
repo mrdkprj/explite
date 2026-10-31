@@ -154,7 +154,7 @@ struct CopyInfo {
 
 #[cfg(windows)]
 #[tauri::command]
-async fn copy(payload: CopyInfo) -> Result<(), String> {
+async fn copy(payload: CopyInfo) -> Result<Vec<String>, String> {
     smol::spawn(async move { zouni::fs::copy_all(&payload.from, payload.to) }).await
 }
 
